@@ -1,0 +1,310 @@
+#------------------------------------------------------#
+#---------------- GENERAL IMPORTS ---------------------#
+#------------------------------------------------------#
+from datetime import datetime, timezone, timedelta
+import pause
+import sys
+
+#------------------------------------------------------#
+#-------------- PROJECT CLASS IMPORTS -----------------#
+#------------------------------------------------------#
+from classes.AzureBlobContainerManager import AzureBlobContainerManager, TimePrecision
+from classes.FCDInfluxDBManager import FCDInfluxDBManager
+from classes.Logger import Logger
+
+#------------------------------------------------------#
+#------------- PROJECT MODULE IMPORTS -----------------#
+#------------------------------------------------------#
+import lib.TomTomFcdAggregator as TomTomFcdAggregator
+import lib.FcdUtils as FcdUtils
+
+#------------------------------------------------------#
+#------------------ CONSTANTS -------------------------#
+#------------------------------------------------------#
+
+from lib.Constants.Constants import FCD_MAP_DATA_FILE_LOCATION
+from lib.Constants.Constants import MASTER_SEGMENT_HISTORY_FILE_LOCATION
+from lib.Constants.Constants import ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION
+
+from lib.Constants.Constants import FCD_HISTORY_START_DATE
+from lib.Constants.Constants import FCD_UPDATE_FREQUENCY
+from lib.Constants.Constants import MAX_FCD_DATA_BASE_UPDATE_DOWNTIME
+
+from lib.Constants.PrivateConstants import AZURE_ACCOUNT_NAME
+from lib.Constants.PrivateConstants import AZURE_CONTAINER_NAME
+from lib.Constants.PrivateConstants import AZURE_SAS_TOKEN
+
+from lib.Constants.PrivateConstants import INFLUX_DB_ORG
+from lib.Constants.PrivateConstants import INFLUX_DB_URL
+from lib.Constants.PrivateConstants import INFLUX_DB_FCD_BUCKET
+from lib.Constants.PrivateConstants import INFLUX_DB_FCD_TOKEN
+
+logger = Logger(__name__)
+
+def main():
+    """
+    Initializes and runs the continuous FCD synchronization service.
+
+    The service operates in two main phases:
+    1.  An initial "catch-up" sync on startup, which processes all historical
+        data from the last known timestamp in the database to the present.
+    2.  A perpetual 5-minute update cycle that fetches and processes only the
+        newest data, ensuring the database remains up to date.
+    """
+
+    azure_manager = AzureBlobContainerManager(AZURE_ACCOUNT_NAME, AZURE_CONTAINER_NAME,AZURE_SAS_TOKEN)
+
+    # Before starting the main loop, the current status of the database is checked.
+    # The assumption is that it is going to be out of sync, and the program will update it.
+
+    logger.info("###########################################")
+    logger.info("Updating FCD database on program start")
+    logger.info("###########################################")
+
+    if not initialize_database_update(azure_manager, update_fcd_mapping=True):
+        logger.error("Program failed to initialize database update, Exiting...")
+        sys.exit()
+
+    last_fcd_mapping_done = datetime.now(timezone.utc)
+
+    while True:
+        logger.info("###########################################")
+        logger.info("Update cycle started!")
+        logger.info("###########################################")
+
+        # Get current time
+        current_time = datetime.now(timezone.utc)
+
+        # Determine if the FCD mapping should be updated
+        update_fcd_mapping = (current_time - last_fcd_mapping_done) >= timedelta(minutes=FCD_UPDATE_FREQUENCY)
+
+        if update_fcd_database(azure_manager, current_time, update_fcd_mapping=update_fcd_mapping):
+            logger.info("FCD database update!")
+            if update_fcd_mapping:
+                last_fcd_mapping_done = current_time
+                FcdUtils.update_segment_changelog(FCD_MAP_DATA_FILE_LOCATION, MASTER_SEGMENT_HISTORY_FILE_LOCATION, ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION)
+        else:
+            logger.error(f"FCD database could not be updated, retrying in {FCD_UPDATE_FREQUENCY} minutes!")
+
+        # Pause the cycle until the next update. This time is defined in the TRAFFIC_DISTURBANCE_UPDATE_FREQUENCY variable (in minutes)
+        # Get a time stamp. Note timezone.
+        current_time = datetime.now(timezone.utc)
+
+        # Get the next FCD_UPDATE_FREQUENCY mark
+        minutes_to_add = FCD_UPDATE_FREQUENCY - (current_time.minute% FCD_UPDATE_FREQUENCY)
+        resume_time = current_time + timedelta(minutes=minutes_to_add)
+        resume_time = resume_time.replace(second=0, microsecond=0)
+
+        logger.info("###########################################")
+        logger.info(f"Update cycle finished at {current_time.strftime("%Y-%m-%d %H:%M:%S")}")
+        logger.info(f"Next update cycle scheduled at {resume_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info("###########################################")
+        pause.until(resume_time)
+
+def update_fcd_segment_mapping(fcd_segments: dict) -> bool:
+    """
+    This function updates the fcd segment mapping and writes it in a JSON file (FCD_MAP_DATA_FILE_LOCATION),
+    this is used for intersection detection with road disturbances.
+
+    Args:
+        fcd_segments: A dictionary containing FCD segment data in the FCD data model (docs/data_models.md).
+
+    Returns:
+        bool: True or False depending on if the fcd segment mapping was updated and written.
+    """
+
+    logger.info("Updating FCD segment mapping")
+    mapped_fcd_segments = FcdUtils.get_fcd_geometries(fcd_segments)
+    if mapped_fcd_segments:
+        return FcdUtils.write_json_records(mapped_fcd_segments, FCD_MAP_DATA_FILE_LOCATION)
+    else:
+        return False
+
+def initialize_database_update(azure_manager: AzureBlobContainerManager, update_fcd_mapping: bool = False) -> bool:
+    """
+    A function that checks the current status of the FCD database and updates it with the missing time (years, months, days).
+    This is meant to be run at the start of the program, before the regular update cycle is started.
+
+    Args:
+        azure_manager: AzureBlobContainerManager class object for downloading FCD blobs
+        update_fcd_mapping: bool, if the fcd mapping should be updated or not.
+    Returns:
+        True if the FCD database is updated, false otherwise.
+    """
+
+    try:
+        with FCDInfluxDBManager(url=INFLUX_DB_URL, token=INFLUX_DB_FCD_TOKEN, org=INFLUX_DB_ORG, bucket=INFLUX_DB_FCD_BUCKET) as manager:
+            if manager.check_connection():
+                data_base_last_update = manager.get_last_update_timestamp()
+                if data_base_last_update is None:
+                    logger.info(f"FCD data base is empty, updating from FCD history start date : {FCD_HISTORY_START_DATE}")
+                    data_base_last_update = datetime.strptime(FCD_HISTORY_START_DATE, "%Y-%m-%d")
+                else:
+                    logger.info(f"FCD data base last updated at {data_base_last_update.date()}")
+
+                # Begin the database update loop, this will download to memory, process and update FCD history one day at a time,
+                # beginning from the start of the history (FCD_HISTORY_START_DATE).
+                # This way the program can catch the most recent update during the last update of the cycle (current day).
+
+                # Find if there are any folders in the Azure container.
+                search_prefixes = azure_manager.get_search_prefixes()
+                if not search_prefixes:
+                    logger.error("No search prefixes found. Cannot proceed.")
+                    return False
+
+                # Iinit the datetime iterator
+                date_i =  data_base_last_update
+
+                while date_i.date() <= datetime.now(timezone.utc).date():
+                    # An aggregation dictionary used for FCD segments. This is incase there are multiple folders in the container.
+                    daily_aggregated_data = {}
+
+                    for search_prefix in search_prefixes:
+                        # Get the blobs that fall in the time frame (day).
+                        blobs_to_process = azure_manager.get_blobs_by_prefix(date_i, TimePrecision.DAY, search_prefix)
+
+                        # Use the helper function to process the blobs.
+                        folder_aggregated_data  = _process_and_update_blob_list(blobs_to_process, azure_manager)
+
+                        # Update the aggregation dictionary if we have new segment data.
+                        if folder_aggregated_data:
+                            daily_aggregated_data = TomTomFcdAggregator.update_tomtom_json_data_for_aggregation_file(folder_aggregated_data, daily_aggregated_data)
+                        else:
+                            logger.info(f"No processable blobs found for day {date_i.date()} on folder {search_prefix}")
+
+                    # Update the FCD database with the current day if we have data from this day.
+                    if daily_aggregated_data:
+                        logger.info(f"Updating FCD segment data to the database for day {date_i.date()}")
+
+                        # Sort the data by date, A "nice to have" function.
+                        final_daily_file = TomTomFcdAggregator.sort_tomtom_data_aggregation_file_by_date(daily_aggregated_data)
+
+                        manager.write_fcd_model(final_daily_file)
+
+                    # Update FCD after each day, this way we can catch up changes in the history.
+                    if update_fcd_mapping:
+                        if update_fcd_segment_mapping(final_daily_file):
+                            logger.info("FCD segment mapping updated")
+                            FcdUtils.update_segment_changelog(
+                                FCD_MAP_DATA_FILE_LOCATION,
+                                MASTER_SEGMENT_HISTORY_FILE_LOCATION,
+                                ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION,
+                            )
+                        else:
+                            logger.error("FCD segment mapping update failed")
+
+                    date_i += timedelta(days=1)
+            else:
+                logger.error("FCD data base update failed")
+                return False
+        # If no errors have occurred, return True for a successful update.
+        logger.info("FCD segments updated to the database!")
+        return True
+    except Exception as e:
+        logger.error(f"FCD database update failed: {e}")
+        return False
+
+def update_fcd_database(azure_manager: AzureBlobContainerManager,current_time:datetime, update_fcd_mapping: bool = False) -> bool:
+    """"
+    A function that checks the last update from the FCD database and updates it with the missing time (target frequency: every 5 minutes).
+    This function is not meant to be used for database initialization (use initialize_database_update() for that),
+    because it does not address possible memory limitations of the host machine.
+    This function is meant to be used only in short (less than 24 hours) update cycles.
+
+
+    Args:
+        azure_manager: AzureBlobContainerManager class object for downloading FCD blobs
+        current_time: datetime, current time to compare against the las database update timestamp.
+        update_fcd_mapping: bool, if the fcd mapping should be updated or not.
+    Returns:
+        True if the FCD database is updated, false otherwise.
+        """
+
+    try:
+        with FCDInfluxDBManager(url=INFLUX_DB_URL, token=INFLUX_DB_FCD_TOKEN, org=INFLUX_DB_ORG, bucket=INFLUX_DB_FCD_BUCKET) as manager:
+            if manager.check_connection():
+                data_base_last_update = manager.get_last_update_timestamp()
+                if data_base_last_update is None:
+                    logger.info("FCD data base is empty! Please run the initialize_database_update() function! Aborting..")
+                    return False
+
+                if (current_time - data_base_last_update) >= timedelta(days=MAX_FCD_DATA_BASE_UPDATE_DOWNTIME):
+                    logger.info(f"Last FCD data base update is older than {MAX_FCD_DATA_BASE_UPDATE_DOWNTIME} days! Please run the initialize_database_update() function! Aborting..")
+                    return False
+
+                logger.info(f"FCD data base last updated at {data_base_last_update}, updating to current time {current_time}")
+
+                # Get the blobs that fall in the last update - current time frame.
+                blobs_to_process = azure_manager.get_blobs_in_range(data_base_last_update, current_time)
+
+                # Use the helper function to process the blobs.
+                fcd_database_update_file = _process_and_update_blob_list(blobs_to_process, azure_manager)
+
+                # Update the FCD database if there is dictionary is not empty.
+                if fcd_database_update_file:
+                    manager.write_fcd_model(fcd_database_update_file)
+
+                    # Update the FCD geometry from the last observation batch if it defined in the function argument.
+                    if update_fcd_mapping:
+                        if update_fcd_segment_mapping(fcd_database_update_file):
+                            logger.info("FCD segment mapping updated")
+                        else:
+                            logger.error("FCD segment mapping update failed")
+                else:
+                    logger.info("No new data found for DATA base update.")
+                    return True
+            else:
+                logger.error("FCD data base update failed")
+                return False
+        # If no errors have occurred, return True for a successful update.
+        logger.info("FCD segments updated to the database!")
+        return True
+    except Exception as e:
+        logger.error(f"FCD database update failed: {e}")
+        return False
+
+def _process_and_update_blob_list(blobs_to_process: list, azure_manager: AzureBlobContainerManager) -> dict:
+    """
+    Helper to process a list of blobs, returning a single aggregated data dictionary.
+    """
+    if not blobs_to_process:
+        return {}
+
+    aggregated_fcd_data = {}
+    # Iterate through the blobs found.
+    for i, blob in enumerate(blobs_to_process):
+
+        blob_name = blob.name
+        logger.info(f"Processing blob {i + 1}/{len(blobs_to_process)}: '{blob_name}'")
+
+        # Get the blob timestamp from the blob name
+        blob_timestamp_str = FcdUtils.extract_timestamp_str_from_file_name(blob_name)
+        if blob_timestamp_str is None:
+            logger.warning(f"Skipping blob '{blob_name}' due to inability to extract timestamp.")
+            continue
+
+        # Download the blob
+        blob_content_bytes = azure_manager.download_blob_content(blob_name)
+        if blob_content_bytes is None:
+            logger.warning(f"Skipping blob '{blob_name}', download returned no content.")
+            continue
+
+        # Parse the blob content to a JSON dictionary
+        blob_raw_data = FcdUtils.parse_json_from_bytes(blob_content_bytes)
+        if blob_raw_data is None:
+            logger.warning(f"Skipping blob '{blob_name}', downloaded content could not be parsed.")
+            continue
+        # Transform the blob raw data to the FCD data model
+        transformed_items = TomTomFcdAggregator.transform_single_tomtom_json_data_for_aggregation(blob_raw_data, blob_timestamp_str, blob_name)
+        # Aggregate the Transformed blob raw data to form a dictionary that contains the whole days observations.
+        aggregated_fcd_data = TomTomFcdAggregator.update_tomtom_json_data_for_aggregation_file(transformed_items, aggregated_fcd_data)
+
+    # Sort the Aggregated file based on date (this is a non-critical, "nice to have" thing)
+    fcd_database_update_file = TomTomFcdAggregator.sort_tomtom_data_aggregation_file_by_date(aggregated_fcd_data)
+
+    # Return the aggregated and sorted FCD dictionary for database update.
+    return fcd_database_update_file
+
+if __name__ == "__main__":
+    logger.info("Starting program!.")
+    main()
