@@ -1,0 +1,60 @@
+# IDEs and editors
+.idea/
+.vscode/
+.cursor/
+
+# Python virtual environments
+.venv/
+venv/
+env/
+
+# uv
+uv.lock
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution files
+dist/
+build/
+*.egg-info/
+
+# Tests and coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Linting and formatting
+.ruff_cache/
+.mypy_cache/
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+media/
+static/
+*.pot
+
+# FastAPI
+.env
+.env.local
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Others
+*.bak
+*.swp
+*.swo
+.DS_Store
+
+# Project speficics
+
+/data
+/lib/Constants/PrivateConstants.py
