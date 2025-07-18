@@ -55,7 +55,7 @@ graph
     FcdDataMapProcessing  --"Archive Segments not in current state" --> FcdMappingArchiveHistory
     
     FcdDataModelProcessing -- "Segment timeseries" --> FcdDataInfluxProcessing
-    FcdDataInfluxProcessing --> FcdBucket
+    FcdDataInfluxProcessing -- "Segment timeseries" --> FcdBucket
     
     %% Traffic disturbance processing
     RoadWorks -- "Raw traffic disturbance data" --> TrafficDisturbanceDataRequest
