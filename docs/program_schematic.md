@@ -40,6 +40,11 @@ graph
         IdeaWorker("IDEA workers<br>'independent segment profiling and validation'"):::idea_worker
     end
     
+    subgraph RoadSegmentState["Road segments current state"]
+        
+    end
+    
+    
     %% FCD processing
     TomTomBlobContainer -- "Raw Tom Tom fcd data" --> FcdDataRequest
     FcdDataRequest --> FcdDataModelProcessing
@@ -65,5 +70,7 @@ graph
     IdeaManager --"Create idea worker for each segment to be validated<br>Pass disturbance information" --> IdeaWorker
     FcdBucket -- "Get segment timeseries" --> IdeaWorker
     IdeaWorker --"update segment validation" --> IdeaBucket
+    
+    IdeaBucket -...-> RoadSegmentState
     
 ``` 
