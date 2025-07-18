@@ -1,5 +1,5 @@
 ```mermaid
-graph LR
+graph
     subgraph azureStorage["AZURE FCD blob storage"]
         TomTomBlobContainer("Tom Tom FCD container"):::db_bucket
     end
