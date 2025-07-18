@@ -6,7 +6,6 @@ graph
     
     subgraph TrafficDisturbanceWFS["Traffic Disturbance WFS service"]
         RoadWorks("Planned roadworks")
-        LandLeases("Land leases<br>[Not used in the program]")
     end
     
     subgraph DisturbanceManager["Traffic disturbance manager"]
