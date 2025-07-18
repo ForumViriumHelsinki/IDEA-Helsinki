@@ -122,32 +122,34 @@ class IdeaHelsinkiRoadSegment:
         current_date = datetime.now(timezone.utc)
 
         self.logger.info("Starting main loop...")
-        self.logger.info("Performing check on FCD history validity for the segment ")
 
-        # Determine if the segment has history enough for the IDEA algorithm.
-        # Fetch the latest measurement time for the segment.
-        segment_history_start_date = await self.__get_segment_first_timestamp_from_influxdb(self.segment_id)
-        self.last_validation_update = await self.__get_segment_last_timestamp_from_influxdb(self.segment_id)
+        while self.disturbance_end_date.date() > current_date.date():
+            # Update current time in loop
+            current_date = datetime.now(timezone.utc)
 
-        valid_segment = segment_history_start_date is not None and self.last_validation_update is not None and (segment_history_start_date + timedelta(weeks=self.profile_time_frame_weeks) <= current_date)
+            # Check is segment profiling and validation can be done
+            # Determine if the segment has history enough for the IDEA algorithm.
+            # Fetch the latest measurement time for the segment.
+            segment_history_start_date = (await self.__get_segment_first_timestamp_from_influxdb(self.segment_id))
 
-        # If the segment is deemed valid, it can start the validation loop.
-        if valid_segment:
-            self.logger.info(f"Segment is valid for profiling and validation! Segment history start date: {segment_history_start_date}, Last segment update date: {self.last_validation_update}")
-            while self.disturbance_end_date.date() > current_date.date():
-                # Update current time in loop
-                current_date = datetime.now(timezone.utc)
+            # self.last_validation_update variable can be None if this is the first run after object init, or the last influxDB query returned None.
+            # Otherwise, the variable is incremented (datetime) after each validation.
+            if self.last_validation_update is None:
+                self.last_validation_update = (await self.__get_segment_last_timestamp_from_influxdb(self.segment_id))
 
+            valid_segment = (segment_history_start_date is not None and self.last_validation_update is not None and (segment_history_start_date+ timedelta(weeks=self.profile_time_frame_weeks)<= current_date))
+
+            if valid_segment:
                 if self.profiling_start_date.date() <= current_date.date():
                     await self.__validate_segment(current_date)
-                await self._wait_for_next_cycle()
+            else:
+                self.logger.warning(f"Segment is not valid for profiling and validation!!! Segment history start date: {segment_history_start_date}, Last segment update date: {self.last_validation_update}")
 
-            self.logger.info("Main loop finished. Disturbance period has ended.")
-        else:
-            self.logger.warning("Segment is not valid for profiling and validation, terminating...")
+            await self._wait_for_next_cycle()
 
         # Once the main loop has finished, the segment deactivates itself and can be removed from processing.
         # This means there is no more go-go-jee-jee for this segment :(
+        self.logger.info("Main loop finished. Disturbance period has ended.")
         self.segment_active = False
 
     async def __write_dataframe_to_influxdb(self, df: pd.DataFrame, segment_id: str, measurement_name: str) -> bool:
