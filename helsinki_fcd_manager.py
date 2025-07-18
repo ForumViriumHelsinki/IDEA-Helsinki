@@ -82,7 +82,7 @@ def main():
             logger.info("FCD database update!")
             if update_fcd_mapping:
                 last_fcd_mapping_done = current_time
-                FcdUtils.update_segment_changelog(FCD_MAP_DATA_FILE_LOCATION, MASTER_SEGMENT_HISTORY_FILE_LOCATION, ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION)
+                FcdUtils.update_segment_changelog(FCD_MAP_DATA_FILE_LOCATION, MASTER_SEGMENT_HISTORY_FILE_LOCATION, ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION, current_time)
         else:
             logger.error(f"FCD database could not be updated, retrying in {FCD_UPDATE_FREQUENCY} minutes!")
 
@@ -189,6 +189,7 @@ def initialize_database_update(azure_manager: AzureBlobContainerManager, update_
                                 FCD_MAP_DATA_FILE_LOCATION,
                                 MASTER_SEGMENT_HISTORY_FILE_LOCATION,
                                 ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION,
+                                date_i
                             )
                         else:
                             logger.error("FCD segment mapping update failed")

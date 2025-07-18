@@ -163,7 +163,7 @@ def read_existing_json_records(json_file: str) -> dict:
             logger.error(f"Error reading or parsing existing JSON file '{json_file}': {e}. It will be overwritten.")
     return records
 
-def update_segment_changelog(fresh_mapping_file_path: str,changelog_file_path: str,archive_file_path: str) -> None:
+def update_segment_changelog(fresh_mapping_file_path: str,changelog_file_path: str,archive_file_path: str, processing_date: datetime) -> None:
     """
     Compares a fresh segment mapping file against a master changelog to detect,
     log, and catalog segment changes, moving removed segments to an archive.
@@ -173,6 +173,7 @@ def update_segment_changelog(fresh_mapping_file_path: str,changelog_file_path: s
         fresh_mapping_file_path: Path to the new segments_mapping.json.
         changelog_file_path: Path to the persistent JSON changelog file.
         archive_file_path: Path to the JSON archive for removed segments.
+        processing_date: Date the segment changelog was processed (datetime.now(timezone.utc)) or if processing historical data, the past date for processing.
     """
     # Prepare the Path variables
     changelog_path = Path(changelog_file_path)
@@ -220,7 +221,7 @@ def update_segment_changelog(fresh_mapping_file_path: str,changelog_file_path: s
         logger.warning(f"DETECTED {len(removed_segments_ids)} REMOVED SEGMENTS: {list(removed_segments_ids)}")
         for seg_id in removed_segments_ids:
             removed_record = changelog.pop(seg_id)
-            removed_record['archived_at'] = datetime.now(timezone.utc).isoformat()
+            removed_record['archived_at'] = processing_date.isoformat()
             archived_segments[seg_id] = removed_record
 
     # Check for new segments and segments that have been modified.
@@ -245,7 +246,7 @@ def update_segment_changelog(fresh_mapping_file_path: str,changelog_file_path: s
 
             # Archive the old state to its history
             archive_entry = {
-                "archived_at": datetime.now(timezone.utc).isoformat(),
+                "archived_at": processing_date.isoformat(),
                 "geometry": changelog[seg_id]["current_geometry"]
             }
             changelog[seg_id]["history"].append(archive_entry)
