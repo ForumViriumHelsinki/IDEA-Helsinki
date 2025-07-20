@@ -40,6 +40,8 @@
 
 Data model used for intersection detection.
 
+*segments_mapping.json* naming used in the current program.
+
 ```json
 {
   "segmentId":  {
@@ -80,9 +82,114 @@ Data model used for intersection detection.
 }
 ```
 
+### FCD segment mapping history and archiving
 
-### FCD time series data model
+The assumption is that the **FCD segment mapping** represents the current state of the FCD segment geometries, but since these can change, the program uses two (2) data models to follow the changes.
+
+#### Master segment history
+
+Data model for keeping track of current geometry for segments and recording changes to them.  
+*master_segment_history.json* naming used in the current program.
+
+```json
+{
+  "segmentId": "string" { // Unique identifier for the segment
+    "current_geometry" : {
+      "type": "LineString",
+      "coordinates": [
+          [
+            "longitude (float)",
+            "latitude (float)"
+          ],
+          [
+            "longitude (float)",
+            "latitude (float)"
+          ]
+          // ... more coordinate pairs...
+        ]
+      },
+    "current_hash": "SHA-256 String", // Hash of the current segment geometry, used for quick comparisson of current state.
+    "history": [ //If the current current geometry changes from the recorded geometry, the "old" current geometry is moved to the history list and the new geometry is recorded as the current geometry
+      {
+        "archived_at": "datetime, UTC ISO format", //When did the change occure.
+        "geometry": { // "old" geometry
+          "type": "LineString",
+          "coordinates": [
+            [
+              "longitude (float)", 
+              "latitude (float)"
+            ],
+            [
+              "longitude (float)",
+              "latitude (float)"
+            ],
+            // ... more coordinate pairs...
+          ]
+        }
+      },
+      // More archived geometry
+    ]
+  }
+}
+
+```
+
+#### Archived segment history
+
+Data model for recording segments that have been removed.  
+*archived_segment_history.json* naming used in the current program.
+
+```json
+{
+  "segmentId": "string" { // Unique identifier for the segment
+    "current_geometry" : {
+      "type": "LineString",
+      "coordinates": [
+          [
+            "longitude (float)",
+            "latitude (float)"
+          ],
+          [
+            "longitude (float)",
+            "latitude (float)"
+          ]
+          // ... more coordinate pairs...
+        ]
+      },
+    "current_hash": "SHA-256 String", // Hash of the current segment geometry, used for quick comparisson of current state.
+    "history": [ //If the current current geometry changes from the recorded geometry, the "old" current geometry is moved to the history list and the new geometry is recorded as the current geometry
+      {
+        "archived_at": "datetime, UTC ISO format", //When did the change occure.
+        "geometry": { // "old" geometry
+          "type": "LineString",
+          "coordinates": [
+            [
+              "longitude (float)", 
+              "latitude (float)"
+            ],
+            [
+              "longitude (float)",
+              "latitude (float)"
+            ],
+            // ... more coordinate pairs...
+          ]
+        }
+      },
+      // More archived geometry
+    ],
+    "archived_at": "datetime, UTC ISO format", //When was the segment removed from the current state.
+  }
+}
+
+```
+
+
+### FCD time series data model **OLD**
 **!! LEGACY !!** Data model used to save TomTom segment history data **!! LEGACY !!**
+
+This was the original approach for modeling FCD data.  
+Discarded because it was doubtful this could be fitted with non TomTom FCD data.
+
 
 ```json
 {
