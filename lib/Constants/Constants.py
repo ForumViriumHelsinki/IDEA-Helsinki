@@ -7,12 +7,12 @@ PROFILE_TIME_FRAME_WEEKS = 26
 PROFILE_END_LEAD_TIME_HOURS = 48
 VALIDATION_UPDATE_FREQUENCY = 5 # In minutes
 
-# ALLU DEFAULTS
+# TRAFFIC DISTURBANCE PROVIDER DEFAULTS
 TRAFFIC_DISTURBANCE_UPDATE_FREQUENCY = 60 # In minutes
 ## File I/O
 TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION = "data/traffic_disturbance_data.json"
 
-# KYMP TOMTOM DEFAULTS
+# TOMTOM PROVIDER DEFAULTS
 FCD_UPDATE_FREQUENCY = 5 # In minutes
 
 # FCD database update max downtime. How old can the last database update be to be acceptable in the FCD_UPDATE_FREQUENCY update cycle?
