@@ -95,6 +95,11 @@ Data models mentioned in the *Program process schematic*, are detailed in the [d
 
 ## Next steps in the development
 
-1. Determine if data with geometry should be located in a database, instead of local storage.
+1. Evaluate the IDEA algorithm and enact modifications for segment validation precision
+   - Constraints:
+     - 6 moths of FCD segment history
+     - 5 minute observation intervals
+2. Determine if data with geometry should be located in a database, instead of local storage.
    - Note that in Cloud deployment, *local storage* naturally is the default storage container provided.
-2. 
+2. Methods of handling/managing segment geometry changes and their effect on timeseries history.
+3. Implement IDEA 2.0 modifications, when they are outlined, detailed and algorithms are made available to the project.
