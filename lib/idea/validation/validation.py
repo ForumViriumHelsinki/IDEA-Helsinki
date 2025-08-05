@@ -7,7 +7,7 @@ from lib.idea.validation.util import (
 )
 
 
-def validate_roadwork(fcd_during_roadwork: pd.DataFrame, profile: pd.DataFrame) -> pd.DataFrame:
+def validate_roadwork(fcd_during_roadwork: pd.DataFrame, profile: pd.DataFrame, last_segment_validation: pd.DataFrame) -> pd.DataFrame:
     """
     Validate roadwork periods using Floating Car Data (FCD) and a reference profile.
 
@@ -31,6 +31,10 @@ def validate_roadwork(fcd_during_roadwork: pd.DataFrame, profile: pd.DataFrame) 
         day. Typically, includes columns like `day_of_week`, `hour_of_day`, and expected FCD
         statistics.
 
+    last_segment_validation: pd.DataFrame
+        By default the IDEA validation DOES NOT handle validation for a single observation, because of this,
+        last_segment_validation is used as a reference.
+
     Returns
     -------
     pd.DataFrame
@@ -43,7 +47,8 @@ def validate_roadwork(fcd_during_roadwork: pd.DataFrame, profile: pd.DataFrame) 
     This function is useful in real-time or historical validations of traffic disruptions caused
     by roadworks.
     """
+
     df = calculate_minutes_no_coverage(fcd_during_roadwork)
     df = match_no_coverage_profile(df, profile)
-    df = determine_road_status_by_minute(df)
+    df = determine_road_status_by_minute(df, last_segment_validation)
     return df

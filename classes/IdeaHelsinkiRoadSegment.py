@@ -58,6 +58,7 @@ class IdeaHelsinkiRoadSegment:
         # This attribute init also checks if the segment has been already profiled (happens in cases when the program has been terminated unexpectedly)
         self.last_validation_update = None
         self.segment_profile = None
+        self.last_segment_validation = None
         self.segment_active:bool = True
         self.logger = Logger(f"Helsinki IDEA road segment ID : {self.segment_id}")
         self.logger.info("Segment object created")
@@ -89,6 +90,10 @@ class IdeaHelsinkiRoadSegment:
         Args:
             current_time (datetime): The current time UTC.
         """
+
+        # Sleep for 10 seconds before beginning validation, so the current segment data is updated and available.
+        await asyncio.sleep(10)
+
         if self.segment_profile is None:
             self.logger.info("Generating segment profile...")
             segment_data_to_profile = await self.__get_segment_data_from_influxdb(segment_id=self.segment_id, start_time=self.profiling_start_date, end_time=self.profiling_end_date)
@@ -104,13 +109,19 @@ class IdeaHelsinkiRoadSegment:
                 self.logger.error("Segment profile could not be generated")
                 return
 
-        self.logger.info(f"Validating segment for timestamps {self.last_validation_update} - {current_time} ")
-        segment_data_to_validate = await self.__get_segment_data_from_influxdb(segment_id=self.segment_id, start_time=self.last_validation_update, end_time=current_time)
+        if self.last_segment_validation is not None and not self.last_segment_validation.empty:
+            self.logger.info(f"Validating segment for timestamps {self.last_validation_update} - {current_time} ")
+            segment_data_to_validate = await self.__get_segment_data_from_influxdb(segment_id=self.segment_id, start_time=self.last_validation_update, end_time=current_time)
+        else:
+            self.logger.info(f"Validating segment for the first time from {self.profiling_start_date} to {current_time} ")
+            segment_data_to_validate = await self.__get_segment_data_from_influxdb(segment_id=self.segment_id,start_time=self.profiling_start_date,end_time=current_time)
+
         if segment_data_to_validate is not None and not segment_data_to_validate.empty:
-            segment_validation = await asyncio.to_thread(validate_roadwork,fcd_during_roadwork=segment_data_to_validate, profile=self.segment_profile)
+            segment_validation = await asyncio.to_thread(validate_roadwork,fcd_during_roadwork=segment_data_to_validate, profile=self.segment_profile, last_segment_validation=self.last_segment_validation)
             if not segment_validation.empty:
                 if await self.__write_dataframe_to_influxdb(df=segment_validation, segment_id=self.segment_id, measurement_name="idea_validation"):
                     self.logger.info("Segment validation updated to database.")
+                    self.last_segment_validation = segment_validation
                     self.last_validation_update = current_time
                 else:
                     self.logger.info('Segment validation NOT updated to database.')
@@ -272,7 +283,7 @@ class IdeaHelsinkiRoadSegment:
                     self.logger.error("FCD database query failed")
                     return None
 
-                segment_data_csv_str = await asyncio.to_thread(manager.get_segment_data_idea_format, segment_id = segment_id, start_time = start_time, end_time = end_time)
+                segment_data_csv_str = await asyncio.to_thread(manager.get_segment_data_idea_format, segment_id = segment_id, start_time = start_time, end_time = end_time, latest_only=False, interval_minutes=self.validation_frequency)
                 if not segment_data_csv_str:
                     self.logger.warning("FCD database query returned no results.")
                     return None

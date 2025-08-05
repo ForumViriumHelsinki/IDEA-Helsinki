@@ -279,7 +279,7 @@ def calculate_running_mean_based_on_conditions(
     return prev_running_mean  # No change
 
 
-def determine_road_status_by_minute(df_matched_profile: pd.DataFrame) -> pd.DataFrame:
+def determine_road_status_by_minute(df_matched_profile: pd.DataFrame, last_segment_validation: pd.DataFrame | None = None) -> pd.DataFrame:
     """
     Determines the road status per minute using a running mean based on profile coverage.
 
@@ -288,16 +288,26 @@ def determine_road_status_by_minute(df_matched_profile: pd.DataFrame) -> pd.Data
     df_matched_profile : pd.DataFrame
         Input DataFrame with profile and coverage columns.
 
+    last_segment_validation : pd.DataFrame | None
+    Last segment validation dataframe, if provided.
+
     Returns
     -------
     pd.DataFrame
         Updated DataFrame with running mean and SEGMENT_CLOSURE_STATUS.
     """
+
+    # When the validation cycle is started, the is no "last_segment_validation " for reference, hence, the default values are used for the running mean.
     prev_running_mean = 0.5
-    running_means = []
     previous_row = None
+    running_means = []
+
+    if last_segment_validation is not None and not last_segment_validation.empty:
+        prev_running_mean = last_segment_validation.iloc[-1]["running_mean"]
+        previous_row = last_segment_validation.iloc[-1].copy()
 
     for _, row in df_matched_profile.iterrows():
+
         if previous_row is None:
             running_means.append(prev_running_mean)
             previous_row = row.copy()
