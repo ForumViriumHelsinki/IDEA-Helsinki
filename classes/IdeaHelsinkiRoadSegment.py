@@ -57,6 +57,7 @@ class IdeaHelsinkiRoadSegment:
         self.profiling_start_date = IdeaHelsinkiDataPreProcessor.calculate_profiling_start_date(self.profiling_end_date, self.profile_time_frame_weeks)
         # This attribute init also checks if the segment has been already profiled (happens in cases when the program has been terminated unexpectedly)
         self.last_validation_update = None
+        self.segment_profile = None
         self.segment_active:bool = True
         self.logger = Logger(f"Helsinki IDEA road segment ID : {self.segment_id}")
         self.logger.info("Segment object created")
@@ -89,29 +90,34 @@ class IdeaHelsinkiRoadSegment:
             current_time (datetime): The current time UTC.
         """
         self.logger.info("Generating segment profile...")
-        segment_data_to_profile = await self.__get_segment_data_from_influxdb(self.segment_id, self.profiling_start_date, self.profiling_end_date)
-        if segment_data_to_profile is not None and not segment_data_to_profile.empty:
-            profile = await asyncio.to_thread(calculate_profile,df=segment_data_to_profile,start=self.profiling_start_date,end=self.profiling_end_date)
-            if not profile.empty:
-                self.logger.info("Segment profile generated")
-                self.logger.info(f"Validating segment for timestamps {self.last_validation_update} - {current_time} ")
-                segment_data_to_validate = await self.__get_segment_data_from_influxdb(self.segment_id, self.last_validation_update, current_time)
-                if segment_data_to_validate is not None and not segment_data_to_validate.empty:
-                    segment_validation = await asyncio.to_thread(validate_roadwork,segment_data_to_validate, profile)
-                    if not segment_validation.empty:
-                        if await self.__write_dataframe_to_influxdb(df=segment_validation, segment_id=self.segment_id, measurement_name="idea_validation"):
-                            self.logger.info("Segment validation updated to database.")
-                            self.last_validation_update = current_time
-                        else:
-                            self.logger.info('Segment validation NOT written to CSV file.')
-                    else:
-                        self.logger.info('IDEA returned an empty segment validation!')
+        if self.segment_profile is None:
+            segment_data_to_profile = await self.__get_segment_data_from_influxdb(self.segment_id, self.profiling_start_date, self.profiling_end_date)
+            if segment_data_to_profile is not None and not segment_data_to_profile.empty:
+                profile = await asyncio.to_thread(calculate_profile,df=segment_data_to_profile,start=self.profiling_start_date,end=self.profiling_end_date)
+                if not profile.empty:
+                    self.logger.info("Segment profile generated")
+                    self.segment_profile = profile
                 else:
-                    self.logger.info('Segment validation data could not be fetched from database.')
+                    self.logger.error("IDEA returned an empty segment profile")
+                    return
             else:
-                self.logger.error("IDEA returned an empty segment profile")
+                self.logger.error("Segment profile could not be generated")
+                return
+
+        self.logger.info(f"Validating segment for timestamps {self.last_validation_update} - {current_time} ")
+        segment_data_to_validate = await self.__get_segment_data_from_influxdb(self.segment_id, self.last_validation_update, current_time)
+        if segment_data_to_validate is not None and not segment_data_to_validate.empty:
+            segment_validation = await asyncio.to_thread(validate_roadwork,segment_data_to_validate, self.segment_profile)
+            if not segment_validation.empty:
+                if await self.__write_dataframe_to_influxdb(df=segment_validation, segment_id=self.segment_id, measurement_name="idea_validation"):
+                    self.logger.info("Segment validation updated to database.")
+                    self.last_validation_update = current_time
+                else:
+                    self.logger.info('Segment validation NOT updated to database.')
+            else:
+                self.logger.info('IDEA returned an empty segment validation!')
         else:
-            self.logger.error("Segment profile could not be generated and written!")
+            self.logger.info('Segment validation data could not be fetched from database.')
 
     async def run_lifecycle(self):
         """
@@ -302,7 +308,8 @@ class IdeaHelsinkiRoadSegment:
             self.profiling_end_date = IdeaHelsinkiDataPreProcessor.calculate_profiling_end_date(self.disturbance_start_date, self.profile_end_lead_time_hours)
             # Starting point for the profile history, (example. datetime 2025-1-10), based on the profiling_end_date.
             self.profiling_start_date = IdeaHelsinkiDataPreProcessor.calculate_profiling_start_date(self.profiling_end_date, self.profile_time_frame_weeks)
-            # Reassign the segment_profiled attribute to false. This change will be caught in the main loop, and the segment will be reprofiled if needed.
+            # Reassign the segment_profile attribute to None. This change will be caught in the main loop, and the segment will be reprofiled if needed.
+            self.segment_profile = None
 
         if new_disturbance_end_date.date() != self.disturbance_end_date.date():
             self.disturbance_end_date = new_disturbance_end_date
