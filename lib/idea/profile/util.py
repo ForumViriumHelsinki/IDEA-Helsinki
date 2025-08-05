@@ -32,7 +32,8 @@ def interpolate_missing_minutes(
     end: dt.datetime,
 ) -> pd.DataFrame:
     """Interpolate missing minutes, so we have a record for each segment for each minute."""
-    complete_index = pd.date_range(start=start, end=end, freq="min")
+    #complete_index = pd.date_range(start=start, end=end, freq="min")
+    complete_index = pd.date_range(start=start, end=end, freq="5min") # modified for 5-minute intervals
     return df.reindex(complete_index)
 
 
