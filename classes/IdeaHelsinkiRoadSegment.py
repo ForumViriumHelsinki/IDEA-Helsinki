@@ -50,11 +50,11 @@ class IdeaHelsinkiRoadSegment:
         self.db_fcd_token: str = db_fcd_token
         self.db_validation_bucket: str = db_validation_bucket
         self.db_validation_token: str = db_validation_token
-        self.disturbance_start_date, self.disturbance_end_date = IdeaHelsinkiDataPreProcessor.determine_disturbance_dates(reported_disturbances)
+        self.disturbance_start_date, self.disturbance_end_date = IdeaHelsinkiDataPreProcessor.determine_disturbance_dates(reported_disturbances=reported_disturbances)
         # End point for the profile history, (example. datetime 2025-6-10), based on the disturbance start date.
-        self.profiling_end_date = IdeaHelsinkiDataPreProcessor.calculate_profiling_end_date(self.disturbance_start_date, self.profile_end_lead_time_hours)
+        self.profiling_end_date = IdeaHelsinkiDataPreProcessor.calculate_profiling_end_date(disturbance_start_date=self.disturbance_start_date, lead_time_hours=self.profile_end_lead_time_hours)
         # Starting point for the profile history, (example. datetime 2025-1-10), based on the profiling_end_date.
-        self.profiling_start_date = IdeaHelsinkiDataPreProcessor.calculate_profiling_start_date(self.profiling_end_date, self.profile_time_frame_weeks)
+        self.profiling_start_date = IdeaHelsinkiDataPreProcessor.calculate_profiling_start_date(profiling_end_date=self.profiling_end_date, profile_time_frame_weeks=self.profile_time_frame_weeks)
         # This attribute init also checks if the segment has been already profiled (happens in cases when the program has been terminated unexpectedly)
         self.last_validation_update = None
         self.segment_profile = None
@@ -91,7 +91,7 @@ class IdeaHelsinkiRoadSegment:
         """
         if self.segment_profile is None:
             self.logger.info("Generating segment profile...")
-            segment_data_to_profile = await self.__get_segment_data_from_influxdb(self.segment_id, self.profiling_start_date, self.profiling_end_date)
+            segment_data_to_profile = await self.__get_segment_data_from_influxdb(segment_id=self.segment_id, start_time=self.profiling_start_date, end_time=self.profiling_end_date)
             if segment_data_to_profile is not None and not segment_data_to_profile.empty:
                 profile = await asyncio.to_thread(calculate_profile,df=segment_data_to_profile,start=self.profiling_start_date,end=self.profiling_end_date)
                 if not profile.empty:
@@ -103,11 +103,11 @@ class IdeaHelsinkiRoadSegment:
             else:
                 self.logger.error("Segment profile could not be generated")
                 return
-
+        #__get_segment_data_from_influxdb(self, segment_id: str, start_time: datetime, end_time: datetime)
         self.logger.info(f"Validating segment for timestamps {self.last_validation_update} - {current_time} ")
-        segment_data_to_validate = await self.__get_segment_data_from_influxdb(self.segment_id, self.last_validation_update, current_time)
+        segment_data_to_validate = await self.__get_segment_data_from_influxdb(segment_id=self.segment_id, start_time=self.last_validation_update, end_time=current_time)
         if segment_data_to_validate is not None and not segment_data_to_validate.empty:
-            segment_validation = await asyncio.to_thread(validate_roadwork,segment_data_to_validate, self.segment_profile)
+            segment_validation = await asyncio.to_thread(validate_roadwork,fcd_during_roadwork=segment_data_to_validate, profile=self.segment_profile)
             if not segment_validation.empty:
                 if await self.__write_dataframe_to_influxdb(df=segment_validation, segment_id=self.segment_id, measurement_name="idea_validation"):
                     self.logger.info("Segment validation updated to database.")
@@ -136,12 +136,12 @@ class IdeaHelsinkiRoadSegment:
             # Check is segment profiling and validation can be done
             # Determine if the segment has history enough for the IDEA algorithm.
             # Fetch the latest measurement time for the segment.
-            segment_history_start_date = (await self.__get_segment_first_timestamp_from_influxdb(self.segment_id))
+            segment_history_start_date = (await self.__get_segment_first_timestamp_from_influxdb(segment_id=self.segment_id))
 
             # self.last_validation_update variable can be None if this is the first run after object init, or the last influxDB query returned None.
             # Otherwise, the variable is incremented (datetime) after each validation.
             if self.last_validation_update is None:
-                self.last_validation_update = (await self.__get_segment_last_timestamp_from_influxdb(self.segment_id))
+                self.last_validation_update = (await self.__get_segment_last_timestamp_from_influxdb(segment_id=self.segment_id))
 
             valid_segment = (segment_history_start_date is not None and self.last_validation_update is not None and (segment_history_start_date+ timedelta(weeks=self.profile_time_frame_weeks)<= current_date))
 
@@ -299,15 +299,15 @@ class IdeaHelsinkiRoadSegment:
         This usually affects the start and/or end of the reported disturbances, which might affect the profiling dates.
         """
         self.logger.info("Updating segment with new disturbance data.")
-        new_disturbance_start_date, new_disturbance_end_date = IdeaHelsinkiDataPreProcessor.determine_disturbance_dates(reported_disturbances)
+        new_disturbance_start_date, new_disturbance_end_date = IdeaHelsinkiDataPreProcessor.determine_disturbance_dates(reported_disturbances=reported_disturbances)
 
         if new_disturbance_start_date.date() != self.disturbance_start_date.date():
             self.disturbance_start_date = new_disturbance_start_date
             # Recalculate the profiling dates
             # End point for the profile history, (example. datetime 2025-6-10), based on the disturbance start date.
-            self.profiling_end_date = IdeaHelsinkiDataPreProcessor.calculate_profiling_end_date(self.disturbance_start_date, self.profile_end_lead_time_hours)
+            self.profiling_end_date = IdeaHelsinkiDataPreProcessor.calculate_profiling_end_date(disturbance_start_date=self.disturbance_start_date, lead_time_hours=self.profile_end_lead_time_hours)
             # Starting point for the profile history, (example. datetime 2025-1-10), based on the profiling_end_date.
-            self.profiling_start_date = IdeaHelsinkiDataPreProcessor.calculate_profiling_start_date(self.profiling_end_date, self.profile_time_frame_weeks)
+            self.profiling_start_date = IdeaHelsinkiDataPreProcessor.calculate_profiling_start_date(profiling_end_date=self.profiling_end_date, profile_time_frame_weeks=self.profile_time_frame_weeks)
             # Reassign the segment_profile attribute to None. This change will be caught in the main loop, and the segment will be reprofiled if needed.
             self.segment_profile = None
 
