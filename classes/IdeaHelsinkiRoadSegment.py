@@ -103,7 +103,7 @@ class IdeaHelsinkiRoadSegment:
             else:
                 self.logger.error("Segment profile could not be generated")
                 return
-        #__get_segment_data_from_influxdb(self, segment_id: str, start_time: datetime, end_time: datetime)
+
         self.logger.info(f"Validating segment for timestamps {self.last_validation_update} - {current_time} ")
         segment_data_to_validate = await self.__get_segment_data_from_influxdb(segment_id=self.segment_id, start_time=self.last_validation_update, end_time=current_time)
         if segment_data_to_validate is not None and not segment_data_to_validate.empty:
