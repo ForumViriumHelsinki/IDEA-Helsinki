@@ -93,6 +93,12 @@ graph
 
 Data models mentioned in the *Program process schematic*, are detailed in the [data models](/docs/data_models.md) documentation.
 
+## HOT Fixes needed
+
+- **Non critical fixes**
+  - Update segment creation date to the master_segment_history.
+    - This can always be checked from the InfluxDB, but it will be more convenient if found in the master_segment_history file.  
+
 ## Next steps in the development
 
 1. Evaluate the IDEA algorithm and enact modifications for segment validation precision
