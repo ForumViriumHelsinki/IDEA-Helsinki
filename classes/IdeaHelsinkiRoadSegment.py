@@ -89,8 +89,8 @@ class IdeaHelsinkiRoadSegment:
         Args:
             current_time (datetime): The current time UTC.
         """
-        self.logger.info("Generating segment profile...")
         if self.segment_profile is None:
+            self.logger.info("Generating segment profile...")
             segment_data_to_profile = await self.__get_segment_data_from_influxdb(self.segment_id, self.profiling_start_date, self.profiling_end_date)
             if segment_data_to_profile is not None and not segment_data_to_profile.empty:
                 profile = await asyncio.to_thread(calculate_profile,df=segment_data_to_profile,start=self.profiling_start_date,end=self.profiling_end_date)
