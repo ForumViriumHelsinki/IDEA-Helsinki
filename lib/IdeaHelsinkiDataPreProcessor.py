@@ -115,10 +115,10 @@ def calculate_profiling_end_date(disturbance_start_date: datetime, lead_time_hou
     """
     current_date = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
 
-    if (disturbance_start_date - timedelta(hours=lead_time_hours)) > current_date:
+    if (disturbance_start_date - timedelta(hours=lead_time_hours)) < (current_date - timedelta(hours=lead_time_hours)):
         return disturbance_start_date - timedelta(hours=lead_time_hours)
     else:
-        return datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        return current_date
 
 def calculate_profiling_start_date(profiling_end_date: datetime, profile_time_frame_weeks: int) -> datetime:
     """
