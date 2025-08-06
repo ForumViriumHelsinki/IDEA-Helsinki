@@ -109,12 +109,9 @@ class IdeaHelsinkiRoadSegment:
                 self.logger.error("Segment profile could not be generated")
                 return
 
-        if self.last_segment_validation is not None and not self.last_segment_validation.empty:
-            self.logger.info(f"Validating segment for timestamps {self.last_validation_update} - {current_time} ")
-            segment_data_to_validate = await self.__get_segment_data_from_influxdb(segment_id=self.segment_id, start_time=self.last_validation_update, end_time=current_time)
-        else:
-            self.logger.info(f"Validating segment for the first time from {self.profiling_start_date} to {current_time} ")
-            segment_data_to_validate = await self.__get_segment_data_from_influxdb(segment_id=self.segment_id,start_time=self.profiling_start_date,end_time=current_time)
+
+        self.logger.info(f"Validating segment for timestamps {self.last_validation_update} - {current_time} ")
+        segment_data_to_validate = await self.__get_segment_data_from_influxdb(segment_id=self.segment_id, start_time=self.last_validation_update, end_time=current_time)
 
         if segment_data_to_validate is not None and not segment_data_to_validate.empty:
             segment_validation = await asyncio.to_thread(validate_roadwork,fcd_during_roadwork=segment_data_to_validate, profile=self.segment_profile, last_segment_validation=self.last_segment_validation)
@@ -157,8 +154,10 @@ class IdeaHelsinkiRoadSegment:
             valid_segment = (segment_history_start_date is not None and self.last_validation_update is not None and (segment_history_start_date+ timedelta(weeks=self.profile_time_frame_weeks)<= current_date))
 
             if valid_segment:
-                if self.profiling_start_date.date() <= current_date.date():
+                if self.profiling_end_date <= current_date.date():
                     await self.__validate_segment(current_date)
+                else:
+                    self.logger.info('Segment validation NOT started, disturbance validation window not active!')
             else:
                 self.logger.warning(f"Segment is not valid for profiling and validation!!! Segment history start date: {segment_history_start_date}, Last segment update date: {self.last_validation_update}")
 
@@ -250,7 +249,7 @@ class IdeaHelsinkiRoadSegment:
             end_time (datetime): The end time for the query.
 
         Returns:
-            pd.DataFrame | None if the query was unsuccessful.
+            pd.DataFrame or None if the query was unsuccessful.
 
             NOTE: This function returns the date frame in "IDEA" FCD format:
 
