@@ -24,6 +24,10 @@
             "date - string (yyyy-mm-ddThh:mm:ss) Timestamp from the original blob filename" : {
               "properties": { // Properties of the segment at this specific 'date'
                 "fcd_coverage": "integer" // calculated for the IDEA algoritmh based on the confidence attribute (for the now)
+                "averageSpeed": "integer",
+                "typicalSpeed": "integer",
+                "currentSpeed": "integer",
+                "confidence_level": "integer" // Mapped from 'confidence' in the source
                 // Potentially other relevant properties from the TomTom time specific segment can be added here if needed.
               }
             },
@@ -109,9 +113,10 @@ Data model for keeping track of current geometry for segments and recording chan
         ]
       },
     "current_hash": "SHA-256 String", // Hash of the current segment geometry, used for quick comparisson of current state.
+    "date_added": "datetime, UTC ISO format",// When was the current segment geometry added
     "history": [ //If the current current geometry changes from the recorded geometry, the "old" current geometry is moved to the history list and the new geometry is recorded as the current geometry
       {
-        "archived_at": "datetime, UTC ISO format", //When did the change occure.
+        "date_archived": "datetime, UTC ISO format", //When did the change occure.
         "geometry": { // "old" geometry
           "type": "LineString",
           "coordinates": [
@@ -177,7 +182,7 @@ Data model for recording segments that have been removed.
       },
       // More archived geometry
     ],
-    "archived_at": "datetime, UTC ISO format", //When was the segment removed from the current state.
+    "date_archived": "datetime, UTC ISO format", //When was the segment removed from the current state.
   }
 }
 
