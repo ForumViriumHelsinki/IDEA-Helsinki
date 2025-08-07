@@ -102,7 +102,7 @@ class IntersectionDetector:
             if not isinstance(data, dict):
                 raise IntersectionDetectorError("Segment data JSON is not a dictionary.")
             
-            segment_data = data.get("segmentId", {})
+            segment_data = data.get("segmentId")
             if not isinstance(segment_data, dict):
                 raise IntersectionDetectorError("SegmentIds data is not a dictionary.")
 

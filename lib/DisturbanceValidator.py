@@ -21,10 +21,6 @@ def validate_disturbance_dates(validation_date: datetime, disturbance_data: dict
     returns: 
         a dictionary containing the validated traffic disturbances (ones that IDEA can profile) or None if the disturbance_data cannot be validated.
     """
-    
-    if not isinstance(disturbance_data, dict):
-        logger.error('Disturbance data is not a dictionary')
-        return None
 
     features = disturbance_data.get("features")
     if not isinstance(features, list):
