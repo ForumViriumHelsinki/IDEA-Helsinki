@@ -4,7 +4,7 @@
 import re
 import json
 import hashlib
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 #------------------------------------------------------#
@@ -26,7 +26,7 @@ def get_fcd_geometries(fcd_file: dict) -> dict:
     if not fcd_file:
         return {}
 
-    segment_data = fcd_file.get("segmentId", {})
+    segment_data = fcd_file.get("segmentId")
     if not isinstance(segment_data, dict):
         logger.error("SegmentIds data is not a dictionary.")
         return {}
@@ -149,7 +149,7 @@ def read_existing_json_records(json_file: str) -> dict:
             with open(json_file_path, "r", encoding="utf-8") as f:
                 existing_content = json.load(f)
             if isinstance(existing_content, dict):
-                segment_ids = existing_content.get("segmentId", {})
+                segment_ids = existing_content.get("segmentId")
                 if isinstance(segment_ids, dict):
                     records = existing_content
                     logger.info(f"Read {len(segment_ids)} existing segment records from '{json_file_path}'.")
@@ -221,7 +221,7 @@ def update_segment_changelog(fresh_mapping_file_path: str,changelog_file_path: s
         logger.warning(f"DETECTED {len(removed_segments_ids)} REMOVED SEGMENTS: {list(removed_segments_ids)}")
         for seg_id in removed_segments_ids:
             removed_record = changelog.pop(seg_id)
-            removed_record['archived_at'] = processing_date.isoformat()
+            removed_record['date_archived'] = processing_date.isoformat()
             archived_segments[seg_id] = removed_record
 
     # Check for new segments and segments that have been modified.
@@ -238,6 +238,7 @@ def update_segment_changelog(fresh_mapping_file_path: str,changelog_file_path: s
             changelog[seg_id] = {
                 "current_geometry": geometry,
                 "current_hash": geom_hash,
+                "date_added": processing_date.isoformat(),
                 "history": []
             }
         elif changelog[seg_id]["current_hash"] != geom_hash:
@@ -246,7 +247,7 @@ def update_segment_changelog(fresh_mapping_file_path: str,changelog_file_path: s
 
             # Archive the old state to its history
             archive_entry = {
-                "archived_at": processing_date.isoformat(),
+                "date_archived": processing_date.isoformat(),
                 "geometry": changelog[seg_id]["current_geometry"]
             }
             changelog[seg_id]["history"].append(archive_entry)
