@@ -45,9 +45,6 @@ def validate_tomtom_aggregation_file(data: dict) -> dict:
     Returns:
         A validated dictionary or an empty dictionary.
     """
-    if not isinstance(data, dict):
-        logger.error("File type is not a Dictionary!")
-        return {}
     
     segment_ids = data.get("segmentId")
     if not isinstance(segment_ids, dict):
@@ -141,7 +138,11 @@ def transform_single_tomtom_json_data_for_aggregation(raw_data_from_tomtom_json:
             logger.warning(f"Shape data for segment {segment_id_str} in file '{file_name_for_log}' is not a list.")
 
         current_segment_properties = {
-            "fcd_coverage": convert_confidence_to_fcd_num(segment_data.get("confidence"))
+            "fcd_coverage": convert_confidence_to_fcd_num(segment_data.get("confidence")),
+            "averageSpeed": segment_data.get("averageSpeed"),
+            "typicalSpeed": segment_data.get("typicalSpeed"),
+            "currentSpeed": segment_data.get("currentSpeed"),
+            "confidence_level": segment_data.get("confidence")
         }
 
         time_variant_payload = {
