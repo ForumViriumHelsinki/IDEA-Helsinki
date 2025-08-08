@@ -28,11 +28,9 @@ def convert_confidence_to_fcd_num(confidence: int):
         return None
     if confidence <= 70:
         return 0
-    elif confidence >= 100:
-        return 10
     else:
-        # Linearly scale the value from the range (70, 100] to (0, 10]
-        return int(round(((confidence - 70) / (100 - 70)) * 10, 2))
+        scaled_value = ((confidence - 70) / (100 - 70)) * 10
+        return min(10, round(scaled_value))
 
 # Legacy function for FCD data model file validation.
 def validate_tomtom_aggregation_file(data: dict) -> dict:

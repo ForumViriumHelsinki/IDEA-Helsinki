@@ -198,3 +198,41 @@ class HelsinkiAlluWFSClient(HelsinkiWFSClient):
         Fetches 'Tilapainen_liikennejarjestely_piste' features.
         """
         return self.get_feature("Tilapainen_liikennejarjestely_piste")
+
+    def request_wfs_features_from_list(self, features_to_request: list[str]) -> dict:
+        """
+        Requests multiple features and aggregates them into a single FeatureCollection.
+
+        Args:
+            features_to_request: A list of feature identifiers to request.
+
+        Returns:
+            A dictionary representing a GeoJSON FeatureCollection containing all found features.
+            Returns an empty FeatureCollection if no features are found.
+        """
+
+        aggregated_wfs_features = {"type": "FeatureCollection", "features": []}
+
+        if not features_to_request:
+            return aggregated_wfs_features
+
+        for feature_id in features_to_request:
+            try:
+                wfs_response = self.get_feature(feature_id)
+                if wfs_response and "features" in wfs_response:
+                    features = wfs_response.get("features")
+                    aggregated_wfs_features["features"].extend(features)
+                else:
+                    self.logger.info(f"No features found for identifier: '{feature_id}'")
+
+            except Exception as e:
+                self.logger.error(f"An error occurred while requesting feature '{feature_id}': {e}")
+                continue
+
+        if not aggregated_wfs_features["features"]:
+            self.logger.warning(
+                f"No features were found for any of the {len(features_to_request)} requested identifiers."
+            )
+            return {}
+        else:
+            return aggregated_wfs_features

@@ -24,6 +24,7 @@ from lib.Constants.Constants import FCD_HISTORY_START_DATE
 from lib.Constants.Constants import PROFILE_TIME_FRAME_WEEKS
 from lib.Constants.Constants import FCD_MAP_DATA_FILE_LOCATION
 from lib.Constants.Constants import TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION
+from lib.Constants.Constants import TRAFFIC_DISTURBANCES_TO_MONITOR
 
 logger = Logger(__name__)
 
@@ -59,7 +60,7 @@ def main():
 
         try:
             with HelsinkiAlluWFSClient() as allu_client:
-                allu_wfs_data = allu_client.request_kaivuilmoitus_alue()
+                allu_wfs_data = allu_client.request_wfs_features_from_list(TRAFFIC_DISTURBANCES_TO_MONITOR)
         except Exception as e:
             logger.error(f"Failed to get data from Allu: {e}")
             continue

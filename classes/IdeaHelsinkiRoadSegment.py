@@ -157,7 +157,7 @@ class IdeaHelsinkiRoadSegment:
                 if self.profiling_end_date <= current_date.date():
                     await self.__validate_segment(current_date)
                 else:
-                    self.logger.info('Segment validation NOT started, disturbance validation window not active!')
+                    self.logger.info(f'Segment validation NOT started, disturbance validation is set to start at {self.profiling_end_date.date()}')
             else:
                 self.logger.warning(f"Segment is not valid for profiling and validation!!! Segment history start date: {segment_history_start_date}, Last segment update date: {self.last_validation_update}")
 

@@ -11,6 +11,8 @@ VALIDATION_UPDATE_FREQUENCY = 5 # In minutes
 TRAFFIC_DISTURBANCE_UPDATE_FREQUENCY = 60 # In minutes
 ## File I/O
 TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION = "data/traffic_disturbance_data.json"
+# What disturbances to monitor
+TRAFFIC_DISTURBANCES_TO_MONITOR = ["Kaivuilmoitus_alue","Kaivuilmoitus_piste", "Aluevuokraus_alue"]
 
 # TOMTOM PROVIDER DEFAULTS
 FCD_UPDATE_FREQUENCY = 5 # In minutes
