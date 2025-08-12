@@ -97,7 +97,7 @@ class FCDInfluxDBManager:
                 data_frame_tag_columns=["segmentId"],
                 data_frame_timestamp_column="time",
             )
-            self.logger.info(f"Successfully wrote {len(df_copy)} rows to measurement '{measurement_name}' {len(df_copy)} for segmentId '{segment_id}'.")
+            self.logger.info(f"Successfully wrote {len(df_copy)} rows to measurement '{measurement_name}' for segmentId '{segment_id}'.")
         except Exception as e:
             self.logger.error(f"Writing DataFrame to InfluxDB failed. {e}")
             raise
