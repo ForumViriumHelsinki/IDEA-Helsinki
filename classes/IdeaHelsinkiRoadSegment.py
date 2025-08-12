@@ -137,7 +137,9 @@ class IdeaHelsinkiRoadSegment:
 
         self.logger.info("Starting main loop...")
 
-        while self.disturbance_end_date.date() > current_date.date():
+        #while self.disturbance_end_date.date() > current_date.date():
+        #The IDEA road segment manager handles the lifecycle of the class loop.
+        while True:
             # Update current time in loop
             current_date = datetime.now(timezone.utc)
 
@@ -154,7 +156,7 @@ class IdeaHelsinkiRoadSegment:
             valid_segment = (segment_history_start_date is not None and self.last_validation_update is not None and (segment_history_start_date+ timedelta(weeks=self.profile_time_frame_weeks)<= current_date))
 
             if valid_segment:
-                if self.profiling_end_date <= current_date.date():
+                if self.profiling_end_date.date() <= current_date.date():
                     await self.__validate_segment(current_date)
                 else:
                     self.logger.info(f'Segment validation NOT started, disturbance validation is set to start at {self.profiling_end_date.date()}')
@@ -183,7 +185,7 @@ class IdeaHelsinkiRoadSegment:
         try:
             with FCDInfluxDBManager(url=self.db_url, token=self.db_validation_token, org=self.db_org, bucket=self.db_validation_bucket) as manager:
                 if not await asyncio.to_thread(manager.check_connection):
-                    self.logger.error("FCD database query failed")
+                    self.logger.error("FCD database connection error!")
                     return False
                 await asyncio.to_thread(manager.write_dataframe,df=df, segment_id=segment_id, measurement_name=measurement_name)
                 return True
@@ -207,7 +209,7 @@ class IdeaHelsinkiRoadSegment:
         try:
             with FCDInfluxDBManager(url=self.db_url, token=self.db_fcd_token, org=self.db_org, bucket=self.db_fcd_bucket) as manager:
                 if not await asyncio.to_thread(manager.check_connection):
-                    self.logger.error("FCD database query failed")
+                    self.logger.error("FCD database connection error!")
                     return None
                 segment_date = await asyncio.to_thread(manager.get_last_segment_update_timestamp, segment_id = segment_id)
         except Exception as e:
@@ -231,7 +233,7 @@ class IdeaHelsinkiRoadSegment:
         try:
             with FCDInfluxDBManager(url=self.db_url, token=self.db_fcd_token, org=self.db_org, bucket=self.db_fcd_bucket) as manager:
                 if not await asyncio.to_thread(manager.check_connection):
-                    self.logger.error("FCD database query failed")
+                    self.logger.error("FCD database connection error!")
                     return None
                 segment_date = await asyncio.to_thread(manager.get_first_segment_update_timestamp, segment_id = segment_id)
         except Exception as e:
