@@ -157,27 +157,29 @@ class FCDInfluxDBManager:
             self.logger.error(f"Querying last timestamp failed. {e}")
             raise
 
-    def get_last_segment_update_timestamp(self, segment_id: str, interval_minutes: int | None = None) -> datetime | None:
+    def get_segment_update_timestamp(self, segment_id: str, measurement_name: str, first_or_last: str, interval_minutes: int | None = None) -> datetime | None:
         """
-        Queries the InfluxDB database for the latest timestamp for a particular segment.
+        Queries the InfluxDB database for the first or last timestamp for a particular segment in a particular measurement.
 
-        NOTE! This returns the latest update timestamp of a measurement, not the timestamp then it was uploaded to InfluxDB.
-        This is used to determine the "validation" start point for a segment.
+        segment_id (str): The ID of the segment to query.
+        measurement_name (str): The name of the measurement to query.
+        first_or_last (str): String variable => "first" or "last"
+        interval_minutes (int): The interval for the measurements (every minute, 5 minutes, etc.). If none, no time aggregation is performed.
 
         Returns:
-            Timestamp of the latest measurement for the segment or None if no measurements were found (the segment is not in the database).
+            Timestamp of the measurement for the segment or None if no measurements were found (the segment is not in the database).
         """
         query_parts = [
             f'from(bucket: "{self.bucket}")',
             "|> range(start: 0)",
-            f'|> filter(fn: (r) => r._measurement == "segment_data" and r.segmentId == "{segment_id}")',
+            f'|> filter(fn: (r) => r._measurement == "{measurement_name}" and r.segmentId == "{segment_id}")',
         ]
         if interval_minutes and interval_minutes > 0:
             query_parts.append(
                 f"|> aggregateWindow(every: {interval_minutes}m, fn: last, createEmpty: false)"
             )
 
-        query_parts.extend(["|> last()", '|> keep(columns: ["_time"])'])
+        query_parts.extend([f"|> {first_or_last}()", '|> keep(columns: ["_time"])'])
 
         flux_query = " ".join(query_parts)
 
@@ -190,52 +192,52 @@ class FCDInfluxDBManager:
             self.logger.error(f"Querying last timestamp failed.{e}")
             raise
 
-    def get_first_segment_update_timestamp(self, segment_id: str, interval_minutes: int | None = None) -> datetime | None:
+    def get_last_segment_update_timestamp(self, segment_id: str, measurement_name: str, interval_minutes: int | None = None) -> datetime | None:
+        """
+        Queries the InfluxDB database for the latest timestamp for a particular segment.
+
+        NOTE! This returns the latest update timestamp of a measurement, not the timestamp then it was uploaded to InfluxDB.
+
+        segment_id (str): The ID of the segment to query.
+        measurement_name (str): The name of the measurement to query.
+        interval_minutes (int): The interval for the measurements (every minute, 5 minutes, etc.). If none, no time aggregation is performed.
+
+        Returns:
+            Timestamp of the latest measurement for the segment or None if no measurements were found (the segment is not in the database).
+        """
+        return self.get_segment_update_timestamp(segment_id=segment_id, measurement_name=measurement_name, first_or_last="last", interval_minutes=interval_minutes)
+
+    def get_first_segment_update_timestamp(self, segment_id: str, measurement_name: str, interval_minutes: int | None = None) -> datetime | None:
         """
         Queries the InfluxDB database for the first (earliest) timestamp for a particular segment.
 
         NOTE! This returns the latest update timestamp of a measurement, not the timestamp then it was uploaded to InfluxDB.
-        This is used to determine if the segment can be profiled per the IDEA timeframe requirements.
+
+        segment_id (str): The ID of the segment to query.
+        measurement_name (str): The name of the measurement to query.
+        interval_minutes (int): The interval for the measurements (every minute, 5 minutes, etc.). If none, no time aggregation is performed.
 
         Returns:
             Timestamp of the first measurement for the segment or None if no measurements were found (the segment is not in the database).
         """
-        query_parts = [
-            f'from(bucket: "{self.bucket}")',
-            "|> range(start: 0)",
-            f'|> filter(fn: (r) => r._measurement == "segment_data" and r.segmentId == "{segment_id}")',
-        ]
-        if interval_minutes and interval_minutes > 0:
-            query_parts.append(
-                f"|> aggregateWindow(every: {interval_minutes}m, fn: first, createEmpty: false)"
-            )
 
-        query_parts.extend(["|> first()", '|> keep(columns: ["_time"])'])
+        return self.get_segment_update_timestamp(segment_id=segment_id,measurement_name=measurement_name,first_or_last="first",interval_minutes=interval_minutes,)
 
-        flux_query = " ".join(query_parts)
-
-        try:
-            tables = self.query_api.query(query=flux_query, org=self.org)
-            if tables and tables[0].records:
-                return tables[0].records[0].get_time()
-            return None
-        except Exception as e:
-            self.logger.error(f"Querying last timestamp for segment '{segment_id}' failed. {e}")
-            raise
-
-    def get_segment_data_idea_format(self, segment_id: str, start_time: datetime = None, end_time: datetime = None, latest_only: bool = False, interval_minutes: int | None = None) -> str | None:
+    def get_segment_data_csv(self, segment_id: str, measurement_name: str, start_time: datetime = None, end_time: datetime = None, latest_only: bool = False, query_fields: list | None = None, interval_minutes: int | None = None) -> str | None:
         """
-        Queries the InfluxDB database for measurements from a segment. NOTE, this is an IDEA specific query.
+        Queries the InfluxDB database for measurements from a segment. NOTE, this queries ALL data in the measurements.
 
         Args:
             segment_id (str): The ID of the segment to query.
+            measurement_name (str): The name of the measurement to query.
             start_time (datetime): The start time of the query. If None, the query will be done from the earliest measurement timestamp.
             end_time (datetime): The end time of the query. If None, the query will be done from the latest measurement timestamp.
             latest_only (bool): If True, the query will return only the latest measurement.
+            query_fields: A list of specific fields to query. If None or empty, all fields are returned.
             interval_minutes (int): The interval for the measurements (every minute, 5 minutes, etc.).
 
         Returns:
-            An IDEA specific formated string for the found measurements to be used in the IDEA algorithm or None if nothing was found.
+            A CSV formated string for the found measurements or None if nothing was found.
         """
         query_body_parts = [f'from(bucket: "{self.bucket}")']
 
@@ -248,11 +250,16 @@ class FCDInfluxDBManager:
 
         query_body_parts.extend(
             [
-                '|> filter(fn: (r) => r._measurement == "segment_data")',
+                f'|> filter(fn: (r) => r._measurement == "{measurement_name}")',
                 f'|> filter(fn: (r) => r.segmentId == "{segment_id}")',
-                '|> filter(fn: (r) => r._field == "fcd_coverage")',
             ]
         )
+
+        # Determine if there are specific fields targeted in the query
+        if query_fields:
+            field_conditions = [f'r._field == "{field}"' for field in query_fields]
+            filter_logic = " or ".join(field_conditions)
+            query_body_parts.append(f"|> filter(fn: (r) => {filter_logic})")
 
         if interval_minutes and interval_minutes > 0:
             query_body_parts.append(
@@ -264,38 +271,34 @@ class FCDInfluxDBManager:
         else:
             query_body_parts.append('|> sort(columns: ["_time"])')
 
-        query_body_parts.append('|> keep(columns: ["_time", "_value"])')
-        flux_query = "\n".join(query_body_parts)
+        query_body_parts.append(
+            '|> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")'
+        )
+
+        flux_query = "".join(query_body_parts)
 
         try:
-            tables = self.query_api.query(query=flux_query, org=self.org)
-            lines = []
-            for table in tables:
-                for record in table.records:
-                    timestamp_formatted = (
-                        record.get_time().strftime("%Y-%m-%d %H:%M:%S") + "+00:00"
-                    )
-                    coverage = record.get_value()
-                    lines.append(f"{timestamp_formatted};{coverage}")
-            return "\n".join(lines)
+            return self._query_to_csv(flux_query)
         except Exception as e:
-            self.logger.error(f"An error occurred during segment profile query. {e}")
+            self.logger.error(f"An error occurred during segment data query. {e}")
             raise e
 
-    def get_segment_data_csv(self, segment_id: str, start_time: datetime = None, end_time: datetime = None, latest_only: bool = False) -> str | None:
+    def get_segment_data_dataframe(self, segment_id: str, measurement_name: str, start_time: datetime = None, end_time: datetime = None, latest_only: bool = False, query_fields: list | None = None, interval_minutes: int | None = None) -> pd.DataFrame | None:
         """
-        Queries the InfluxDB database for measurements from a segment. NOTE, this queries ALL data in the measurements.
+        Queries InfluxDB for segment data and returns it as a Pandas DataFrame.
 
         Args:
-            segment_id (str): The ID of the segment to query.
-            start_time (datetime): The start time of the query. If None, the query will be done from the earliest measurement timestamp.
-            end_time (datetime): The end time of the query. If None, the query will be done from the latest measurement timestamp.
-            latest_only (bool): If True, the query will return only the latest measurement.
+            segment_id: The ID of the FCD segment to query.
+            measurement_name: The name of the measurement.
+            start_time: The start time for the query. If None, the query will be done from the earliest measurement timestamp.
+            end_time: The end time for the query. If None, the query will be done from the latest measurement timestamp.
+            latest_only: If True, returns only the most recent data point.
+            query_fields: A list of specific fields to query. If None or empty, all fields are returned.
+            interval_minutes (int): The interval for the measurements (every minute, 5 minutes, etc.).
 
         Returns:
-            A CSV formated string for the found measurements or None if nothing was found.
+            A Pandas DataFrame containing the queried data, or None if an error occurs.
         """
-        query_header = 'import "date"\n\n'
         query_body_parts = [f'from(bucket: "{self.bucket}")']
 
         if latest_only:
@@ -307,11 +310,21 @@ class FCDInfluxDBManager:
 
         query_body_parts.extend(
             [
-                '|> filter(fn: (r) => r._measurement == "segment_data")',
+                f'|> filter(fn: (r) => r._measurement == "{measurement_name}")',
                 f'|> filter(fn: (r) => r.segmentId == "{segment_id}")',
-                '|> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")',
             ]
         )
+
+        # Determine if there are specific fields targeted in the query
+        if query_fields:
+            field_conditions = [f'r._field == "{field}"' for field in query_fields]
+            filter_logic = " or ".join(field_conditions)
+            query_body_parts.append(f"|> filter(fn: (r) => {filter_logic})")
+
+        if interval_minutes and interval_minutes > 0:
+            query_body_parts.append(
+                f"|> aggregateWindow(every: {interval_minutes}m, fn: last, createEmpty: false)"
+            )
 
         if latest_only:
             query_body_parts.append("|> last()")
@@ -319,12 +332,17 @@ class FCDInfluxDBManager:
             query_body_parts.append('|> sort(columns: ["_time"])')
 
         query_body_parts.append(
-            '|> map(fn: (r) => ({ r with _time: date.format(t: r._time, format: "yyyy-MM-dd HH:mm:ssXXX") }))'
+            '|> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")'
         )
-        flux_query = query_header + "\n".join(query_body_parts)
+
+        flux_query = "".join(query_body_parts)
 
         try:
-            return self._query_to_csv(flux_query)
+            df = self.query_api.query_data_frame(flux_query)
+            if df is not None and not df.empty and query_fields:
+                query_fields.insert(0, "_time")
+                df = df[query_fields]
+            return df
         except Exception as e:
             self.logger.error(f"An error occurred during segment data query. {e}")
             raise e
