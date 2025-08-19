@@ -2,7 +2,6 @@
 #---------------- GENERAL IMPORTS ---------------------#
 #------------------------------------------------------#
 import asyncio
-import io
 from datetime import datetime, timezone, timedelta
 import pandas as pd
 
@@ -64,6 +63,7 @@ class IdeaHelsinkiRoadSegment:
         self.logger.info("Segment object created")
 
     async def _wait_for_next_cycle(self):
+
         """
         Void method that pauses the road segment object until the next validation cycle.
         Bases the wait time on the "clock" to determine the number of seconds it needs to sleep.
@@ -96,7 +96,7 @@ class IdeaHelsinkiRoadSegment:
 
         if self.segment_profile is None:
             self.logger.info("Generating segment profile...")
-            segment_data_to_profile = await self.__get_segment_data_from_influxdb(segment_id=self.segment_id, start_time=self.profiling_start_date, end_time=self.profiling_end_date)
+            segment_data_to_profile = await self.__get_idea_formated_segment_data_from_influxdb(segment_id=self.segment_id, start_time=self.profiling_start_date, end_time=self.profiling_end_date)
             if segment_data_to_profile is not None and not segment_data_to_profile.empty:
                 profile = await asyncio.to_thread(calculate_profile,df=segment_data_to_profile,start=self.profiling_start_date,end=self.profiling_end_date)
                 if not profile.empty:
@@ -111,7 +111,10 @@ class IdeaHelsinkiRoadSegment:
 
 
         self.logger.info(f"Validating segment for timestamps {self.last_validation_update} - {current_time} ")
-        segment_data_to_validate = await self.__get_segment_data_from_influxdb(segment_id=self.segment_id, start_time=self.last_validation_update, end_time=current_time)
+        segment_data_to_validate = await self.__get_idea_formated_segment_data_from_influxdb(segment_id=self.segment_id, start_time=self.last_validation_update, end_time=current_time)
+
+        if self.last_segment_validation is None:
+            self.last_segment_validation = await self.__get_validation_dataframe_from_influxdb(segment_id=self.segment_id, start_time=(current_time-timedelta(weeks=1)), end_time=current_time)
 
         if segment_data_to_validate is not None and not segment_data_to_validate.empty:
             segment_validation = await asyncio.to_thread(validate_roadwork,fcd_during_roadwork=segment_data_to_validate, profile=self.segment_profile, last_segment_validation=self.last_segment_validation)
@@ -167,8 +170,9 @@ class IdeaHelsinkiRoadSegment:
 
         # Once the main loop has finished, the segment deactivates itself and can be removed from processing.
         # This means there is no more go-go-jee-jee for this segment :(
-        self.logger.info("Main loop finished. Disturbance period has ended.")
-        self.segment_active = False
+
+        #self.logger.info("Main loop finished. Disturbance period has ended.")
+        #self.segment_active = False
 
     async def __write_dataframe_to_influxdb(self, df: pd.DataFrame, segment_id: str, measurement_name: str) -> bool:
         """
@@ -211,7 +215,7 @@ class IdeaHelsinkiRoadSegment:
                 if not await asyncio.to_thread(manager.check_connection):
                     self.logger.error("FCD database connection error!")
                     return None
-                segment_date = await asyncio.to_thread(manager.get_last_segment_update_timestamp, segment_id = segment_id)
+                segment_date = await asyncio.to_thread(manager.get_last_segment_update_timestamp, segment_id = segment_id, measurement_name="segment_data")
         except Exception as e:
             self.logger.error(f"FCD database query failed: {e}")
 
@@ -235,13 +239,13 @@ class IdeaHelsinkiRoadSegment:
                 if not await asyncio.to_thread(manager.check_connection):
                     self.logger.error("FCD database connection error!")
                     return None
-                segment_date = await asyncio.to_thread(manager.get_first_segment_update_timestamp, segment_id = segment_id)
+                segment_date = await asyncio.to_thread(manager.get_first_segment_update_timestamp, segment_id = segment_id, measurement_name="segment_data")
         except Exception as e:
             self.logger.error(f"FCD database query failed: {e}")
 
         return segment_date
 
-    async def __get_segment_data_from_influxdb(self, segment_id: str, start_time: datetime, end_time: datetime) -> pd.DataFrame | None:
+    async def __get_idea_formated_segment_data_from_influxdb(self, segment_id: str, start_time: datetime, end_time: datetime) -> pd.DataFrame | None:
         """
         Retrieves measurement data from the InfluxDB database for a single segment.
 
@@ -259,47 +263,68 @@ class IdeaHelsinkiRoadSegment:
             datetime;integer
             datetime;integer
         """
-        segment_data_df = pd.DataFrame()
-        segment_data_csv: str
-
-        # A helper function the parse the data for the IDEA algorithm.
-        def _parse_csv_string_to_df(csv_data: str) -> pd.DataFrame | None:
-            if not csv_data:
-                return None
-            try:
-                return pd.read_csv(
-                    io.StringIO(csv_data),
-                    sep=";",
-                    names=["", "fcd"],
-                    index_col=0,
-                    parse_dates=[0],
-                )
-            except Exception as err:
-                self.logger.error(f"Pandas failed to parse CSV string: {err}")
-                return None
 
         try:
             with FCDInfluxDBManager(url=self.db_url, token=self.db_fcd_token, org=self.db_org, bucket=self.db_fcd_bucket) as manager:
                 if not await asyncio.to_thread(manager.check_connection):
-                    self.logger.error("FCD database query failed")
+                    self.logger.error("FCD database connection error!")
                     return None
 
-                segment_data_csv_str = await asyncio.to_thread(manager.get_segment_data_idea_format, segment_id = segment_id, start_time = start_time, end_time = end_time, latest_only=False, interval_minutes=self.validation_frequency)
-                if not segment_data_csv_str:
-                    self.logger.warning("FCD database query returned no results.")
-                    return None
-
-                segment_data_df = await asyncio.to_thread(_parse_csv_string_to_df, segment_data_csv_str)
+                segment_data_df = await asyncio.to_thread(manager.get_segment_data_dataframe,segment_id = segment_id,measurement_name="segment_data",start_time = start_time, end_time = end_time,latest_only=False, query_fields=["fcd_coverage"], interval_minutes=self.validation_frequency)
 
                 if segment_data_df is not None and not segment_data_df.empty:
+                    segment_data_df.set_index("_time", inplace=True)
+                    segment_data_df.index.name = ""
+                    segment_data_df.rename(columns={"fcd_coverage": "fcd"}, inplace=True)
                     return segment_data_df
                 else:
                     self.logger.warning("FCD database query returned no results")
+                    return None
         except Exception as e:
             self.logger.error(f"FCD database query failed: {e}")
             return None
 
-        return segment_data_df
+    async def __get_validation_dataframe_from_influxdb(self, segment_id: str, start_time: datetime = None, end_time: datetime = None) -> pd.DataFrame | None:
+        """
+            Get segment data as a pandas dataframe.
+
+            Args:
+                segment_id (str): The FCD segment ID.
+                start_time (datetime): The start time of the query. If None, the query will be done from the earliest measurement timestamp.
+                end_time (datetime): The end time of the query. If None, the query will be done from the latest measurement timestamp.
+
+            Returns:
+                 pd.DataFrame or None if the query was unsuccessful.
+        """
+
+        try:
+            with FCDInfluxDBManager(url=self.db_url,token=self.db_validation_token,org=self.db_org,bucket=self.db_validation_bucket) as manager:
+                if not await asyncio.to_thread(manager.check_connection):
+                    self.logger.error("FCD database connection error!")
+                    return None
+
+                validation_data_df = await asyncio.to_thread(
+                    manager.get_segment_data_dataframe,
+                    segment_id=segment_id,
+                    measurement_name="idea_validation",
+                    start_time=start_time,
+                    end_time=end_time,
+                    latest_only=True,
+                    query_fields=["fcd", "consecutive_zeros", "consecutive_low", "day_of_week", "hour_of_day", "max_consecutive_zeros_q95", "max_consecutive_zeros_or_ones_q95", "fcd_mean_median", "running_mean", "segment_closure_status"],
+                    interval_minutes=self.validation_frequency
+                )
+
+                if validation_data_df is not None and not validation_data_df.empty:
+                    validation_data_df.rename(
+                        columns={"_time": "time"}, inplace=True
+                    )
+                    return validation_data_df
+                else:
+                    self.logger.warning("FCD database query returned no results")
+                    return None
+        except Exception as e:
+            self.logger.error(f"FCD database query failed: {e}")
+            return None
 
     #------------------------------------------------------#
     #--------------- PUBLIC CLASS METHODS -----------------#
