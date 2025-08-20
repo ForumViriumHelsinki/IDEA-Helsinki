@@ -1,0 +1,47 @@
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: idea-helsinki
+build:
+  local:
+    push: false
+    useDockerCLI: true
+    useBuildkit: true
+    concurrency: 0
+  artifacts:
+    - image: idea-helsinki
+      context: .
+      docker:
+        dockerfile: services/idea-helsinki/Dockerfile
+    - image: fcd-manager
+      context: .
+      docker:
+        dockerfile: services/fcd-manager/Dockerfile
+    - image: traffic-monitor
+      context: .
+      docker:
+        dockerfile: services/traffic-monitor/Dockerfile
+manifests:
+  rawYaml:
+    - k8s/namespace.yaml
+    - k8s/secrets.yaml
+    - k8s/idea-helsinki-deployment.yaml
+    - k8s/fcd-manager-deployment.yaml
+    - k8s/traffic-monitor-deployment.yaml
+deploy:
+  kubeContext: orbstack
+  kubectl:
+    defaultNamespace: idea-helsinki
+profiles:
+  - name: with-services
+    manifests:
+      rawYaml:
+        - k8s/namespace.yaml
+        - k8s/secrets.yaml
+        - k8s/influxdb-deployment.yaml
+        - k8s/idea-helsinki-deployment.yaml
+        - k8s/fcd-manager-deployment.yaml
+        - k8s/traffic-monitor-deployment.yaml
+    deploy:
+      kubectl:
+        defaultNamespace: idea-helsinki

@@ -1,0 +1,17 @@
+{
+  "plugins": ["node-workspace"],
+  "packages": {
+    "services/idea-helsinki": {
+      "release-type": "python",
+      "component": "idea-helsinki"
+    },
+    "services/fcd-manager": {
+      "release-type": "python",
+      "component": "fcd-manager"
+    },
+    "services/traffic-monitor": {
+      "release-type": "python",
+      "component": "traffic-monitor"
+    }
+  }
+}
