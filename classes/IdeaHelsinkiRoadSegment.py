@@ -30,6 +30,7 @@ class IdeaHelsinkiRoadSegment:
         segment_id: str,
         reported_disturbances: list,
         validation_frequency: int,
+        validation_max_age_days: int,
         profile_time_frame_weeks: int,
         profile_end_lead_time_hours: int,
         db_org: str,
@@ -41,6 +42,7 @@ class IdeaHelsinkiRoadSegment:
     ):
         self.segment_id = segment_id
         self.validation_frequency: int = validation_frequency
+        self.validation_max_age_days = validation_max_age_days
         self.profile_time_frame_weeks: int = profile_time_frame_weeks
         self.profile_end_lead_time_hours: int = profile_end_lead_time_hours
         self.db_org: str = db_org
@@ -114,7 +116,7 @@ class IdeaHelsinkiRoadSegment:
         segment_data_to_validate = await self.__get_idea_formated_segment_data_from_influxdb(segment_id=self.segment_id, start_time=self.last_validation_update, end_time=current_time)
 
         if self.last_segment_validation is None:
-            self.last_segment_validation = await self.__get_validation_dataframe_from_influxdb(segment_id=self.segment_id, start_time=(current_time-timedelta(weeks=1)), end_time=current_time)
+            self.last_segment_validation = await self.__get_validation_dataframe_from_influxdb(segment_id=self.segment_id, start_time=(current_time-timedelta(days=self.validation_max_age_days)), end_time=current_time)
 
         if segment_data_to_validate is not None and not segment_data_to_validate.empty:
             segment_validation = await asyncio.to_thread(validate_roadwork,fcd_during_roadwork=segment_data_to_validate, profile=self.segment_profile, last_segment_validation=self.last_segment_validation)
@@ -136,7 +138,7 @@ class IdeaHelsinkiRoadSegment:
         Runs as long as the reported disturbance is active.
         """
 
-        current_date = datetime.now(timezone.utc)
+        #current_date = datetime.now(timezone.utc)
 
         self.logger.info("Starting main loop...")
 
