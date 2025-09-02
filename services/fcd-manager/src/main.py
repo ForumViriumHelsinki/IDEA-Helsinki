@@ -8,36 +8,36 @@ import sys
 #------------------------------------------------------#
 #-------------- PROJECT CLASS IMPORTS -----------------#
 #------------------------------------------------------#
-from classes.AzureBlobContainerManager import AzureBlobContainerManager, TimePrecision
-from classes.FCDInfluxDBManager import FCDInfluxDBManager
-from classes.Logger import Logger
+from idea_shared.classes.AzureBlobContainerManager import AzureBlobContainerManager, TimePrecision
+from idea_shared.classes.FCDInfluxDBManager import FCDInfluxDBManager
+from idea_shared.classes.Logger import Logger
 
 #------------------------------------------------------#
 #------------- PROJECT MODULE IMPORTS -----------------#
 #------------------------------------------------------#
-import lib.TomTomFcdAggregator as TomTomFcdAggregator
-import lib.FcdUtils as FcdUtils
+import idea_shared.lib.TomTomFcdAggregator as TomTomFcdAggregator
+import idea_shared.lib.FcdUtils as FcdUtils
 
 #------------------------------------------------------#
 #------------------ CONSTANTS -------------------------#
 #------------------------------------------------------#
 
-from lib.Constants.Constants import FCD_MAP_DATA_FILE_LOCATION
-from lib.Constants.Constants import MASTER_SEGMENT_HISTORY_FILE_LOCATION
-from lib.Constants.Constants import ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION
+from idea_shared.lib.Constants.Constants import FCD_MAP_DATA_FILE_LOCATION
+from idea_shared.lib.Constants.Constants import MASTER_SEGMENT_HISTORY_FILE_LOCATION
+from idea_shared.lib.Constants.Constants import ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION
 
-from lib.Constants.Constants import FCD_HISTORY_START_DATE
-from lib.Constants.Constants import FCD_UPDATE_FREQUENCY
-from lib.Constants.Constants import MAX_FCD_DATA_BASE_UPDATE_DOWNTIME
+from idea_shared.lib.Constants.Constants import FCD_HISTORY_START_DATE
+from idea_shared.lib.Constants.Constants import FCD_UPDATE_FREQUENCY
+from idea_shared.lib.Constants.Constants import MAX_FCD_DATA_BASE_UPDATE_DOWNTIME
 
-from lib.Constants.PrivateConstants import AZURE_ACCOUNT_NAME
-from lib.Constants.PrivateConstants import AZURE_CONTAINER_NAME
-from lib.Constants.PrivateConstants import AZURE_SAS_TOKEN
+from idea_shared.lib.Constants.PrivateConstants import AZURE_ACCOUNT_NAME
+from idea_shared.lib.Constants.PrivateConstants import AZURE_CONTAINER_NAME
+from idea_shared.lib.Constants.PrivateConstants import AZURE_SAS_TOKEN
 
-from lib.Constants.PrivateConstants import INFLUX_DB_ORG
-from lib.Constants.PrivateConstants import INFLUX_DB_URL
-from lib.Constants.PrivateConstants import INFLUX_DB_FCD_BUCKET
-from lib.Constants.PrivateConstants import INFLUX_DB_FCD_TOKEN
+from idea_shared.lib.Constants.PrivateConstants import INFLUX_DB_ORG
+from idea_shared.lib.Constants.PrivateConstants import INFLUX_DB_URL
+from idea_shared.lib.Constants.PrivateConstants import INFLUX_DB_FCD_BUCKET
+from idea_shared.lib.Constants.PrivateConstants import INFLUX_DB_FCD_TOKEN
 
 logger = Logger(__name__)
 

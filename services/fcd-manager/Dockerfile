@@ -5,14 +5,20 @@ RUN pip install --no-cache-dir uv
 
 WORKDIR /app
 
-# Copy dependency files and source code structure
+# Copy shared package first
+COPY shared/ ./shared/
+
+# Copy service package and dependencies
 COPY services/fcd-manager/pyproject.toml .
 COPY services/fcd-manager/src/ ./src/
-COPY lib/Constants/PrivateConstants.py ./src/lib/Constants/
+
+# Copy private constants to shared package location
+COPY lib/Constants/PrivateConstants.py ./shared/src/idea_shared/lib/Constants/
 
 # Create virtual environment and install dependencies
 RUN uv venv .venv && \
     . .venv/bin/activate && \
+    uv pip install -e ./shared && \
     uv pip install -e .
 
 FROM python:3.12-alpine AS runtime
@@ -34,6 +40,9 @@ COPY --from=build /app/.venv /app/.venv
 
 # Copy source code
 COPY --from=build /app/src /app/src
+
+# Copy shared module
+COPY --from=build /app/shared /app/shared
 
 # Change ownership to non-root user
 RUN chown -R appuser:appgroup /app

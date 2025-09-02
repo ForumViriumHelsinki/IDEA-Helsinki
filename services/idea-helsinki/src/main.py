@@ -7,27 +7,27 @@ import sys
 #------------------------------------------------------#
 #-------------- PROJECT CLASS IMPORTS -----------------#
 #------------------------------------------------------#
-from classes.IdeaHelsinkiManager import IdeaHelsinkiManager
-from classes.Logger import Logger
+from idea_shared.classes.IdeaHelsinkiManager import IdeaHelsinkiManager
+from idea_shared.classes.Logger import Logger
 
 #------------------------------------------------------#
 #------------------ CONSTANTS -------------------------#
 #------------------------------------------------------#
-from lib.Constants.Constants import PROFILE_TIME_FRAME_WEEKS
-from lib.Constants.Constants import PROFILE_END_LEAD_TIME_HOURS
-from lib.Constants.Constants import VALIDATION_UPDATE_FREQUENCY
+from idea_shared.lib.Constants.Constants import PROFILE_TIME_FRAME_WEEKS
+from idea_shared.lib.Constants.Constants import PROFILE_END_LEAD_TIME_HOURS
+from idea_shared.lib.Constants.Constants import VALIDATION_UPDATE_FREQUENCY
 
-from lib.Constants.Constants import TRAFFIC_DISTURBANCE_UPDATE_FREQUENCY
+from idea_shared.lib.Constants.Constants import TRAFFIC_DISTURBANCE_UPDATE_FREQUENCY
 
-from lib.Constants.Constants import TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION
+from idea_shared.lib.Constants.Constants import TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION
 
 
-from lib.Constants.PrivateConstants import INFLUX_DB_ORG
-from lib.Constants.PrivateConstants import INFLUX_DB_URL
-from lib.Constants.PrivateConstants import INFLUX_DB_FCD_BUCKET
-from lib.Constants.PrivateConstants import INFLUX_DB_FCD_TOKEN
-from lib.Constants.PrivateConstants import INFLUX_DB_VALIDATION_BUCKET
-from lib.Constants.PrivateConstants import INFLUX_DB_VALIDATION_TOKEN
+from idea_shared.lib.Constants.PrivateConstants import INFLUX_DB_ORG
+from idea_shared.lib.Constants.PrivateConstants import INFLUX_DB_URL
+from idea_shared.lib.Constants.PrivateConstants import INFLUX_DB_FCD_BUCKET
+from idea_shared.lib.Constants.PrivateConstants import INFLUX_DB_FCD_TOKEN
+from idea_shared.lib.Constants.PrivateConstants import INFLUX_DB_VALIDATION_BUCKET
+from idea_shared.lib.Constants.PrivateConstants import INFLUX_DB_VALIDATION_TOKEN
 
 # for testing, based on intersected segments.
 #target_fcd_segments = ["1195756141337706497","1195756141314637825"]
