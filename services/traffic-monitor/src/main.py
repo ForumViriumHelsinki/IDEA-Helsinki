@@ -7,24 +7,24 @@ import pause
 #------------------------------------------------------#
 #-------------- PROJECT CLASS IMPORTS -----------------#
 #------------------------------------------------------#
-from classes.HelsinkiWFSClient import HelsinkiAlluWFSClient
-from classes.Logger import Logger
+from idea_shared.classes.HelsinkiWFSClient import HelsinkiAlluWFSClient
+from idea_shared.classes.Logger import Logger
 
 #------------------------------------------------------#
 #------------- PROJECT MODULE IMPORTS -----------------#
 #------------------------------------------------------#
-import lib.DisturbanceValidator as DisturbanceValidator
-from classes.IntersectionDetector import IntersectionDetector
+import idea_shared.lib.DisturbanceValidator as DisturbanceValidator
+from idea_shared.classes.IntersectionDetector import IntersectionDetector
 
 #------------------------------------------------------#
 #------------------ CONSTANTS -------------------------#
 #------------------------------------------------------#
-from lib.Constants.Constants import TRAFFIC_DISTURBANCE_UPDATE_FREQUENCY
-from lib.Constants.Constants import FCD_HISTORY_START_DATE
-from lib.Constants.Constants import PROFILE_TIME_FRAME_WEEKS
-from lib.Constants.Constants import FCD_MAP_DATA_FILE_LOCATION
-from lib.Constants.Constants import TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION
-from lib.Constants.Constants import TRAFFIC_DISTURBANCES_TO_MONITOR
+from idea_shared.lib.Constants.Constants import TRAFFIC_DISTURBANCE_UPDATE_FREQUENCY
+from idea_shared.lib.Constants.Constants import FCD_HISTORY_START_DATE
+from idea_shared.lib.Constants.Constants import PROFILE_TIME_FRAME_WEEKS
+from idea_shared.lib.Constants.Constants import FCD_MAP_DATA_FILE_LOCATION
+from idea_shared.lib.Constants.Constants import TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION
+from idea_shared.lib.Constants.Constants import TRAFFIC_DISTURBANCES_TO_MONITOR
 
 logger = Logger(__name__)
 

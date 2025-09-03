@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: idea-helsinki
+  namespace: idea-helsinki
+  labels:
+    app.kubernetes.io/name: idea-helsinki
+    app.kubernetes.io/component: orchestrator
+    app.kubernetes.io/part-of: idea-helsinki
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: idea-helsinki
+      app.kubernetes.io/component: orchestrator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: idea-helsinki
+        app.kubernetes.io/component: orchestrator
+        app.kubernetes.io/part-of: idea-helsinki
+    spec:
+      containers:
+      - name: idea-helsinki
+        image: idea-helsinki
+        ports:
+        - containerPort: 8080
+        envFrom:
+        - secretRef:
+            name: idea-helsinki-secrets
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "print('alive')"
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "print('ready')"
+          initialDelaySeconds: 5
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: idea-helsinki
+  namespace: idea-helsinki
+  labels:
+    app.kubernetes.io/name: idea-helsinki
+    app.kubernetes.io/component: orchestrator
+    app.kubernetes.io/part-of: idea-helsinki
+spec:
+  selector:
+    app.kubernetes.io/name: idea-helsinki
+    app.kubernetes.io/component: orchestrator
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: http
+  type: ClusterIP
