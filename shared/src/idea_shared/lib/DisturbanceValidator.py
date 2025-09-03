@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 #------------------------------------------------------#
 #-------------- PROJECT CLASS IMPORTS -----------------#
 #------------------------------------------------------#
-from classes.Logger import Logger
+from idea_shared.classes.Logger import Logger
 
 logger = Logger(__name__)
 

@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from urllib3.util.retry import Retry
 import pandas as pd
 
-from classes.Logger import Logger
+from idea_shared.classes.Logger import Logger
 
 class FCDInfluxDBManager:
     """

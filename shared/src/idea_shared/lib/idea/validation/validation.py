@@ -1,6 +1,6 @@
 import pandas as pd
 
-from lib.idea.validation.util import (
+from idea_shared.lib.idea.validation.util import (
     calculate_minutes_no_coverage,
     determine_road_status_by_minute,
     match_no_coverage_profile,

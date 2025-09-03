@@ -2,8 +2,8 @@ import datetime as dt
 
 import pandas as pd
 
-from lib.idea.constants import MINIMUM_WEEKS_INPUT_FOR_PROFILE, PROFILE_COLUMNS
-from lib.idea.profile import util as idea_util
+from idea_shared.lib.idea.constants import MINIMUM_WEEKS_INPUT_FOR_PROFILE, PROFILE_COLUMNS
+from idea_shared.lib.idea.profile import util as idea_util
 
 
 def calculate_profile(

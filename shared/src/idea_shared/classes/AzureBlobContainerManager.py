@@ -8,7 +8,7 @@ from azure.storage.blob import BlobServiceClient, BlobProperties
 #------------------------------------------------------#
 #-------------- PROJECT CLASS IMPORTS -----------------#
 #------------------------------------------------------#
-from classes.Logger import Logger
+from idea_shared.classes.Logger import Logger
 
 class TimePrecision(Enum):
     """Defines the precision for the blob name prefix searches."""

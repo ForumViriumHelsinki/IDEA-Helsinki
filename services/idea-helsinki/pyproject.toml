@@ -33,6 +33,7 @@ dev = [
 [project.scripts]
 idea-helsinki = "main:main"
 
+
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
 

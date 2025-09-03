@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from lib.idea.constants import (
+from idea_shared.lib.idea.constants import (
     CLOSED_LIMIT,
     COV_DROP_LIMIT,
     COV_HIGH,
@@ -10,7 +10,7 @@ from lib.idea.constants import (
     MINIMUM_PROFILE_VALUE,
     OPEN_LIMT,
 )
-from lib.idea.exceptions import IDEAError
+from idea_shared.lib.idea.exceptions import IDEAError
 
 
 def update_counter(condition: bool, prev_counter: int) -> int:

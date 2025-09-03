@@ -2,7 +2,7 @@
 #---------------- GENERAL IMPORTS ---------------------#
 #------------------------------------------------------#
 from datetime import datetime
-from classes.Logger import Logger
+from idea_shared.classes.Logger import Logger
 
 #------------------------------------------------------#
 #-------------- PROJECT CLASS IMPORTS -----------------#

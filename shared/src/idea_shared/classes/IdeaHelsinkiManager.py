@@ -8,8 +8,8 @@ import json
 #------------------------------------------------------#
 #-------------- PROJECT CLASS IMPORTS -----------------#
 #------------------------------------------------------#
-from classes.IdeaHelsinkiRoadSegment import IdeaHelsinkiRoadSegment
-from classes.Logger import Logger
+from idea_shared.classes.IdeaHelsinkiRoadSegment import IdeaHelsinkiRoadSegment
+from idea_shared.classes.Logger import Logger
 
 class IdeaHelsinkiManager:
     """

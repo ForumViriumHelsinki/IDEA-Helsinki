@@ -9,7 +9,7 @@ from pathlib import Path
 #------------------------------------------------------#
 #-------------- PROJECT CLASS IMPORTS -----------------#
 #------------------------------------------------------#
-from classes.Logger import Logger
+from idea_shared.classes.Logger import Logger
 
 """
     Library for IdeaHelsinkiRoadSegment class

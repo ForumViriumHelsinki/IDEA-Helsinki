@@ -16,6 +16,7 @@ from idea_shared.classes.Logger import Logger
 from idea_shared.lib.Constants.Constants import PROFILE_TIME_FRAME_WEEKS
 from idea_shared.lib.Constants.Constants import PROFILE_END_LEAD_TIME_HOURS
 from idea_shared.lib.Constants.Constants import VALIDATION_UPDATE_FREQUENCY
+from idea_shared.lib.Constants.Constants import VALIDATION_MAX_AGE_DAYS
 
 from idea_shared.lib.Constants.Constants import TRAFFIC_DISTURBANCE_UPDATE_FREQUENCY
 
@@ -44,6 +45,7 @@ async def main():
     # The target_fcd_segments argument is omitted to process all segments by default.
     manager = IdeaHelsinkiManager(
         validation_frequency=VALIDATION_UPDATE_FREQUENCY,
+        validation_max_age_days=VALIDATION_MAX_AGE_DAYS,
         profile_time_frame_weeks=PROFILE_TIME_FRAME_WEEKS,
         profile_end_lead_time_hours=PROFILE_END_LEAD_TIME_HOURS,
         traffic_disturbance_data_file_location=TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION,

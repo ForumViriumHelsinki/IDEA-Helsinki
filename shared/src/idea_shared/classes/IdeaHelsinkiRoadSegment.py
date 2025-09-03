@@ -8,15 +8,15 @@ import pandas as pd
 #------------------------------------------------------#
 #-------------- PROJECT CLASS IMPORTS -----------------#
 #------------------------------------------------------#
-from classes.Logger import Logger
-from classes.FCDInfluxDBManager import FCDInfluxDBManager
+from idea_shared.classes.Logger import Logger
+from idea_shared.classes.FCDInfluxDBManager import FCDInfluxDBManager
 
 #------------------------------------------------------#
 #------------- PROJECT MODULE IMPORTS -----------------#
 #------------------------------------------------------#
-from lib.idea.profile.profile import calculate_profile
-from lib.idea.validation.validation import validate_roadwork
-import lib.IdeaHelsinkiDataPreProcessor as IdeaHelsinkiDataPreProcessor
+from idea_shared.lib.idea.profile.profile import calculate_profile
+from idea_shared.lib.idea.validation.validation import validate_roadwork
+from idea_shared.lib import IdeaHelsinkiDataPreProcessor
 
 class IdeaHelsinkiRoadSegment:
     """
