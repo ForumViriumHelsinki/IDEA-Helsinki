@@ -116,12 +116,24 @@ def main():
         resume_time = resume_time.replace(second=0, microsecond=0)
 
         logger.info("###########################################")
+<<<<<<< HEAD
         logger.info(
             f"Update cycle finished at {current_time.strftime('%Y-%m-%d %H:%M:%S')}"
         )
         logger.info(
             f"Next update cycle scheduled at {resume_time.strftime('%Y-%m-%d %H:%M:%S')}"
         )
+||||||| parent of 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)
+        logger.info(f"Update cycle finished at {current_time.strftime("%Y-%m-%d %H:%M:%S")}")
+        logger.info(f"Next update cycle scheduled at {resume_time.strftime('%Y-%m-%d %H:%M:%S')}")
+=======
+        logger.info(
+            f"Update cycle finished at {current_time.strftime("%Y-%m-%d %H:%M:%S")}"
+        )
+        logger.info(
+            f"Next update cycle scheduled at {resume_time.strftime('%Y-%m-%d %H:%M:%S')}"
+        )
+>>>>>>> 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)
         logger.info("###########################################")
         pause.until(resume_time)
 

@@ -20,9 +20,17 @@ INFLUX_DB_FCD_BUCKET = os.getenv("INFLUX_DB_FCD_BUCKET", "idea-fcd-bucket")
 INFLUX_DB_FCD_TOKEN = os.getenv("INFLUX_DB_FCD_TOKEN", "super-secret-token")
 
 # IDEA segment validation bucket
+<<<<<<< HEAD
 INFLUX_DB_VALIDATION_BUCKET = os.getenv(
     "INFLUX_DB_VALIDATION_BUCKET", "idea-validation-bucket"
 )
 INFLUX_DB_VALIDATION_TOKEN = os.getenv(
     "INFLUX_DB_VALIDATION_TOKEN", "another-super-secret-token"
 )
+||||||| parent of 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)
+INFLUX_DB_VALIDATION_BUCKET = os.getenv("INFLUX_DB_VALIDATION_BUCKET", "idea-validation-bucket")
+INFLUX_DB_VALIDATION_TOKEN = os.getenv("INFLUX_DB_VALIDATION_TOKEN", "another-super-secret-token")
+=======
+INFLUX_DB_VALIDATION_BUCKET = os.getenv("INFLUX_DB_VALIDATION_BUCKET", "idea-validation-bucket")
+INFLUX_DB_VALIDATION_TOKEN = os.getenv("INFLUX_DB_VALIDATION_TOKEN", "another-super-secret-token")
+>>>>>>> 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)
