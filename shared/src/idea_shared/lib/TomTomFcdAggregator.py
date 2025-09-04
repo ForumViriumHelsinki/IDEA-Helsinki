@@ -39,11 +39,11 @@ def validate_tomtom_aggregation_file(data: dict) -> dict:
 
     Args: data
         Uploaded TomTom aggregation file that contains aggregated TomTom data.
-    
+
     Returns:
         A validated dictionary or an empty dictionary.
     """
-    
+
     segment_ids = data.get("segmentId")
     if not isinstance(segment_ids, dict):
         logger.warning("Dictionary has no segmentId key has no dictionary associated to it, returning an empty dictionary!")
@@ -72,19 +72,19 @@ def validate_tomtom_aggregation_file(data: dict) -> dict:
         if not (isinstance(coordinates, list) and all(isinstance(coord, list) and len(coord) == 2 and isinstance(coord[0], float) and isinstance(coord[1], float) for coord in coordinates)):
             logger.warning("Dictionaries geometry coordinates are malformed, returning an empty dictionary!")
             return {}
-        
+
         detailed_segment = value.get("detailedSegment")
         if not isinstance(detailed_segment, dict) or not detailed_segment:
             logger.warning("Dictionaries 'detailedSegment' is not a dictionary, returning an empty dictionary!")
             return {}
-        
+
         dates = detailed_segment.get("date")
         if not isinstance(dates, dict):
             logger.warning("Dictionaries 'detailedSegment' date is not a Dictionary, returning an empty dictionary!")
             return {}
 
     logger.info("TomTom aggregation file validated correctly")
-    return data   
+    return data
 
 def transform_single_tomtom_json_data_for_aggregation(raw_data_from_tomtom_json: dict, tomtom_timestamp_str: str, file_name_for_log: str) -> dict:
     """
@@ -106,13 +106,13 @@ def transform_single_tomtom_json_data_for_aggregation(raw_data_from_tomtom_json:
     if not isinstance(detailed_segments, list):
         logger.warning(f"File '{file_name_for_log}' has 'detailedSegments' not as a list. Skipping.")
         return {}
-    
+
     for segment_data in detailed_segments:
         if not isinstance(segment_data, dict):
             logger.warning(f"Skipping non-dictionary item in 'detailedSegments' of blob '{file_name_for_log}'.")
             continue
 
-        segment_id_str = segment_data.get("segmentIdStr") 
+        segment_id_str = segment_data.get("segmentIdStr")
         if segment_id_str is None:
                 segment_id_num = segment_data.get("segmentId")
                 if segment_id_num is not None:
@@ -120,7 +120,7 @@ def transform_single_tomtom_json_data_for_aggregation(raw_data_from_tomtom_json:
                 else:
                     logger.warning(f"Skipping segment in blob '{file_name_for_log}' due to missing 'segmentId' or 'segmentIdStr'.")
                     continue
-            
+
         shape_coords = []
         shape_data = segment_data.get("shape")
         if isinstance(shape_data, list):
@@ -160,7 +160,7 @@ def transform_single_tomtom_json_data_for_aggregation(raw_data_from_tomtom_json:
             "geometry": current_segment_geometry,
             "detailedSegment": time_variant_payload,
         }
-        
+
     return transformed_items
 
 def sort_tomtom_data_aggregation_file_by_date(tomtom_aggregation_file: dict) -> dict:
@@ -194,7 +194,7 @@ def update_tomtom_json_data_for_aggregation_file(new_tomtom_file: dict,tomtom_fi
     """
     num_tomtom_records = 0
     num_updated_tomtom_records = 0
-    
+
     # Check if tomtom_file_to_update is empty, this happens when read_existing_json_records() function returns an empty Dictionary.
     # If so, return the new tomtom_file as the aggregated file.
     if not tomtom_file_to_update:

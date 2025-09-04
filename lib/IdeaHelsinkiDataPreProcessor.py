@@ -131,4 +131,3 @@ def calculate_profiling_start_date(profiling_end_date: datetime, profile_time_fr
         The start date for profiling.
     """
     return profiling_end_date - timedelta(weeks=profile_time_frame_weeks)
-

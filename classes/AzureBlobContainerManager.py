@@ -31,13 +31,13 @@ class AzureBlobContainerManager:
         self.container_name = container_name
         self.sas_token = sas_token
         self.logger = Logger(__name__)
-        
+
         account_url = f"https://{self.account_name}.blob.core.windows.net"
-        
+
         try:
             self.blob_service_client = BlobServiceClient(account_url=account_url, credential=self.sas_token)
             self.container_client = self.blob_service_client.get_container_client(self.container_name)
-            
+
             self.logger.info(f"Successfully connected to container '{container_name}' in account '{account_name}'.")
         except Exception as e:
             self.logger.error(f"Failed to initialize client for account '{account_name}', container '{container_name}'. Error: {e}")
@@ -62,7 +62,7 @@ class AzureBlobContainerManager:
         try:
             self.logger.info(f"Listing blobs in '{self.container_name}' with prefix '{name_starts_with}'.")
             return self.container_client.list_blobs(
-                name_starts_with=name_starts_with, 
+                name_starts_with=name_starts_with,
                 include="metadata" if include_metadata else None
             )
         except Exception as e:
@@ -73,7 +73,7 @@ class AzureBlobContainerManager:
         Get the latest blob from the container, based on metadata last modified date.
         """
         try:
-            blob_list = list(self.list_blobs(include_metadata=True)) 
+            blob_list = list(self.list_blobs(include_metadata=True))
             if not blob_list:
                 self.logger.info(f"Container '{self.container_name}' is empty or no blobs found.")
                 return None
@@ -82,13 +82,13 @@ class AzureBlobContainerManager:
             return latest_blob
         except Exception as e:
             self.logger.error(f"Error finding latest blob in container '{self.container_name}'. Error: {e}")
-    
+
     def get_first_blob(self):
         """
         Get the first blob from the container, based on metadata last modified date.
         """
         try:
-            blob_list = list(self.list_blobs(include_metadata=True)) 
+            blob_list = list(self.list_blobs(include_metadata=True))
             if not blob_list:
                 self.logger.info(f"Container '{self.container_name}' is empty or no blobs found.")
                 return None

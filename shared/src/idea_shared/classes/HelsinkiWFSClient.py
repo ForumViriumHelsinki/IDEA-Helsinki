@@ -192,7 +192,7 @@ class HelsinkiAlluWFSClient(HelsinkiWFSClient):
         Fetches 'Tilapainen_liikennejarjestely_alue' features.
         """
         return self.get_feature("Tilapainen_liikennejarjestely_alue")
-    
+
     def request_tilapainen_liikennejarjestely_piste(self):
         """
         Fetches 'Tilapainen_liikennejarjestely_piste' features.

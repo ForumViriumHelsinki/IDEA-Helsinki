@@ -81,7 +81,7 @@ class IntersectionDetector:
                     self.logger.info(f"Loaded GDF already had CRS '{initial_crs}', which matches configured CRS. No change made by set_crs call.")
             else:
                 self.logger.warning(f"self.wfs_crs is not configured. CRS for loaded GDF remains '{gdf.crs}'.")
-            
+
             self.logger.info(f"Successfully loaded and processed WFS GeoJSON from loaded GDF with {len(gdf)} features. Final CRS: {gdf.crs}")
             return gdf
         except Exception as e:
@@ -101,7 +101,7 @@ class IntersectionDetector:
 
             if not isinstance(data, dict):
                 raise IntersectionDetectorError("Segment data JSON is not a dictionary.")
-            
+
             segment_data = data.get("segmentId")
             if not isinstance(segment_data, dict):
                 raise IntersectionDetectorError("SegmentIds data is not a dictionary.")
@@ -113,29 +113,29 @@ class IntersectionDetector:
                 if not isinstance(segment_value, dict):
                     self.logger.warning(f"Skipping non-dictionary item in segment data: {segment_key}")
                     continue
-                
+
                 geom_dict = segment_value.get("geometry")
                 seg_id = segment_key
 
                 if geom_dict:
                     try:
-                        shapely_geom = shape(geom_dict) 
+                        shapely_geom = shape(geom_dict)
                         geometries.append(shapely_geom)
                         segment_ids.append(seg_id)
                     except Exception as geo_err:
                         self.logger.warning(f"Could not parse geometry for segmentId '{seg_id}': {geo_err}")
                 else:
                     self.logger.warning(f"Segment data item missing 'geometry' for segmentId : {segment_key}")
-            
-            if not segment_ids: 
+
+            if not segment_ids:
                 self.logger.warning(f"No valid segments with geometry found in {segment_json_path}")
                 return geopandas.GeoDataFrame(columns=['segmentId', 'geometry'], crs=self.segment_crs) # Return empty GDF
 
             gdf = geopandas.GeoDataFrame({'segmentId': segment_ids}, geometry=geometries, crs=self.segment_crs)
-            
+
             self.logger.info(f"Successfully loaded segment data from {segment_json_path} into GeoDataFrame with {len(gdf)} segments.")
             return gdf
-            
+
         except FileNotFoundError:
             self.logger.error(f"Segment data JSON file not found: {segment_json_path}")
             return None
@@ -169,7 +169,7 @@ class IntersectionDetector:
             if segments_gdf.crs != self.working_crs:
                 self.logger.info(f"Reprojecting segment data from {segments_gdf.crs} to {self.working_crs}...")
                 segments_gdf = segments_gdf.to_crs(self.working_crs)
-            
+
             self.logger.info("Performing spatial join (intersection)...")
             intersecting_gdf = geopandas.sjoin(
                 segments_gdf, wfs_gdf, how="inner", predicate="intersects", lsuffix="segment", rsuffix="wfs"
@@ -177,13 +177,13 @@ class IntersectionDetector:
             self.logger.info(f"Found {len(intersecting_gdf)} intersections.")
             if intersecting_gdf.empty:
                 self.logger.info("No intersections found between WFS features and segments.")
-            
+
             return intersecting_gdf
 
         except Exception as e:
             self.logger.error(f'Error during spatial join or CRS transformation: {e}')
             return None
-            
+
     def process_intersections_to_new_model(self, intersecting_gdf: geopandas.GeoDataFrame) -> dict:
         """
         Processes the GeoDataFrame of intersections to create the traffic disturbance data model. Check docs/data_models.md for detailed information.
@@ -197,9 +197,9 @@ class IntersectionDetector:
         if intersecting_gdf is None or intersecting_gdf.empty:
             self.logger.info("No intersecting features to process for the new data model.")
             return {}
-            
+
         self.logger.info(f"Processing {len(intersecting_gdf)} intersecting features into new data model...")
-        
+
         output_data: dict = {"segmentId": {}}
 
         for index, row in intersecting_gdf.iterrows():
@@ -224,11 +224,11 @@ class IntersectionDetector:
                     "geometry": mapping(segment_geometry_shapely), # Convert Shapely geom to GeoJSON dict
                     "detailedCollisions": []
                 }
-            
+
             output_data["segmentId"][segment_id]["detailedCollisions"].append(
                 {"properties": collision_properties}
             )
-        
+
         self.logger.info(f"Processed {len(output_data["segmentId"])} unique segments with associated collisions.")
         return output_data
 
@@ -251,7 +251,7 @@ class IntersectionDetector:
             return False
 
         return True
-    
+
     def write_json_records(self, records: dict, json_file: str) -> bool:
         json_file_path = Path(json_file)
         segment_ids = records.get("segmentId")

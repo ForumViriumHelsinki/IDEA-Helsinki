@@ -1,39 +1,40 @@
-#------------------------------------------------------#
-#---------------- GENERAL IMPORTS ---------------------#
-#------------------------------------------------------#
+# ------------------------------------------------------#
+# ---------------- GENERAL IMPORTS ---------------------#
+# ------------------------------------------------------#
 import asyncio
 import sys
 
-#------------------------------------------------------#
-#-------------- PROJECT CLASS IMPORTS -----------------#
-#------------------------------------------------------#
+# ------------------------------------------------------#
+# -------------- PROJECT CLASS IMPORTS -----------------#
+# ------------------------------------------------------#
 from idea_shared.classes.IdeaHelsinkiManager import IdeaHelsinkiManager
 from idea_shared.classes.Logger import Logger
 
-#------------------------------------------------------#
-#------------------ CONSTANTS -------------------------#
-#------------------------------------------------------#
-from idea_shared.lib.Constants.Constants import PROFILE_TIME_FRAME_WEEKS
-from idea_shared.lib.Constants.Constants import PROFILE_END_LEAD_TIME_HOURS
-from idea_shared.lib.Constants.Constants import VALIDATION_UPDATE_FREQUENCY
-from idea_shared.lib.Constants.Constants import VALIDATION_MAX_AGE_DAYS
-
-from idea_shared.lib.Constants.Constants import TRAFFIC_DISTURBANCE_UPDATE_FREQUENCY
-
-from idea_shared.lib.Constants.Constants import TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION
-
-
-from idea_shared.lib.Constants.PrivateConstants import INFLUX_DB_ORG
-from idea_shared.lib.Constants.PrivateConstants import INFLUX_DB_URL
-from idea_shared.lib.Constants.PrivateConstants import INFLUX_DB_FCD_BUCKET
-from idea_shared.lib.Constants.PrivateConstants import INFLUX_DB_FCD_TOKEN
-from idea_shared.lib.Constants.PrivateConstants import INFLUX_DB_VALIDATION_BUCKET
-from idea_shared.lib.Constants.PrivateConstants import INFLUX_DB_VALIDATION_TOKEN
+# ------------------------------------------------------#
+# ------------------ CONSTANTS -------------------------#
+# ------------------------------------------------------#
+from idea_shared.lib.Constants.Constants import (
+    PROFILE_END_LEAD_TIME_HOURS,
+    PROFILE_TIME_FRAME_WEEKS,
+    TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION,
+    TRAFFIC_DISTURBANCE_UPDATE_FREQUENCY,
+    VALIDATION_MAX_AGE_DAYS,
+    VALIDATION_UPDATE_FREQUENCY,
+)
+from idea_shared.lib.Constants.PrivateConstants import (
+    INFLUX_DB_FCD_BUCKET,
+    INFLUX_DB_FCD_TOKEN,
+    INFLUX_DB_ORG,
+    INFLUX_DB_URL,
+    INFLUX_DB_VALIDATION_BUCKET,
+    INFLUX_DB_VALIDATION_TOKEN,
+)
 
 # for testing, based on intersected segments.
-#target_fcd_segments = ["1195756141337706497","1195756141314637825"]
+# target_fcd_segments = ["1195756141337706497","1195756141314637825"]
 
 logger = Logger(__name__)
+
 
 async def main():
     """
@@ -56,7 +57,7 @@ async def main():
         db_fcd_bucket=INFLUX_DB_FCD_BUCKET,
         db_fcd_token=INFLUX_DB_FCD_TOKEN,
         db_validation_bucket=INFLUX_DB_VALIDATION_BUCKET,
-        db_validation_token=INFLUX_DB_VALIDATION_TOKEN
+        db_validation_token=INFLUX_DB_VALIDATION_TOKEN,
     )
 
     try:
@@ -68,8 +69,11 @@ async def main():
         logger.info("Main manager task was cancelled. Shutting down.")
         logger.info("###########################################")
     except Exception as e:
-        logger.error(f"A critical error occurred in the IdeaHelsinkiManager: {e}", exc_info=True)
-        sys.exit(1) # Exit with an error code
+        logger.error(
+            f"A critical error occurred in the IdeaHelsinkiManager: {e}", exc_info=True
+        )
+        sys.exit(1)  # Exit with an error code
+
 
 if __name__ == "__main__":
     logger.info("###########################################")

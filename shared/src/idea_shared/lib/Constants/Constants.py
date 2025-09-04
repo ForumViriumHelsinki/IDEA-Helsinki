@@ -30,5 +30,3 @@ ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION = "data/archived_segment_history.json"
 # FCD HISTORY DEFAULTS
 ## Start date for the FCD history, or the defined start date for it. format YYYY-MM-DD
 FCD_HISTORY_START_DATE = "2024-12-05"
-
-

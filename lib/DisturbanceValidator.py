@@ -18,7 +18,7 @@ def validate_disturbance_dates(validation_date: datetime, disturbance_data: dict
         validation_date: Earliest point in time where profiling can be done (6 months of historical FCD data required), format: YYYY-MM-DD
         disturbance_data: A dictionary of reported traffic disturbances, this is from Allu.
 
-    returns: 
+    returns:
         a dictionary containing the validated traffic disturbances (ones that IDEA can profile) or None if the disturbance_data cannot be validated.
     """
 
@@ -28,7 +28,7 @@ def validate_disturbance_dates(validation_date: datetime, disturbance_data: dict
         return None
 
     logger.info(f'Starting traffic disturbance validation, validating {len(features)} disturbances for validation date {validation_date}')
-    
+
     validated_disturbances = []
 
     current_date = datetime.now(timezone.utc)
@@ -58,7 +58,7 @@ def validate_disturbance_dates(validation_date: datetime, disturbance_data: dict
             validated_disturbances.append(disturbance)
         else:
             invalid_disturbances += 1
-    
+
     if len(validated_disturbances):
         new_disturbance_data = {k: v for k, v in disturbance_data.items() if k != "features"}
         new_disturbance_data['features'] = validated_disturbances
