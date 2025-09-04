@@ -30,18 +30,10 @@ def validate_disturbance_dates(
         logger.error("Disturbance data does not contain a list of disturbances")
         return None
 
-<<<<<<< HEAD
     logger.info(
         f"Starting traffic disturbance validation, validating {len(features)} disturbances for validation date {validation_date}"
     )
 
-||||||| parent of 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)
-    logger.info(f'Starting traffic disturbance validation, validating {len(features)} disturbances for validation date {validation_date}')
-    
-=======
-    logger.info(f'Starting traffic disturbance validation, validating {len(features)} disturbances for validation date {validation_date}')
-
->>>>>>> 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)
     validated_disturbances = []
 
     current_date = datetime.now(timezone.utc)
@@ -92,15 +84,5 @@ def validate_disturbance_dates(
         )
         return new_disturbance_data
     else:
-<<<<<<< HEAD
-        logger.warning(
-            "Disturbance data could not be validated, no valid disturbances found"
-        )
+        logger.info("No valid disturbances found - no disturbances pass date validation.")
         return None
-||||||| parent of 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)
-        logger.warning('Disturbance data could not be validated, no valid disturbances found')
-        return None
-=======
-        logger.warning('Disturbance data could not be validated, no valid disturbances found')
-        return None
->>>>>>> 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)

@@ -102,7 +102,6 @@ class IntersectionDetector:
                         f"Loaded GDF already had CRS '{initial_crs}', which matches configured CRS. No change made by set_crs call."
                     )
             else:
-<<<<<<< HEAD
                 self.logger.warning(
                     f"self.wfs_crs is not configured. CRS for loaded GDF remains '{gdf.crs}'."
                 )
@@ -110,15 +109,6 @@ class IntersectionDetector:
             self.logger.info(
                 f"Successfully loaded and processed WFS GeoJSON from loaded GDF with {len(gdf)} features. Final CRS: {gdf.crs}"
             )
-||||||| parent of 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)
-                self.logger.warning(f"self.wfs_crs is not configured. CRS for loaded GDF remains '{gdf.crs}'.")
-            
-            self.logger.info(f"Successfully loaded and processed WFS GeoJSON from loaded GDF with {len(gdf)} features. Final CRS: {gdf.crs}")
-=======
-                self.logger.warning(f"self.wfs_crs is not configured. CRS for loaded GDF remains '{gdf.crs}'.")
-
-            self.logger.info(f"Successfully loaded and processed WFS GeoJSON from loaded GDF with {len(gdf)} features. Final CRS: {gdf.crs}")
->>>>>>> 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)
             return gdf
         except Exception as e:
             self.logger.error(
@@ -140,18 +130,10 @@ class IntersectionDetector:
                 data = json.load(f)
 
             if not isinstance(data, dict):
-<<<<<<< HEAD
                 raise IntersectionDetectorError(
                     "Segment data JSON is not a dictionary."
                 )
 
-||||||| parent of 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)
-                raise IntersectionDetectorError("Segment data JSON is not a dictionary.")
-            
-=======
-                raise IntersectionDetectorError("Segment data JSON is not a dictionary.")
-
->>>>>>> 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)
             segment_data = data.get("segmentId")
             if not isinstance(segment_data, dict):
                 raise IntersectionDetectorError("SegmentIds data is not a dictionary.")
@@ -179,25 +161,10 @@ class IntersectionDetector:
                             f"Could not parse geometry for segmentId '{seg_id}': {geo_err}"
                         )
                 else:
-<<<<<<< HEAD
                     self.logger.warning(
                         f"Segment data item missing 'geometry' for segmentId : {segment_key}"
                     )
-||||||| parent of 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)
-                    self.logger.warning(f"Segment data item missing 'geometry' for segmentId : {segment_key}")
-            
-            if not segment_ids: 
-                self.logger.warning(f"No valid segments with geometry found in {segment_json_path}")
-                return geopandas.GeoDataFrame(columns=['segmentId', 'geometry'], crs=self.segment_crs) # Return empty GDF
-=======
-                    self.logger.warning(f"Segment data item missing 'geometry' for segmentId : {segment_key}")
 
-            if not segment_ids:
-                self.logger.warning(f"No valid segments with geometry found in {segment_json_path}")
-                return geopandas.GeoDataFrame(columns=['segmentId', 'geometry'], crs=self.segment_crs) # Return empty GDF
->>>>>>> 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)
-
-<<<<<<< HEAD
             if not segment_ids:
                 self.logger.warning(
                     f"No valid segments with geometry found in {segment_json_path}"
@@ -213,15 +180,6 @@ class IntersectionDetector:
             self.logger.info(
                 f"Successfully loaded segment data from {segment_json_path} into GeoDataFrame with {len(gdf)} segments."
             )
-||||||| parent of 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)
-            gdf = geopandas.GeoDataFrame({'segmentId': segment_ids}, geometry=geometries, crs=self.segment_crs)
-            
-            self.logger.info(f"Successfully loaded segment data from {segment_json_path} into GeoDataFrame with {len(gdf)} segments.")
-=======
-            gdf = geopandas.GeoDataFrame({'segmentId': segment_ids}, geometry=geometries, crs=self.segment_crs)
-
-            self.logger.info(f"Successfully loaded segment data from {segment_json_path} into GeoDataFrame with {len(gdf)} segments.")
->>>>>>> 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)
             return gdf
 
         except FileNotFoundError:
@@ -285,35 +243,19 @@ class IntersectionDetector:
             )
             self.logger.info(f"Found {len(intersecting_gdf)} intersections.")
             if intersecting_gdf.empty:
-<<<<<<< HEAD
                 self.logger.info(
                     "No intersections found between WFS features and segments."
                 )
 
-||||||| parent of 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)
-                self.logger.info("No intersections found between WFS features and segments.")
-            
-=======
-                self.logger.info("No intersections found between WFS features and segments.")
-
->>>>>>> 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)
             return intersecting_gdf
 
         except Exception as e:
             self.logger.error(f"Error during spatial join or CRS transformation: {e}")
             return None
-<<<<<<< HEAD
 
     def process_intersections_to_new_model(
         self, intersecting_gdf: geopandas.GeoDataFrame
     ) -> dict:
-||||||| parent of 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)
-            
-    def process_intersections_to_new_model(self, intersecting_gdf: geopandas.GeoDataFrame) -> dict:
-=======
-
-    def process_intersections_to_new_model(self, intersecting_gdf: geopandas.GeoDataFrame) -> dict:
->>>>>>> 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)
         """
         Processes the GeoDataFrame of intersections to create the traffic disturbance data model. Check docs/data_models.md for detailed information.
 
@@ -328,21 +270,11 @@ class IntersectionDetector:
                 "No intersecting features to process for the new data model."
             )
             return {}
-<<<<<<< HEAD
 
         self.logger.info(
             f"Processing {len(intersecting_gdf)} intersecting features into new data model..."
         )
 
-||||||| parent of 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)
-            
-        self.logger.info(f"Processing {len(intersecting_gdf)} intersecting features into new data model...")
-        
-=======
-
-        self.logger.info(f"Processing {len(intersecting_gdf)} intersecting features into new data model...")
-
->>>>>>> 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)
         output_data: dict = {"segmentId": {}}
 
         for index, row in intersecting_gdf.iterrows():
@@ -379,18 +311,10 @@ class IntersectionDetector:
             output_data["segmentId"][segment_id]["detailedCollisions"].append(
                 {"properties": collision_properties}
             )
-<<<<<<< HEAD
 
         self.logger.info(
             f"Processed {len(output_data['segmentId'])} unique segments with associated collisions."
         )
-||||||| parent of 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)
-        
-        self.logger.info(f"Processed {len(output_data["segmentId"])} unique segments with associated collisions.")
-=======
-
-        self.logger.info(f"Processed {len(output_data["segmentId"])} unique segments with associated collisions.")
->>>>>>> 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)
         return output_data
 
     def validate_data_frame(self, gdf_sample: Any) -> bool:

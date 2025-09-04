@@ -150,7 +150,6 @@ def transform_single_tomtom_json_data_for_aggregation(
 
         segment_id_str = segment_data.get("segmentIdStr")
         if segment_id_str is None:
-<<<<<<< HEAD
             segment_id_num = segment_data.get("segmentId")
             if segment_id_num is not None:
                 segment_id_str = str(segment_id_num)
@@ -160,23 +159,6 @@ def transform_single_tomtom_json_data_for_aggregation(
                 )
                 continue
 
-||||||| parent of 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)
-                segment_id_num = segment_data.get("segmentId")
-                if segment_id_num is not None:
-                    segment_id_str = str(segment_id_num)
-                else:
-                    logger.warning(f"Skipping segment in blob '{file_name_for_log}' due to missing 'segmentId' or 'segmentIdStr'.")
-                    continue
-            
-=======
-                segment_id_num = segment_data.get("segmentId")
-                if segment_id_num is not None:
-                    segment_id_str = str(segment_id_num)
-                else:
-                    logger.warning(f"Skipping segment in blob '{file_name_for_log}' due to missing 'segmentId' or 'segmentIdStr'.")
-                    continue
-
->>>>>>> 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)
         shape_coords = []
         shape_data = segment_data.get("shape")
         if isinstance(shape_data, list):

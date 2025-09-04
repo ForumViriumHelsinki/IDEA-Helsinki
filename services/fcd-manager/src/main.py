@@ -128,7 +128,7 @@ def main():
         logger.info(f"Next update cycle scheduled at {resume_time.strftime('%Y-%m-%d %H:%M:%S')}")
 =======
         logger.info(
-            f"Update cycle finished at {current_time.strftime("%Y-%m-%d %H:%M:%S")}"
+            f"Update cycle finished at {current_time.strftime('%Y-%m-%d %H:%M:%S')}"
         )
         logger.info(
             f"Next update cycle scheduled at {resume_time.strftime('%Y-%m-%d %H:%M:%S')}"

@@ -38,7 +38,6 @@ class AzureBlobContainerManager:
         account_url = f"https://{self.account_name}.blob.core.windows.net"
 
         try:
-<<<<<<< HEAD
             self.blob_service_client = BlobServiceClient(
                 account_url=account_url, credential=self.sas_token
             )
@@ -49,17 +48,6 @@ class AzureBlobContainerManager:
             self.logger.info(
                 f"Successfully connected to container '{container_name}' in account '{account_name}'."
             )
-||||||| parent of 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)
-            self.blob_service_client = BlobServiceClient(account_url=account_url, credential=self.sas_token)
-            self.container_client = self.blob_service_client.get_container_client(self.container_name)
-            
-            self.logger.info(f"Successfully connected to container '{container_name}' in account '{account_name}'.")
-=======
-            self.blob_service_client = BlobServiceClient(account_url=account_url, credential=self.sas_token)
-            self.container_client = self.blob_service_client.get_container_client(self.container_name)
-
-            self.logger.info(f"Successfully connected to container '{container_name}' in account '{account_name}'.")
->>>>>>> 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)
         except Exception as e:
             self.logger.error(
                 f"Failed to initialize client for account '{account_name}', container '{container_name}'. Error: {e}"
@@ -89,16 +77,8 @@ class AzureBlobContainerManager:
                 f"Listing blobs in '{self.container_name}' with prefix '{name_starts_with}'."
             )
             return self.container_client.list_blobs(
-<<<<<<< HEAD
                 name_starts_with=name_starts_with,
                 include="metadata" if include_metadata else None,
-||||||| parent of 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)
-                name_starts_with=name_starts_with, 
-                include="metadata" if include_metadata else None
-=======
-                name_starts_with=name_starts_with,
-                include="metadata" if include_metadata else None
->>>>>>> 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)
             )
         except Exception as e:
             self.logger.error(
@@ -122,18 +102,10 @@ class AzureBlobContainerManager:
             )
             return latest_blob
         except Exception as e:
-<<<<<<< HEAD
             self.logger.error(
                 f"Error finding latest blob in container '{self.container_name}'. Error: {e}"
             )
 
-||||||| parent of 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)
-            self.logger.error(f"Error finding latest blob in container '{self.container_name}'. Error: {e}")
-    
-=======
-            self.logger.error(f"Error finding latest blob in container '{self.container_name}'. Error: {e}")
-
->>>>>>> 7deb8ed (chore: fix pre-commit formatting and YAML validation issues)
     def get_first_blob(self):
         """
         Get the first blob from the container, based on metadata last modified date.
