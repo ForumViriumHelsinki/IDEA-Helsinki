@@ -2,7 +2,10 @@ import datetime as dt
 
 import pandas as pd
 
-from idea_shared.lib.idea.constants import MINIMUM_WEEKS_INPUT_FOR_PROFILE, PROFILE_COLUMNS
+from idea_shared.lib.idea.constants import (
+    MINIMUM_WEEKS_INPUT_FOR_PROFILE,
+    PROFILE_COLUMNS,
+)
 from idea_shared.lib.idea.profile import util as idea_util
 
 
@@ -76,12 +79,16 @@ def calculate_profile(
     """
     idea_util.verify_start_and_end_time(df, start, end)
     df = idea_util.interpolate_missing_minutes(df, start, end)
-    df = idea_util.fill_nan_columns_with_zeros(df, column_subset=["fcd"]) # Renamed for consistency
+    df = idea_util.fill_nan_columns_with_zeros(
+        df, column_subset=["fcd"]
+    )  # Renamed for consistency
     df = idea_util.aggregate_by_hour(df)
     df = idea_util.filter_max_consecutive_60(df)
     df = idea_util.add_periods(df)
     df = idea_util.aggregate_hour_of_week(df)
-    df = idea_util.filter_profile_low_availability(df, PROFILE_COLUMNS, minimum_weeks_required)
+    df = idea_util.filter_profile_low_availability(
+        df, PROFILE_COLUMNS, minimum_weeks_required
+    )
     df = idea_util.replace_nans_with_none(df)
     df = idea_util.map_day_of_week_to_name(df)
     idea_util.does_profile_has_enough_data(df)

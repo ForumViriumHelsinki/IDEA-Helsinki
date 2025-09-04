@@ -1,20 +1,17 @@
-#------------------------------------------------------#
-#---------------- GENERAL IMPORTS ---------------------#
-#------------------------------------------------------#
+# ------------------------------------------------------#
+# ---------------- GENERAL IMPORTS ---------------------#
+# ------------------------------------------------------#
 import logging
 import sys
 from logging.handlers import RotatingFileHandler
+
 
 class Logger:
     """
     A simple, configurable class for performing logging to the console and/or a file.
     """
-    def __init__(
-            self,
-            name: str,
-            level=logging.INFO,
-            log_file: str | None = None
-    ):
+
+    def __init__(self, name: str, level=logging.INFO, log_file: str | None = None):
         """
         Initializes the logger.
 
@@ -26,13 +23,15 @@ class Logger:
         """
         self.logger = logging.getLogger(name)
         self.logger.setLevel(level)
-        self.logger.propagate = False # Prevent logs from propagating to the root logger
+        self.logger.propagate = (
+            False  # Prevent logs from propagating to the root logger
+        )
 
         # Only add handlers if none exist yet
         if not self.logger.hasHandlers():
             formatter = logging.Formatter(
-                '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                datefmt='%Y-%m-%d %H:%M:%S'
+                "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S",
             )
 
             # Console Handler (always on)
@@ -44,7 +43,9 @@ class Logger:
             if log_file:
                 # Use a rotating file handler for long-running services
                 file_handler = RotatingFileHandler(
-                    log_file, maxBytes=10*1024*1024, backupCount=5 # 10 MB per file, 5 backups
+                    log_file,
+                    maxBytes=10 * 1024 * 1024,
+                    backupCount=5,  # 10 MB per file, 5 backups
                 )
                 file_handler.setFormatter(formatter)
                 self.logger.addHandler(file_handler)

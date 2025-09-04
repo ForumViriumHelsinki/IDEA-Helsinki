@@ -1,14 +1,14 @@
-#------------------------------------------------------#
-#---------------- GENERAL IMPORTS ---------------------#
-#------------------------------------------------------#
+# ------------------------------------------------------#
+# ---------------- GENERAL IMPORTS ---------------------#
+# ------------------------------------------------------#
 import pandas as pd
 import os
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-#------------------------------------------------------#
-#-------------- PROJECT CLASS IMPORTS -----------------#
-#------------------------------------------------------#
+# ------------------------------------------------------#
+# -------------- PROJECT CLASS IMPORTS -----------------#
+# ------------------------------------------------------#
 from idea_shared.classes.Logger import Logger
 
 """
@@ -16,6 +16,7 @@ from idea_shared.classes.Logger import Logger
 """
 
 logger = Logger(__name__)
+
 
 # Legacy function for storing IDEA profile/validation to disc.
 def write_df_as_csv(df: pd.DataFrame, file_name: str, append: bool = False) -> bool:
@@ -29,7 +30,7 @@ def write_df_as_csv(df: pd.DataFrame, file_name: str, append: bool = False) -> b
                 If False (default), overwrite the file.
     """
     if df.empty:
-        logger.warning('DataFrame is empty, not writing to file.')
+        logger.warning("DataFrame is empty, not writing to file.")
         return False
 
     if not file_name:
@@ -42,16 +43,17 @@ def write_df_as_csv(df: pd.DataFrame, file_name: str, append: bool = False) -> b
 
         if append and file_path.exists():
             # Update file
-            df.to_csv(file_path, mode='a', index=False, sep=';', header=False)
+            df.to_csv(file_path, mode="a", index=False, sep=";", header=False)
         else:
             # Overwrite file (default behavior)
-            df.to_csv(file_path, mode='w', index=False, sep=';', header=True)
+            df.to_csv(file_path, mode="w", index=False, sep=";", header=True)
 
-        logger.info(f'Successfully wrote DataFrame to CSV: {file_path}')
+        logger.info(f"Successfully wrote DataFrame to CSV: {file_path}")
         return True
     except Exception as e:
-        logger.error(f'Unexpected error writing CSV to {file_name}: {e}')
+        logger.error(f"Unexpected error writing CSV to {file_name}: {e}")
         return False
+
 
 # Legacy function for removing IDEA profile/validation from disc.
 def delete_csv(file_name: str) -> bool:
@@ -68,14 +70,16 @@ def delete_csv(file_name: str) -> bool:
             os.remove(file_path)
             return True
         else:
-            logger.error(f'File {file_name} does not exist')
+            logger.error(f"File {file_name} does not exist")
             return False
     except OSError as e:
         logger.error(f"Error deleting file {file_name}: {e}")
         return False
 
 
-def determine_disturbance_dates(reported_disturbances: list) -> tuple[datetime, datetime]:
+def determine_disturbance_dates(
+    reported_disturbances: list,
+) -> tuple[datetime, datetime]:
     """
     Determines the earliest start date and latest end date for reported disturbances.
 
@@ -92,14 +96,27 @@ def determine_disturbance_dates(reported_disturbances: list) -> tuple[datetime, 
 
     if len(reported_disturbances) > 0:
         try:
-            earliest_start_date = min(datetime.strptime(c["properties"]["star_date"], "%Y-%m-%d").replace(tzinfo=timezone.utc) for c in reported_disturbances)
-            latest_end_date = max(datetime.strptime(c['properties']['end_date'], "%Y-%m-%d").replace(tzinfo=timezone.utc) for c in reported_disturbances)
+            earliest_start_date = min(
+                datetime.strptime(c["properties"]["star_date"], "%Y-%m-%d").replace(
+                    tzinfo=timezone.utc
+                )
+                for c in reported_disturbances
+            )
+            latest_end_date = max(
+                datetime.strptime(c["properties"]["end_date"], "%Y-%m-%d").replace(
+                    tzinfo=timezone.utc
+                )
+                for c in reported_disturbances
+            )
         except Exception as e:
             logger.error(f"Unexpected error while reading dates, {e}")
 
     return earliest_start_date, latest_end_date
 
-def calculate_profiling_end_date(disturbance_start_date: datetime, lead_time_hours: int) -> datetime:
+
+def calculate_profiling_end_date(
+    disturbance_start_date: datetime, lead_time_hours: int
+) -> datetime:
     """
     This function calculates the end date for a profiling.
     By design, it should be earlier than the disturbance start date (lead time defined in lead_time_hours),
@@ -113,14 +130,21 @@ def calculate_profiling_end_date(disturbance_start_date: datetime, lead_time_hou
         The end date for profiling.
 
     """
-    current_date = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    current_date = datetime.now(timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
 
-    if (disturbance_start_date - timedelta(hours=lead_time_hours)) < (current_date - timedelta(hours=lead_time_hours)):
+    if (disturbance_start_date - timedelta(hours=lead_time_hours)) < (
+        current_date - timedelta(hours=lead_time_hours)
+    ):
         return disturbance_start_date - timedelta(hours=lead_time_hours)
     else:
         return current_date
 
-def calculate_profiling_start_date(profiling_end_date: datetime, profile_time_frame_weeks: int) -> datetime:
+
+def calculate_profiling_start_date(
+    profiling_end_date: datetime, profile_time_frame_weeks: int
+) -> datetime:
     """
     This function calculates the start date for profiling. IDEA specifies that this should be at least 6 months before the profiling end date.
 
@@ -131,4 +155,3 @@ def calculate_profiling_start_date(profiling_end_date: datetime, profile_time_fr
         The start date for profiling.
     """
     return profiling_end_date - timedelta(weeks=profile_time_frame_weeks)
-

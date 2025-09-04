@@ -7,7 +7,11 @@ from idea_shared.lib.idea.validation.util import (
 )
 
 
-def validate_roadwork(fcd_during_roadwork: pd.DataFrame, profile: pd.DataFrame, last_segment_validation: pd.DataFrame) -> pd.DataFrame:
+def validate_roadwork(
+    fcd_during_roadwork: pd.DataFrame,
+    profile: pd.DataFrame,
+    last_segment_validation: pd.DataFrame,
+) -> pd.DataFrame:
     """
     Validate roadwork periods using Floating Car Data (FCD) and a reference profile.
 

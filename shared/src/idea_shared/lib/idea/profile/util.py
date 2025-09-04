@@ -32,8 +32,10 @@ def interpolate_missing_minutes(
     end: dt.datetime,
 ) -> pd.DataFrame:
     """Interpolate missing minutes, so we have a record for each segment for each minute."""
-    #complete_index = pd.date_range(start=start, end=end, freq="min")
-    complete_index = pd.date_range(start=start, end=end, freq="5min") # modified for 5-minute intervals
+    # complete_index = pd.date_range(start=start, end=end, freq="min")
+    complete_index = pd.date_range(
+        start=start, end=end, freq="5min"
+    )  # modified for 5-minute intervals
     return df.reindex(complete_index)
 
 
@@ -92,7 +94,10 @@ def filter_max_consecutive_60(
 def max_consecutive_true_streak(sr: pd.Series) -> int:
     """Compute the maximum consecutive True values in a pandas series."""
     return (
-        max((sum(1 for _ in group) if key else 0) for key, group in itertools.groupby(sr))
+        max(
+            (sum(1 for _ in group) if key else 0)
+            for key, group in itertools.groupby(sr)
+        )
         if (len(sr) > 0)
         else 0
     )
@@ -143,7 +148,9 @@ def aggregate_hour_of_week(df: pd.DataFrame) -> pd.DataFrame:
     return df.round(1)
 
 
-def filter_profile_low_availability(df: pd.DataFrame, columns: list, n: int) -> pd.DataFrame:
+def filter_profile_low_availability(
+    df: pd.DataFrame, columns: list, n: int
+) -> pd.DataFrame:
     """Filter data with low availability by setting the values to nan."""
     df_copy = df.copy()
     mask = df_copy["number_of_hours"] < n
@@ -201,7 +208,9 @@ def fill_missing_values_with_values(profile: pd.DataFrame) -> pd.DataFrame:
     )
 
     profile["fcd_mean_median"] = (
-        profile["fcd_mean_median"].astype(float).fillna(FCD_MEAN_MEDIAN_MISSING_REPLACEMENT_VALUE)
+        profile["fcd_mean_median"]
+        .astype(float)
+        .fillna(FCD_MEAN_MEDIAN_MISSING_REPLACEMENT_VALUE)
     )
 
     return profile
@@ -242,7 +251,9 @@ def does_profile_has_enough_data(profile: pd.DataFrame) -> None:
         raise IDEAError("Not enough fcd input data for creating profile.")
 
 
-def verify_start_and_end_time(df: pd.DataFrame, start: dt.datetime | None, end: dt.datetime | None):
+def verify_start_and_end_time(
+    df: pd.DataFrame, start: dt.datetime | None, end: dt.datetime | None
+):
     """
     Verifies that both start and end times are either provided together or not at all,
     checks that the difference between start and end is exactly one year,
@@ -274,11 +285,13 @@ def verify_start_and_end_time(df: pd.DataFrame, start: dt.datetime | None, end: 
     # Check if the time span is exactly 1 year
     # FVH : This needs to be knifed (puukkottaa in Finnish) to fit the IDEA readiness report specification of a 6-month minimum.
     try:
-        #expected_end = start.replace(year=start.year + 1)
+        # expected_end = start.replace(year=start.year + 1)
         expected_end = start + dt.timedelta(weeks=PROFILE_TIME_FRAME_WEEKS)
     except ValueError:
         # Handle February 29 → 28 case
-        expected_end = start + (dt.datetime(start.year + 1, 3, 1) - dt.datetime(start.year, 3, 1))
+        expected_end = start + (
+            dt.datetime(start.year + 1, 3, 1) - dt.datetime(start.year, 3, 1)
+        )
 
     if end != expected_end:
         raise IDEAError(

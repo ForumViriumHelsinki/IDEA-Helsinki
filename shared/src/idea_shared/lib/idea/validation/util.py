@@ -237,7 +237,9 @@ def handle_profile_value(profile_value: float | None) -> float:
     return max(profile_value, MINIMUM_PROFILE_VALUE)
 
 
-def sanitize_cov_values(min_no_cov: float, prev_min_no_cov: float) -> tuple[float, float]:
+def sanitize_cov_values(
+    min_no_cov: float, prev_min_no_cov: float
+) -> tuple[float, float]:
     """Ensure no NaNs in coverage values."""
     return (
         0 if np.isnan(min_no_cov) else min_no_cov,
@@ -262,7 +264,10 @@ def calculate_running_mean_based_on_conditions(
 
     elif (min_no_cov == 0) and (prev_min_no_cov < profile_value):
         return calculate_running_mean(
-            profile_value, prev_running_mean, coverage, prev_min_no_cov / (2 * profile_value)
+            profile_value,
+            prev_running_mean,
+            coverage,
+            prev_min_no_cov / (2 * profile_value),
         )
 
     elif min_no_cov != 0:
@@ -274,12 +279,17 @@ def calculate_running_mean_based_on_conditions(
         return calculate_running_mean(MINIMUM_PROFILE_VALUE, prev_running_mean, 10, 1)
 
     elif coverage > COV_HIGH:
-        return calculate_running_mean(MINIMUM_PROFILE_VALUE, prev_running_mean, coverage, 0)
+        return calculate_running_mean(
+            MINIMUM_PROFILE_VALUE, prev_running_mean, coverage, 0
+        )
 
     return prev_running_mean  # No change
 
 
-def determine_road_status_by_minute(df_matched_profile: pd.DataFrame, last_segment_validation: pd.DataFrame | None = None) -> pd.DataFrame:
+def determine_road_status_by_minute(
+    df_matched_profile: pd.DataFrame,
+    last_segment_validation: pd.DataFrame | None = None,
+) -> pd.DataFrame:
     """
     Determines the road status per minute using a running mean based on profile coverage.
 
@@ -307,7 +317,6 @@ def determine_road_status_by_minute(df_matched_profile: pd.DataFrame, last_segme
         previous_row = last_segment_validation.iloc[-1].copy()
 
     for _, row in df_matched_profile.iterrows():
-
         if previous_row is None:
             running_means.append(prev_running_mean)
             previous_row = row.copy()
@@ -358,5 +367,7 @@ def set_segment_closure_status(df: pd.DataFrame) -> pd.DataFrame:
         df.running_mean > CLOSED_LIMIT,
     ]
     selections = ["open", "closed"]
-    df["segment_closure_status"] = np.select(conditions, selections, default="undetermined")
+    df["segment_closure_status"] = np.select(
+        conditions, selections, default="undetermined"
+    )
     return df

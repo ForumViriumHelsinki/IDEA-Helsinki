@@ -1,18 +1,19 @@
-#------------------------------------------------------#
-#---------------- GENERAL IMPORTS ---------------------#
-#------------------------------------------------------#
+# ------------------------------------------------------#
+# ---------------- GENERAL IMPORTS ---------------------#
+# ------------------------------------------------------#
 import re
 import json
 import hashlib
 from datetime import datetime
 from pathlib import Path
 
-#------------------------------------------------------#
-#-------------- PROJECT CLASS IMPORTS -----------------#
-#------------------------------------------------------#
+# ------------------------------------------------------#
+# -------------- PROJECT CLASS IMPORTS -----------------#
+# ------------------------------------------------------#
 from idea_shared.classes.Logger import Logger
 
 logger = Logger(__name__)
+
 
 def get_fcd_geometries(fcd_file: dict) -> dict:
     """
@@ -35,14 +36,23 @@ def get_fcd_geometries(fcd_file: dict) -> dict:
 
     for segment_id, segment_value in segment_data.items():
         if isinstance(segment_value, dict) and "geometry" in segment_value:
-            fcd_segment_geometry["segmentId"][segment_id] = {"geometry": segment_value["geometry"]}
+            fcd_segment_geometry["segmentId"][segment_id] = {
+                "geometry": segment_value["geometry"]
+            }
         else:
-            logger.warning(f"Segment '{segment_id}' has malformed data or is missing 'geometry'. Skipping.")
+            logger.warning(
+                f"Segment '{segment_id}' has malformed data or is missing 'geometry'. Skipping."
+            )
 
-    logger.info(f"FCD segment geometries retrieved for {len(fcd_segment_geometry['segmentId'])} segments.")
+    logger.info(
+        f"FCD segment geometries retrieved for {len(fcd_segment_geometry['segmentId'])} segments."
+    )
     return fcd_segment_geometry
 
-def extract_timestamp_str_from_file_name(file_name: str, include_microseconds: bool | None = False) -> str | None:
+
+def extract_timestamp_str_from_file_name(
+    file_name: str, include_microseconds: bool | None = False
+) -> str | None:
     """
     Function for extracting timestamps from KYMP Azure blob names: Formatted as 'YYYY-MM-DDTHH:MM:SS.ffffff.json'
 
@@ -77,10 +87,15 @@ def extract_timestamp_str_from_file_name(file_name: str, include_microseconds: b
             return dt_obj.strftime("%Y-%m-%dT%H:%M:%S")
 
     except ValueError:
-        logger.warning(f"Could not parse valid datetime from extracted string '{datetime_str}' in '{file_name}'")
+        logger.warning(
+            f"Could not parse valid datetime from extracted string '{datetime_str}' in '{file_name}'"
+        )
         return None
 
-def parse_json_from_bytes(content_bytes: bytes, file_name_for_log: str | None = "json file") -> dict | None:
+
+def parse_json_from_bytes(
+    content_bytes: bytes, file_name_for_log: str | None = "json file"
+) -> dict | None:
     """
     Function for parsing JSON data from bytes.
 
@@ -92,19 +107,24 @@ def parse_json_from_bytes(content_bytes: bytes, file_name_for_log: str | None = 
         The parsed JSON data or None is the data could not be parsed.
     """
     try:
-        content_str = content_bytes.decode('utf-8')
+        content_str = content_bytes.decode("utf-8")
         return json.loads(content_str)
     except UnicodeDecodeError as ude:
-        logger.error(f"Failed to decode content of '{file_name_for_log}' as UTF-8: {ude}")
+        logger.error(
+            f"Failed to decode content of '{file_name_for_log}' as UTF-8: {ude}"
+        )
         return None
     except json.JSONDecodeError as jde:
         logger.error(f"Failed to parse JSON from blob '{file_name_for_log}': {jde}")
         return None
     except Exception as e:
-        logger.error(f"Unexpected error parsing JSON from blob '{file_name_for_log}': {e}")
+        logger.error(
+            f"Unexpected error parsing JSON from blob '{file_name_for_log}': {e}"
+        )
         return None
 
-def write_json_records(records: dict, json_file:str) -> bool:
+
+def write_json_records(records: dict, json_file: str) -> bool:
     """
     Function for writing JSON records to a file.
     Args:
@@ -124,7 +144,9 @@ def write_json_records(records: dict, json_file:str) -> bool:
         json_file_path.parent.mkdir(parents=True, exist_ok=True)
         with open(json_file, "w", encoding="utf-8") as f:
             json.dump(records, f, indent=4)
-        logger.info(f"Successfully wrote {len(segment_ids)} records to '{json_file_path}'.")
+        logger.info(
+            f"Successfully wrote {len(segment_ids)} records to '{json_file_path}'."
+        )
         return True
     except IOError as ioe:
         logger.error(f"Failed to write JSON records to '{json_file}': {ioe}")
@@ -132,6 +154,7 @@ def write_json_records(records: dict, json_file:str) -> bool:
     except Exception as e:
         logger.error(f"Unexpected error writing JSON records to '{json_file}': {e}")
         return False
+
 
 def read_existing_json_records(json_file: str) -> dict:
     """
@@ -152,18 +175,34 @@ def read_existing_json_records(json_file: str) -> dict:
                 segment_ids = existing_content.get("segmentId")
                 if isinstance(segment_ids, dict):
                     records = existing_content
-                    logger.info(f"Read {len(segment_ids)} existing segment records from '{json_file_path}'.")
+                    logger.info(
+                        f"Read {len(segment_ids)} existing segment records from '{json_file_path}'."
+                    )
                 else:
-                   logger.warning(f"Existing JSON file '{json_file_path}' did not contain a Dictionary for different segments. It will be overwritten.")
+                    logger.warning(
+                        f"Existing JSON file '{json_file_path}' did not contain a Dictionary for different segments. It will be overwritten."
+                    )
             else:
-                logger.warning(f"Existing JSON file '{json_file_path}' did not contain a Dictionary. It will be overwritten.")
+                logger.warning(
+                    f"Existing JSON file '{json_file_path}' did not contain a Dictionary. It will be overwritten."
+                )
         except json.JSONDecodeError:
-            logger.warning(f"Could not decode existing JSON from '{json_file}'. It will be overwritten.")
+            logger.warning(
+                f"Could not decode existing JSON from '{json_file}'. It will be overwritten."
+            )
         except Exception as e:
-            logger.error(f"Error reading or parsing existing JSON file '{json_file}': {e}. It will be overwritten.")
+            logger.error(
+                f"Error reading or parsing existing JSON file '{json_file}': {e}. It will be overwritten."
+            )
     return records
 
-def update_segment_changelog(fresh_mapping_file_path: str,changelog_file_path: str,archive_file_path: str, processing_date: datetime) -> None:
+
+def update_segment_changelog(
+    fresh_mapping_file_path: str,
+    changelog_file_path: str,
+    archive_file_path: str,
+    processing_date: datetime,
+) -> None:
     """
     Compares a fresh segment mapping file against a master changelog to detect,
     log, and catalog segment changes, moving removed segments to an archive.
@@ -184,25 +223,29 @@ def update_segment_changelog(fresh_mapping_file_path: str,changelog_file_path: s
     changelog = {}
     if changelog_path.exists():
         try:
-            with open(changelog_path, 'r', encoding='utf-8') as f:
+            with open(changelog_path, "r", encoding="utf-8") as f:
                 changelog = json.load(f)
         except (json.JSONDecodeError, IOError) as e:
-            logger.error(f"Could not load changelog file '{changelog_path}'. Aborting. Error: {e}")
+            logger.error(
+                f"Could not load changelog file '{changelog_path}'. Aborting. Error: {e}"
+            )
             return
 
     # Check if the archived segment file (archived segment history file) is already available.
     archived_segments = {}
     if archive_path.exists():
         try:
-            with open(archive_path, 'r', encoding='utf-8') as f:
+            with open(archive_path, "r", encoding="utf-8") as f:
                 archived_segments = json.load(f)
         except (json.JSONDecodeError, IOError):
-            logger.warning(f"Could not load archive file '{archive_path}'. A new one may be created.")
+            logger.warning(
+                f"Could not load archive file '{archive_path}'. A new one may be created."
+            )
 
     # Load the fresh segment mapping, end function if none is available.
     fresh_segments = {}
     try:
-        with open(mapping_file_path, 'r', encoding='utf-8') as f:
+        with open(mapping_file_path, "r", encoding="utf-8") as f:
             fresh_data = json.load(f)
         for seg_id, seg_value in fresh_data.get("segmentId", {}).items():
             if isinstance(seg_value, dict) and "geometry" in seg_value:
@@ -218,10 +261,12 @@ def update_segment_changelog(fresh_mapping_file_path: str,changelog_file_path: s
     # Check is segments are missing (removed) from the fresh mapping file.
     removed_segments_ids = master_ids - fresh_ids
     if removed_segments_ids:
-        logger.warning(f"DETECTED {len(removed_segments_ids)} REMOVED SEGMENTS: {list(removed_segments_ids)}")
+        logger.warning(
+            f"DETECTED {len(removed_segments_ids)} REMOVED SEGMENTS: {list(removed_segments_ids)}"
+        )
         for seg_id in removed_segments_ids:
             removed_record = changelog.pop(seg_id)
-            removed_record['date_archived'] = processing_date.isoformat()
+            removed_record["date_archived"] = processing_date.isoformat()
             archived_segments[seg_id] = removed_record
 
     # Check for new segments and segments that have been modified.
@@ -229,8 +274,8 @@ def update_segment_changelog(fresh_mapping_file_path: str,changelog_file_path: s
     modified_ids = []
     for seg_id, geometry in fresh_segments.items():
         geom_str = json.dumps(geometry, sort_keys=True)
-        #SHA-256 is used to determine changes in the segments catalogued state.
-        geom_hash = hashlib.sha256(geom_str.encode('utf-8')).hexdigest()
+        # SHA-256 is used to determine changes in the segments catalogued state.
+        geom_hash = hashlib.sha256(geom_str.encode("utf-8")).hexdigest()
 
         if seg_id not in changelog:
             # This is a new segment
@@ -239,7 +284,7 @@ def update_segment_changelog(fresh_mapping_file_path: str,changelog_file_path: s
                 "current_geometry": geometry,
                 "current_hash": geom_hash,
                 "date_added": processing_date.isoformat(),
-                "history": []
+                "history": [],
             }
         elif changelog[seg_id]["current_hash"] != geom_hash:
             # This segment's geometry has been modified
@@ -248,7 +293,7 @@ def update_segment_changelog(fresh_mapping_file_path: str,changelog_file_path: s
             # Archive the old state to its history
             archive_entry = {
                 "date_archived": processing_date.isoformat(),
-                "geometry": changelog[seg_id]["current_geometry"]
+                "geometry": changelog[seg_id]["current_geometry"],
             }
             changelog[seg_id]["history"].append(archive_entry)
 
@@ -260,18 +305,20 @@ def update_segment_changelog(fresh_mapping_file_path: str,changelog_file_path: s
     if newly_added_ids:
         logger.info(f"DETECTED {len(newly_added_ids)} NEW SEGMENTS: {newly_added_ids}")
     if modified_ids:
-        logger.info(f"DETECTED {len(modified_ids)} MODIFIED SEGMENT GEOMETRIES: {modified_ids}")
+        logger.info(
+            f"DETECTED {len(modified_ids)} MODIFIED SEGMENT GEOMETRIES: {modified_ids}"
+        )
     if not newly_added_ids and not removed_segments_ids and not modified_ids:
         logger.info("Segment inventory check complete. No changes detected.")
 
     # Update files
     try:
-        with open(changelog_path, 'w', encoding='utf-8') as f:
+        with open(changelog_path, "w", encoding="utf-8") as f:
             json.dump(changelog, f, indent=4)
         logger.info("Segment changelog file has been updated.")
 
         if removed_segments_ids:
-            with open(archive_path, 'w', encoding='utf-8') as f:
+            with open(archive_path, "w", encoding="utf-8") as f:
                 json.dump(archived_segments, f, indent=4)
             logger.info("Segment archive file has been updated.")
     except IOError as e:

@@ -63,7 +63,7 @@ Data model used for intersection detection.
           ]
           // ... more coordinate pairs...
         ]
-      }    
+      }
     },
     "segmentId": "string" // Unique identifier for the segment {
       "geometry": {
@@ -79,7 +79,7 @@ Data model used for intersection detection.
           ]
           // ... more coordinate pairs...
         ]
-      }  
+      }
     }
     // ... more segment objects, each with its own ID and list of detailed geometry
   }
@@ -92,7 +92,7 @@ The assumption is that the **FCD segment mapping** represents the current state 
 
 #### Master segment history
 
-Data model for keeping track of current geometry for segments and recording changes to them.  
+Data model for keeping track of current geometry for segments and recording changes to them.
 *master_segment_history.json* naming used in the current program.
 
 ```json
@@ -121,7 +121,7 @@ Data model for keeping track of current geometry for segments and recording chan
           "type": "LineString",
           "coordinates": [
             [
-              "longitude (float)", 
+              "longitude (float)",
               "latitude (float)"
             ],
             [
@@ -141,7 +141,7 @@ Data model for keeping track of current geometry for segments and recording chan
 
 #### Archived segment history
 
-Data model for recording segments that have been removed.  
+Data model for recording segments that have been removed.
 *archived_segment_history.json* naming used in the current program.
 
 ```json
@@ -169,7 +169,7 @@ Data model for recording segments that have been removed.
           "type": "LineString",
           "coordinates": [
             [
-              "longitude (float)", 
+              "longitude (float)",
               "latitude (float)"
             ],
             [
@@ -192,14 +192,14 @@ Data model for recording segments that have been removed.
 ### FCD time series data model **OLD**
 **!! LEGACY !!** Data model used to save TomTom segment history data **!! LEGACY !!**
 
-This was the original approach for modeling FCD data.  
+This was the original approach for modeling FCD data.
 Discarded because it was doubtful this could be fitted with non TomTom FCD data.
 
 
 ```json
 {
   "segmentId":  {
-    "segmentId": "string" { // Unique identifier for the segment 
+    "segmentId": "string" { // Unique identifier for the segment
       "geometry": {
         "type": "LineString",
         "coordinates": [
@@ -257,7 +257,7 @@ FCD-Traffic disturbance collisions
         {
           // Each object in this list represents one WFS feature (e.g., a traffic disturbance area) that intersects the segment.
           // "properties" only include necessary data detailing the traffic disturbance.
-          "properties": { 
+          "properties": {
             "traffic_disturbance_type": "string", // For example "Kaivuilmoitus" (from WFS feature 'hakemus')
             "traffic_disturbance_id": "string",   // Unique, numeric ID of the WFS feature (from WFS feature 'id')
             "application_id": "string",           // Application ID (from WFS feature 'hakemustunnus')

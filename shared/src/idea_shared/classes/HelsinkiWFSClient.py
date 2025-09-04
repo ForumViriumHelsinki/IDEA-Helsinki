@@ -1,13 +1,14 @@
-#------------------------------------------------------#
-#---------------- GENERAL IMPORTS ---------------------#
-#------------------------------------------------------#
+# ------------------------------------------------------#
+# ---------------- GENERAL IMPORTS ---------------------#
+# ------------------------------------------------------#
 import requests
 import json
 
-#------------------------------------------------------#
-#-------------- PROJECT CLASS IMPORTS -----------------#
-#------------------------------------------------------#
+# ------------------------------------------------------#
+# -------------- PROJECT CLASS IMPORTS -----------------#
+# ------------------------------------------------------#
 from idea_shared.classes.Logger import Logger
+
 
 class HelsinkiWFSClient:
     """
@@ -25,13 +26,19 @@ class HelsinkiWFSClient:
         "gml": "application/gml+xml",
     }
     COORDINATE_SYSTEMS: dict[str, str] = {
-        "3879": "urn:ogc:def:crs:EPSG:3879", # ETRS-GK25FIN
-        "3067": "urn:ogc:def:crs:EPSG:3067", # ETRS-TM35FIN
-        "4326": "urn:ogc:def:crs:EPSG:4326", # WGS 84
-        "3857": "urn:ogc:def:crs:EPSG:3857", # Web Mercator
+        "3879": "urn:ogc:def:crs:EPSG:3879",  # ETRS-GK25FIN
+        "3067": "urn:ogc:def:crs:EPSG:3067",  # ETRS-TM35FIN
+        "4326": "urn:ogc:def:crs:EPSG:4326",  # WGS 84
+        "3857": "urn:ogc:def:crs:EPSG:3857",  # Web Mercator
     }
 
-    def __init__(self,session: requests.Session | None = None,url: str | None = None,file_format: str | None = None,crs: str | None = None,):
+    def __init__(
+        self,
+        session: requests.Session | None = None,
+        url: str | None = None,
+        file_format: str | None = None,
+        crs: str | None = None,
+    ):
         # If no session is provided, this class is responsible for the one it creates.
         self._session_owner = session is None
         self.session = session if session else requests.Session()
@@ -158,6 +165,7 @@ class HelsinkiWFSClient:
             self.logger.error(f"Could not get feature for '{type_name}': {ve}")
             return None
 
+
 class HelsinkiAlluWFSClient(HelsinkiWFSClient):
     """
     An Allu specific WFS client class with prebuilt request methods.
@@ -192,7 +200,7 @@ class HelsinkiAlluWFSClient(HelsinkiWFSClient):
         Fetches 'Tilapainen_liikennejarjestely_alue' features.
         """
         return self.get_feature("Tilapainen_liikennejarjestely_alue")
-    
+
     def request_tilapainen_liikennejarjestely_piste(self):
         """
         Fetches 'Tilapainen_liikennejarjestely_piste' features.
@@ -223,10 +231,14 @@ class HelsinkiAlluWFSClient(HelsinkiWFSClient):
                     features = wfs_response.get("features")
                     aggregated_wfs_features["features"].extend(features)
                 else:
-                    self.logger.info(f"No features found for identifier: '{feature_id}'")
+                    self.logger.info(
+                        f"No features found for identifier: '{feature_id}'"
+                    )
 
             except Exception as e:
-                self.logger.error(f"An error occurred while requesting feature '{feature_id}': {e}")
+                self.logger.error(
+                    f"An error occurred while requesting feature '{feature_id}': {e}"
+                )
                 continue
 
         if not aggregated_wfs_features["features"]:
