@@ -9,13 +9,15 @@ import pandas as pd
 
 from idea_shared.classes.Logger import Logger
 
+
 class FCDInfluxDBManager:
     """
     Manages writing and querying Floating Car Data (FCD) to InfluxDB.
     This class is specifically designed to work with the TFDS data models.
     """
+
     def __init__(self, url: str, token: str, org: str, bucket: str):
-        self.client = None # Initialize client to None
+        self.client = None  # Initialize client to None
         try:
             # Initialize the connection to the InfluxDB client with a retry strategy.
             retries = Retry(total=5, backoff_factor=1, status_forcelist=[502, 503, 504])
@@ -25,7 +27,9 @@ class FCDInfluxDBManager:
             self.org = org
             self.bucket = bucket
             self.logger = Logger(__name__)
-            self.logger.info(f"FCDInfluxDBManager initialized for bucket '{self.bucket}'.")
+            self.logger.info(
+                f"FCDInfluxDBManager initialized for bucket '{self.bucket}'."
+            )
         except (ApiException, ConnectionError) as e:
             print(f"Failed to connect to InfluxDB: {e}")
             self.close()
@@ -44,7 +48,7 @@ class FCDInfluxDBManager:
         self.close()
 
     def check_connection(self) -> bool:
-        """"
+        """ "
         This function checks if the connection to the InfluxDB server is established.
         """
         try:
@@ -97,7 +101,9 @@ class FCDInfluxDBManager:
                 data_frame_tag_columns=["segmentId"],
                 data_frame_timestamp_column="time",
             )
-            self.logger.info(f"Successfully wrote {len(df_copy)} rows to measurement '{measurement_name}' for segmentId '{segment_id}'.")
+            self.logger.info(
+                f"Successfully wrote {len(df_copy)} rows to measurement '{measurement_name}' for segmentId '{segment_id}'."
+            )
         except Exception as e:
             self.logger.error(f"Writing DataFrame to InfluxDB failed. {e}")
             raise
@@ -115,13 +121,24 @@ class FCDInfluxDBManager:
             observations = segment_details.get("detailedSegment", {}).get("date", {})
             for timestamp_str, observation_data in observations.items():
                 properties = observation_data.get("properties", {})
-                if not properties: continue
-                try:
-                    dt_object = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00')) if timestamp_str.endswith('Z') else datetime.fromisoformat(timestamp_str).replace(tzinfo=timezone.utc)
-                except ValueError:
-                    self.logger.warning(f"Could not parse timestamp '{timestamp_str}'. Skipping.")
+                if not properties:
                     continue
-                point = Point("segment_data").tag("segmentId", segment_id).time(dt_object)
+                try:
+                    dt_object = (
+                        datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+                        if timestamp_str.endswith("Z")
+                        else datetime.fromisoformat(timestamp_str).replace(
+                            tzinfo=timezone.utc
+                        )
+                    )
+                except ValueError:
+                    self.logger.warning(
+                        f"Could not parse timestamp '{timestamp_str}'. Skipping."
+                    )
+                    continue
+                point = (
+                    Point("segment_data").tag("segmentId", segment_id).time(dt_object)
+                )
                 for key, value in properties.items():
                     if isinstance(value, (int, float, str, bool)):
                         point.field(key, value)
@@ -132,7 +149,9 @@ class FCDInfluxDBManager:
             return
         try:
             self.write_api.write(bucket=self.bucket, org=self.org, record=points)
-            self.logger.info(f"Successfully wrote {len(points)} points to bucket '{self.bucket}'.")
+            self.logger.info(
+                f"Successfully wrote {len(points)} points to bucket '{self.bucket}'."
+            )
         except Exception as e:
             self.logger.error(f"Writing to InfluxDB failed. {e}")
             raise
@@ -157,7 +176,13 @@ class FCDInfluxDBManager:
             self.logger.error(f"Querying last timestamp failed. {e}")
             raise
 
-    def get_segment_update_timestamp(self, segment_id: str, measurement_name: str, first_or_last: str, interval_minutes: int | None = None) -> datetime | None:
+    def get_segment_update_timestamp(
+        self,
+        segment_id: str,
+        measurement_name: str,
+        first_or_last: str,
+        interval_minutes: int | None = None,
+    ) -> datetime | None:
         """
         Queries the InfluxDB database for the first or last timestamp for a particular segment in a particular measurement.
 
@@ -192,7 +217,12 @@ class FCDInfluxDBManager:
             self.logger.error(f"Querying last timestamp failed.{e}")
             raise
 
-    def get_last_segment_update_timestamp(self, segment_id: str, measurement_name: str, interval_minutes: int | None = None) -> datetime | None:
+    def get_last_segment_update_timestamp(
+        self,
+        segment_id: str,
+        measurement_name: str,
+        interval_minutes: int | None = None,
+    ) -> datetime | None:
         """
         Queries the InfluxDB database for the latest timestamp for a particular segment.
 
@@ -205,9 +235,19 @@ class FCDInfluxDBManager:
         Returns:
             Timestamp of the latest measurement for the segment or None if no measurements were found (the segment is not in the database).
         """
-        return self.get_segment_update_timestamp(segment_id=segment_id, measurement_name=measurement_name, first_or_last="last", interval_minutes=interval_minutes)
+        return self.get_segment_update_timestamp(
+            segment_id=segment_id,
+            measurement_name=measurement_name,
+            first_or_last="last",
+            interval_minutes=interval_minutes,
+        )
 
-    def get_first_segment_update_timestamp(self, segment_id: str, measurement_name: str, interval_minutes: int | None = None) -> datetime | None:
+    def get_first_segment_update_timestamp(
+        self,
+        segment_id: str,
+        measurement_name: str,
+        interval_minutes: int | None = None,
+    ) -> datetime | None:
         """
         Queries the InfluxDB database for the first (earliest) timestamp for a particular segment.
 
@@ -221,9 +261,23 @@ class FCDInfluxDBManager:
             Timestamp of the first measurement for the segment or None if no measurements were found (the segment is not in the database).
         """
 
-        return self.get_segment_update_timestamp(segment_id=segment_id,measurement_name=measurement_name,first_or_last="first",interval_minutes=interval_minutes,)
+        return self.get_segment_update_timestamp(
+            segment_id=segment_id,
+            measurement_name=measurement_name,
+            first_or_last="first",
+            interval_minutes=interval_minutes,
+        )
 
-    def get_segment_data_csv(self, segment_id: str, measurement_name: str, start_time: datetime = None, end_time: datetime = None, latest_only: bool = False, query_fields: list | None = None, interval_minutes: int | None = None) -> str | None:
+    def get_segment_data_csv(
+        self,
+        segment_id: str,
+        measurement_name: str,
+        start_time: datetime = None,
+        end_time: datetime = None,
+        latest_only: bool = False,
+        query_fields: list | None = None,
+        interval_minutes: int | None = None,
+    ) -> str | None:
         """
         Queries the InfluxDB database for measurements from a segment. NOTE, this queries ALL data in the measurements.
 
@@ -283,7 +337,16 @@ class FCDInfluxDBManager:
             self.logger.error(f"An error occurred during segment data query. {e}")
             raise e
 
-    def get_segment_data_dataframe(self, segment_id: str, measurement_name: str, start_time: datetime = None, end_time: datetime = None, latest_only: bool = False, query_fields: list | None = None, interval_minutes: int | None = None) -> pd.DataFrame | None:
+    def get_segment_data_dataframe(
+        self,
+        segment_id: str,
+        measurement_name: str,
+        start_time: datetime = None,
+        end_time: datetime = None,
+        latest_only: bool = False,
+        query_fields: list | None = None,
+        interval_minutes: int | None = None,
+    ) -> pd.DataFrame | None:
         """
         Queries InfluxDB for segment data and returns it as a Pandas DataFrame.
 

@@ -1,22 +1,23 @@
-#------------------------------------------------------#
-#---------------- GENERAL IMPORTS ---------------------#
-#------------------------------------------------------#
+# ------------------------------------------------------#
+# ---------------- GENERAL IMPORTS ---------------------#
+# ------------------------------------------------------#
 import asyncio
 from datetime import datetime, timezone, timedelta
 import pandas as pd
 
-#------------------------------------------------------#
-#-------------- PROJECT CLASS IMPORTS -----------------#
-#------------------------------------------------------#
+# ------------------------------------------------------#
+# -------------- PROJECT CLASS IMPORTS -----------------#
+# ------------------------------------------------------#
 from idea_shared.classes.Logger import Logger
 from idea_shared.classes.FCDInfluxDBManager import FCDInfluxDBManager
 
-#------------------------------------------------------#
-#------------- PROJECT MODULE IMPORTS -----------------#
-#------------------------------------------------------#
+# ------------------------------------------------------#
+# ------------- PROJECT MODULE IMPORTS -----------------#
+# ------------------------------------------------------#
 from idea_shared.lib.idea.profile.profile import calculate_profile
 from idea_shared.lib.idea.validation.validation import validate_roadwork
 from idea_shared.lib import IdeaHelsinkiDataPreProcessor
+
 
 class IdeaHelsinkiRoadSegment:
     """
@@ -51,21 +52,34 @@ class IdeaHelsinkiRoadSegment:
         self.db_fcd_token: str = db_fcd_token
         self.db_validation_bucket: str = db_validation_bucket
         self.db_validation_token: str = db_validation_token
-        self.disturbance_start_date, self.disturbance_end_date = IdeaHelsinkiDataPreProcessor.determine_disturbance_dates(reported_disturbances=reported_disturbances)
+        self.disturbance_start_date, self.disturbance_end_date = (
+            IdeaHelsinkiDataPreProcessor.determine_disturbance_dates(
+                reported_disturbances=reported_disturbances
+            )
+        )
         # End point for the profile history, (example. datetime 2025-6-10), based on the disturbance start date.
-        self.profiling_end_date = IdeaHelsinkiDataPreProcessor.calculate_profiling_end_date(disturbance_start_date=self.disturbance_start_date, lead_time_hours=self.profile_end_lead_time_hours)
+        self.profiling_end_date = (
+            IdeaHelsinkiDataPreProcessor.calculate_profiling_end_date(
+                disturbance_start_date=self.disturbance_start_date,
+                lead_time_hours=self.profile_end_lead_time_hours,
+            )
+        )
         # Starting point for the profile history, (example. datetime 2025-1-10), based on the profiling_end_date.
-        self.profiling_start_date = IdeaHelsinkiDataPreProcessor.calculate_profiling_start_date(profiling_end_date=self.profiling_end_date, profile_time_frame_weeks=self.profile_time_frame_weeks)
+        self.profiling_start_date = (
+            IdeaHelsinkiDataPreProcessor.calculate_profiling_start_date(
+                profiling_end_date=self.profiling_end_date,
+                profile_time_frame_weeks=self.profile_time_frame_weeks,
+            )
+        )
         # This attribute init also checks if the segment has been already profiled (happens in cases when the program has been terminated unexpectedly)
         self.last_validation_update = None
         self.segment_profile = None
         self.last_segment_validation = None
-        self.segment_active:bool = True
+        self.segment_active: bool = True
         self.logger = Logger(f"Helsinki IDEA road segment ID : {self.segment_id}")
         self.logger.info("Segment object created")
 
     async def _wait_for_next_cycle(self):
-
         """
         Void method that pauses the road segment object until the next validation cycle.
         Bases the wait time on the "clock" to determine the number of seconds it needs to sleep.
@@ -74,7 +88,9 @@ class IdeaHelsinkiRoadSegment:
         Based on the validation_frequency
         """
         now = datetime.now(timezone.utc)
-        minutes_to_add = self.validation_frequency - (now.minute % self.validation_frequency)
+        minutes_to_add = self.validation_frequency - (
+            now.minute % self.validation_frequency
+        )
 
         resume_time = now + timedelta(minutes=minutes_to_add)
         resume_time = resume_time.replace(second=0, microsecond=0)
@@ -82,7 +98,9 @@ class IdeaHelsinkiRoadSegment:
         if resume_time <= now:
             resume_time += timedelta(minutes=self.validation_frequency)
 
-        self.logger.info(f"Pausing. Next validation cycle at {resume_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        self.logger.info(
+            f"Pausing. Next validation cycle at {resume_time.strftime('%Y-%m-%d %H:%M:%S')}"
+        )
         await asyncio.sleep((resume_time - now).total_seconds())
 
     async def __validate_segment(self, current_time: datetime):
@@ -98,9 +116,23 @@ class IdeaHelsinkiRoadSegment:
 
         if self.segment_profile is None:
             self.logger.info("Generating segment profile...")
-            segment_data_to_profile = await self.__get_idea_formated_segment_data_from_influxdb(segment_id=self.segment_id, start_time=self.profiling_start_date, end_time=self.profiling_end_date)
-            if segment_data_to_profile is not None and not segment_data_to_profile.empty:
-                profile = await asyncio.to_thread(calculate_profile,df=segment_data_to_profile,start=self.profiling_start_date,end=self.profiling_end_date)
+            segment_data_to_profile = (
+                await self.__get_idea_formated_segment_data_from_influxdb(
+                    segment_id=self.segment_id,
+                    start_time=self.profiling_start_date,
+                    end_time=self.profiling_end_date,
+                )
+            )
+            if (
+                segment_data_to_profile is not None
+                and not segment_data_to_profile.empty
+            ):
+                profile = await asyncio.to_thread(
+                    calculate_profile,
+                    df=segment_data_to_profile,
+                    start=self.profiling_start_date,
+                    end=self.profiling_end_date,
+                )
                 if not profile.empty:
                     self.logger.info("Segment profile generated")
                     self.segment_profile = profile
@@ -111,26 +143,52 @@ class IdeaHelsinkiRoadSegment:
                 self.logger.error("Segment profile could not be generated")
                 return
 
-
-        self.logger.info(f"Validating segment for timestamps {self.last_validation_update} - {current_time} ")
-        segment_data_to_validate = await self.__get_idea_formated_segment_data_from_influxdb(segment_id=self.segment_id, start_time=self.last_validation_update, end_time=current_time)
+        self.logger.info(
+            f"Validating segment for timestamps {self.last_validation_update} - {current_time} "
+        )
+        segment_data_to_validate = (
+            await self.__get_idea_formated_segment_data_from_influxdb(
+                segment_id=self.segment_id,
+                start_time=self.last_validation_update,
+                end_time=current_time,
+            )
+        )
 
         if self.last_segment_validation is None:
-            self.last_segment_validation = await self.__get_validation_dataframe_from_influxdb(segment_id=self.segment_id, start_time=(current_time-timedelta(days=self.validation_max_age_days)), end_time=current_time)
+            self.last_segment_validation = (
+                await self.__get_validation_dataframe_from_influxdb(
+                    segment_id=self.segment_id,
+                    start_time=(
+                        current_time - timedelta(days=self.validation_max_age_days)
+                    ),
+                    end_time=current_time,
+                )
+            )
 
         if segment_data_to_validate is not None and not segment_data_to_validate.empty:
-            segment_validation = await asyncio.to_thread(validate_roadwork,fcd_during_roadwork=segment_data_to_validate, profile=self.segment_profile, last_segment_validation=self.last_segment_validation)
+            segment_validation = await asyncio.to_thread(
+                validate_roadwork,
+                fcd_during_roadwork=segment_data_to_validate,
+                profile=self.segment_profile,
+                last_segment_validation=self.last_segment_validation,
+            )
             if not segment_validation.empty:
-                if await self.__write_dataframe_to_influxdb(df=segment_validation, segment_id=self.segment_id, measurement_name="idea_validation"):
+                if await self.__write_dataframe_to_influxdb(
+                    df=segment_validation,
+                    segment_id=self.segment_id,
+                    measurement_name="idea_validation",
+                ):
                     self.logger.info("Segment validation updated to database.")
                     self.last_segment_validation = segment_validation
                     self.last_validation_update = current_time
                 else:
-                    self.logger.info('Segment validation NOT updated to database.')
+                    self.logger.info("Segment validation NOT updated to database.")
             else:
-                self.logger.info('IDEA returned an empty segment validation!')
+                self.logger.info("IDEA returned an empty segment validation!")
         else:
-            self.logger.info('Segment validation data could not be fetched from database.')
+            self.logger.info(
+                "Segment validation data could not be fetched from database."
+            )
 
     async def run_lifecycle(self):
         """
@@ -138,12 +196,12 @@ class IdeaHelsinkiRoadSegment:
         Runs as long as the reported disturbance is active.
         """
 
-        #current_date = datetime.now(timezone.utc)
+        # current_date = datetime.now(timezone.utc)
 
         self.logger.info("Starting main loop...")
 
-        #while self.disturbance_end_date.date() > current_date.date():
-        #The IDEA road segment manager handles the lifecycle of the class loop.
+        # while self.disturbance_end_date.date() > current_date.date():
+        # The IDEA road segment manager handles the lifecycle of the class loop.
         while True:
             # Update current time in loop
             current_date = datetime.now(timezone.utc)
@@ -151,32 +209,54 @@ class IdeaHelsinkiRoadSegment:
             # Check is segment profiling and validation can be done
             # Determine if the segment has history enough for the IDEA algorithm.
             # Fetch the latest measurement time for the segment.
-            segment_history_start_date = (await self.__get_segment_first_timestamp_from_influxdb(segment_id=self.segment_id))
+            segment_history_start_date = (
+                await self.__get_segment_first_timestamp_from_influxdb(
+                    segment_id=self.segment_id
+                )
+            )
 
             # self.last_validation_update variable can be None if this is the first run after object init, or the last influxDB query returned None.
             # Otherwise, the variable is incremented (datetime) after each validation.
             if self.last_validation_update is None:
-                self.last_validation_update = (await self.__get_segment_last_timestamp_from_influxdb(segment_id=self.segment_id))
+                self.last_validation_update = (
+                    await self.__get_segment_last_timestamp_from_influxdb(
+                        segment_id=self.segment_id
+                    )
+                )
 
-            valid_segment = (segment_history_start_date is not None and self.last_validation_update is not None and (segment_history_start_date+ timedelta(weeks=self.profile_time_frame_weeks)<= current_date))
+            valid_segment = (
+                segment_history_start_date is not None
+                and self.last_validation_update is not None
+                and (
+                    segment_history_start_date
+                    + timedelta(weeks=self.profile_time_frame_weeks)
+                    <= current_date
+                )
+            )
 
             if valid_segment:
                 if self.profiling_end_date.date() <= current_date.date():
                     await self.__validate_segment(current_date)
                 else:
-                    self.logger.info(f'Segment validation NOT started, disturbance validation is set to start at {self.profiling_end_date.date()}')
+                    self.logger.info(
+                        f"Segment validation NOT started, disturbance validation is set to start at {self.profiling_end_date.date()}"
+                    )
             else:
-                self.logger.warning(f"Segment is not valid for profiling and validation!!! Segment history start date: {segment_history_start_date}, Last segment update date: {self.last_validation_update}")
+                self.logger.warning(
+                    f"Segment is not valid for profiling and validation!!! Segment history start date: {segment_history_start_date}, Last segment update date: {self.last_validation_update}"
+                )
 
             await self._wait_for_next_cycle()
 
         # Once the main loop has finished, the segment deactivates itself and can be removed from processing.
         # This means there is no more go-go-jee-jee for this segment :(
 
-        #self.logger.info("Main loop finished. Disturbance period has ended.")
-        #self.segment_active = False
+        # self.logger.info("Main loop finished. Disturbance period has ended.")
+        # self.segment_active = False
 
-    async def __write_dataframe_to_influxdb(self, df: pd.DataFrame, segment_id: str, measurement_name: str) -> bool:
+    async def __write_dataframe_to_influxdb(
+        self, df: pd.DataFrame, segment_id: str, measurement_name: str
+    ) -> bool:
         """
         Writes a pandas dataframe to the InfluxDB database.
 
@@ -189,17 +269,29 @@ class IdeaHelsinkiRoadSegment:
             bool: True if the writing was successful.
         """
         try:
-            with FCDInfluxDBManager(url=self.db_url, token=self.db_validation_token, org=self.db_org, bucket=self.db_validation_bucket) as manager:
+            with FCDInfluxDBManager(
+                url=self.db_url,
+                token=self.db_validation_token,
+                org=self.db_org,
+                bucket=self.db_validation_bucket,
+            ) as manager:
                 if not await asyncio.to_thread(manager.check_connection):
                     self.logger.error("FCD database connection error!")
                     return False
-                await asyncio.to_thread(manager.write_dataframe,df=df, segment_id=segment_id, measurement_name=measurement_name)
+                await asyncio.to_thread(
+                    manager.write_dataframe,
+                    df=df,
+                    segment_id=segment_id,
+                    measurement_name=measurement_name,
+                )
                 return True
         except Exception as e:
             self.logger.error(f"FCD database query failed: {e}")
             return False
 
-    async def __get_segment_last_timestamp_from_influxdb(self, segment_id: str) -> datetime | None:
+    async def __get_segment_last_timestamp_from_influxdb(
+        self, segment_id: str
+    ) -> datetime | None:
         """
         Retrieves the last segment timestamp from the InfluxDB database. Note that this is the measurement timestamp.
 
@@ -213,17 +305,28 @@ class IdeaHelsinkiRoadSegment:
         segment_date = None
 
         try:
-            with FCDInfluxDBManager(url=self.db_url, token=self.db_fcd_token, org=self.db_org, bucket=self.db_fcd_bucket) as manager:
+            with FCDInfluxDBManager(
+                url=self.db_url,
+                token=self.db_fcd_token,
+                org=self.db_org,
+                bucket=self.db_fcd_bucket,
+            ) as manager:
                 if not await asyncio.to_thread(manager.check_connection):
                     self.logger.error("FCD database connection error!")
                     return None
-                segment_date = await asyncio.to_thread(manager.get_last_segment_update_timestamp, segment_id = segment_id, measurement_name="segment_data")
+                segment_date = await asyncio.to_thread(
+                    manager.get_last_segment_update_timestamp,
+                    segment_id=segment_id,
+                    measurement_name="segment_data",
+                )
         except Exception as e:
             self.logger.error(f"FCD database query failed: {e}")
 
         return segment_date
 
-    async def __get_segment_first_timestamp_from_influxdb(self, segment_id: str) -> datetime | None:
+    async def __get_segment_first_timestamp_from_influxdb(
+        self, segment_id: str
+    ) -> datetime | None:
         """
         Retrieves the first segment timestamp from the InfluxDB database. Note that this is the measurement timestamp.
 
@@ -237,17 +340,28 @@ class IdeaHelsinkiRoadSegment:
         segment_date = None
 
         try:
-            with FCDInfluxDBManager(url=self.db_url, token=self.db_fcd_token, org=self.db_org, bucket=self.db_fcd_bucket) as manager:
+            with FCDInfluxDBManager(
+                url=self.db_url,
+                token=self.db_fcd_token,
+                org=self.db_org,
+                bucket=self.db_fcd_bucket,
+            ) as manager:
                 if not await asyncio.to_thread(manager.check_connection):
                     self.logger.error("FCD database connection error!")
                     return None
-                segment_date = await asyncio.to_thread(manager.get_first_segment_update_timestamp, segment_id = segment_id, measurement_name="segment_data")
+                segment_date = await asyncio.to_thread(
+                    manager.get_first_segment_update_timestamp,
+                    segment_id=segment_id,
+                    measurement_name="segment_data",
+                )
         except Exception as e:
             self.logger.error(f"FCD database query failed: {e}")
 
         return segment_date
 
-    async def __get_idea_formated_segment_data_from_influxdb(self, segment_id: str, start_time: datetime, end_time: datetime) -> pd.DataFrame | None:
+    async def __get_idea_formated_segment_data_from_influxdb(
+        self, segment_id: str, start_time: datetime, end_time: datetime
+    ) -> pd.DataFrame | None:
         """
         Retrieves measurement data from the InfluxDB database for a single segment.
 
@@ -267,17 +381,33 @@ class IdeaHelsinkiRoadSegment:
         """
 
         try:
-            with FCDInfluxDBManager(url=self.db_url, token=self.db_fcd_token, org=self.db_org, bucket=self.db_fcd_bucket) as manager:
+            with FCDInfluxDBManager(
+                url=self.db_url,
+                token=self.db_fcd_token,
+                org=self.db_org,
+                bucket=self.db_fcd_bucket,
+            ) as manager:
                 if not await asyncio.to_thread(manager.check_connection):
                     self.logger.error("FCD database connection error!")
                     return None
 
-                segment_data_df = await asyncio.to_thread(manager.get_segment_data_dataframe,segment_id = segment_id,measurement_name="segment_data",start_time = start_time, end_time = end_time,latest_only=False, query_fields=["fcd_coverage"], interval_minutes=self.validation_frequency)
+                segment_data_df = await asyncio.to_thread(
+                    manager.get_segment_data_dataframe,
+                    segment_id=segment_id,
+                    measurement_name="segment_data",
+                    start_time=start_time,
+                    end_time=end_time,
+                    latest_only=False,
+                    query_fields=["fcd_coverage"],
+                    interval_minutes=self.validation_frequency,
+                )
 
                 if segment_data_df is not None and not segment_data_df.empty:
                     segment_data_df.set_index("_time", inplace=True)
                     segment_data_df.index.name = ""
-                    segment_data_df.rename(columns={"fcd_coverage": "fcd"}, inplace=True)
+                    segment_data_df.rename(
+                        columns={"fcd_coverage": "fcd"}, inplace=True
+                    )
                     return segment_data_df
                 else:
                     self.logger.warning("FCD database query returned no results")
@@ -286,21 +416,28 @@ class IdeaHelsinkiRoadSegment:
             self.logger.error(f"FCD database query failed: {e}")
             return None
 
-    async def __get_validation_dataframe_from_influxdb(self, segment_id: str, start_time: datetime = None, end_time: datetime = None) -> pd.DataFrame | None:
+    async def __get_validation_dataframe_from_influxdb(
+        self, segment_id: str, start_time: datetime = None, end_time: datetime = None
+    ) -> pd.DataFrame | None:
         """
-            Get segment data as a pandas dataframe.
+        Get segment data as a pandas dataframe.
 
-            Args:
-                segment_id (str): The FCD segment ID.
-                start_time (datetime): The start time of the query. If None, the query will be done from the earliest measurement timestamp.
-                end_time (datetime): The end time of the query. If None, the query will be done from the latest measurement timestamp.
+        Args:
+            segment_id (str): The FCD segment ID.
+            start_time (datetime): The start time of the query. If None, the query will be done from the earliest measurement timestamp.
+            end_time (datetime): The end time of the query. If None, the query will be done from the latest measurement timestamp.
 
-            Returns:
-                 pd.DataFrame or None if the query was unsuccessful.
+        Returns:
+             pd.DataFrame or None if the query was unsuccessful.
         """
 
         try:
-            with FCDInfluxDBManager(url=self.db_url,token=self.db_validation_token,org=self.db_org,bucket=self.db_validation_bucket) as manager:
+            with FCDInfluxDBManager(
+                url=self.db_url,
+                token=self.db_validation_token,
+                org=self.db_org,
+                bucket=self.db_validation_bucket,
+            ) as manager:
                 if not await asyncio.to_thread(manager.check_connection):
                     self.logger.error("FCD database connection error!")
                     return None
@@ -312,14 +449,23 @@ class IdeaHelsinkiRoadSegment:
                     start_time=start_time,
                     end_time=end_time,
                     latest_only=True,
-                    query_fields=["fcd", "consecutive_zeros", "consecutive_low", "day_of_week", "hour_of_day", "max_consecutive_zeros_q95", "max_consecutive_zeros_or_ones_q95", "fcd_mean_median", "running_mean", "segment_closure_status"],
-                    interval_minutes=self.validation_frequency
+                    query_fields=[
+                        "fcd",
+                        "consecutive_zeros",
+                        "consecutive_low",
+                        "day_of_week",
+                        "hour_of_day",
+                        "max_consecutive_zeros_q95",
+                        "max_consecutive_zeros_or_ones_q95",
+                        "fcd_mean_median",
+                        "running_mean",
+                        "segment_closure_status",
+                    ],
+                    interval_minutes=self.validation_frequency,
                 )
 
                 if validation_data_df is not None and not validation_data_df.empty:
-                    validation_data_df.rename(
-                        columns={"_time": "time"}, inplace=True
-                    )
+                    validation_data_df.rename(columns={"_time": "time"}, inplace=True)
                     return validation_data_df
                 else:
                     self.logger.warning("FCD database query returned no results")
@@ -328,9 +474,9 @@ class IdeaHelsinkiRoadSegment:
             self.logger.error(f"FCD database query failed: {e}")
             return None
 
-    #------------------------------------------------------#
-    #--------------- PUBLIC CLASS METHODS -----------------#
-    #------------------------------------------------------#
+    # ------------------------------------------------------#
+    # --------------- PUBLIC CLASS METHODS -----------------#
+    # ------------------------------------------------------#
 
     def update_segment(self, reported_disturbances: list):
         """
@@ -338,15 +484,29 @@ class IdeaHelsinkiRoadSegment:
         This usually affects the start and/or end of the reported disturbances, which might affect the profiling dates.
         """
         self.logger.info("Updating segment with new disturbance data.")
-        new_disturbance_start_date, new_disturbance_end_date = IdeaHelsinkiDataPreProcessor.determine_disturbance_dates(reported_disturbances=reported_disturbances)
+        new_disturbance_start_date, new_disturbance_end_date = (
+            IdeaHelsinkiDataPreProcessor.determine_disturbance_dates(
+                reported_disturbances=reported_disturbances
+            )
+        )
 
         if new_disturbance_start_date.date() != self.disturbance_start_date.date():
             self.disturbance_start_date = new_disturbance_start_date
             # Recalculate the profiling dates
             # End point for the profile history, (example. datetime 2025-6-10), based on the disturbance start date.
-            self.profiling_end_date = IdeaHelsinkiDataPreProcessor.calculate_profiling_end_date(disturbance_start_date=self.disturbance_start_date, lead_time_hours=self.profile_end_lead_time_hours)
+            self.profiling_end_date = (
+                IdeaHelsinkiDataPreProcessor.calculate_profiling_end_date(
+                    disturbance_start_date=self.disturbance_start_date,
+                    lead_time_hours=self.profile_end_lead_time_hours,
+                )
+            )
             # Starting point for the profile history, (example. datetime 2025-1-10), based on the profiling_end_date.
-            self.profiling_start_date = IdeaHelsinkiDataPreProcessor.calculate_profiling_start_date(profiling_end_date=self.profiling_end_date, profile_time_frame_weeks=self.profile_time_frame_weeks)
+            self.profiling_start_date = (
+                IdeaHelsinkiDataPreProcessor.calculate_profiling_start_date(
+                    profiling_end_date=self.profiling_end_date,
+                    profile_time_frame_weeks=self.profile_time_frame_weeks,
+                )
+            )
             # Reassign the segment_profile attribute to None. This change will be caught in the main loop, and the segment will be reprofiled if needed.
             self.segment_profile = None
 
