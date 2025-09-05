@@ -84,7 +84,5 @@ def validate_disturbance_dates(
         )
         return new_disturbance_data
     else:
-        logger.warning(
-            "Disturbance data could not be validated, no valid disturbances found"
-        )
+        logger.info("No valid disturbances found - no disturbances pass date validation.")
         return None
