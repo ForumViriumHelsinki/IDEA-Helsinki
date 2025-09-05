@@ -12,9 +12,6 @@ COPY shared/ ./shared/
 COPY services/idea-helsinki/pyproject.toml .
 COPY services/idea-helsinki/src/ ./src/
 
-# Copy private constants to shared package location
-COPY lib/Constants/PrivateConstants.py ./shared/src/idea_shared/lib/Constants/
-
 # Create virtual environment and install dependencies
 RUN uv venv .venv && \
     . .venv/bin/activate && \
