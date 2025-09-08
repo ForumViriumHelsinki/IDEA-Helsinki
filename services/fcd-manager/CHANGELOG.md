@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.2.1...fcd-manager-v0.2.2) (2025-09-08)
+
+
+### Bug Fixes
+
+* resolve Docker build context issues for all services ([#20](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/20)) ([d246ad2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/d246ad288136f9fd8c05aa5a3835503dd2ce8f7b))
+
 ## [0.2.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.2.0...fcd-manager-v0.2.1) (2025-09-08)
 
 
