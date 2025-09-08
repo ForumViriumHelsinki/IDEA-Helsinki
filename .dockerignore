@@ -1,0 +1,105 @@
+# Git files
+.git
+.gitignore
+
+# GitHub files
+.github
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Documentation
+*.md
+LICENSE
+docs/
+
+# Test files
+tests/
+test/
+*.test.py
+*_test.py
+
+# Local data files
+data/
+*.json
+*.csv
+*.db
+*.sqlite
+
+# Docker files
+Docker/
+docker-compose*.yml
+Dockerfile*
+
+# CI/CD files
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Logs
+*.log
+logs/
+
+# Environment files
+.env
+.env.*
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Coverage reports
+.coverage
+htmlcov/
+*.cover
+.pytest_cache/
+
+# MyPy cache
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Ruff cache
+.ruff_cache/
+
+# Package managers
+poetry.lock
+Pipfile.lock
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+.directory
+.Trash-*
