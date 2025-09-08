@@ -1,19 +1,20 @@
+"""
+Library for IdeaHelsinkiRoadSegment class
+"""
+
 # ------------------------------------------------------#
 # ---------------- GENERAL IMPORTS ---------------------#
 # ------------------------------------------------------#
-import pandas as pd
 import os
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
+
+import pandas as pd
 
 # ------------------------------------------------------#
 # -------------- PROJECT CLASS IMPORTS -----------------#
 # ------------------------------------------------------#
 from idea_shared.classes.Logger import Logger
-
-"""
-    Library for IdeaHelsinkiRoadSegment class
-"""
 
 logger = Logger(__name__)
 
@@ -91,20 +92,20 @@ def determine_disturbance_dates(
             If nothing was found or an error occurs, start date and end date default to the current time UTC (a class object does not perform the main loop).
     """
 
-    earliest_start_date = datetime.now(timezone.utc)
+    earliest_start_date = datetime.now(UTC)
     latest_end_date = earliest_start_date
 
     if len(reported_disturbances) > 0:
         try:
             earliest_start_date = min(
                 datetime.strptime(c["properties"]["star_date"], "%Y-%m-%d").replace(
-                    tzinfo=timezone.utc
+                    tzinfo=UTC
                 )
                 for c in reported_disturbances
             )
             latest_end_date = max(
                 datetime.strptime(c["properties"]["end_date"], "%Y-%m-%d").replace(
-                    tzinfo=timezone.utc
+                    tzinfo=UTC
                 )
                 for c in reported_disturbances
             )
@@ -130,9 +131,7 @@ def calculate_profiling_end_date(
         The end date for profiling.
 
     """
-    current_date = datetime.now(timezone.utc).replace(
-        hour=0, minute=0, second=0, microsecond=0
-    )
+    current_date = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
 
     if (disturbance_start_date - timedelta(hours=lead_time_hours)) < (
         current_date - timedelta(hours=lead_time_hours)

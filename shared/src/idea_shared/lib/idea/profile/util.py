@@ -5,6 +5,7 @@ import logging
 import numpy as np
 import pandas as pd
 
+from idea_shared.lib.Constants.Constants import PROFILE_TIME_FRAME_WEEKS
 from idea_shared.lib.idea.constants import (
     COLUMNS_TO_REPLACE_VALUES_WITH_NAN,
     CONSECUTIVE_60_MINUTES,
@@ -16,7 +17,6 @@ from idea_shared.lib.idea.constants import (
     THRESHOLD_OF_USEFUL_DATA_PROFILE,
 )
 from idea_shared.lib.idea.exceptions import IDEAError
-from idea_shared.lib.Constants.Constants import PROFILE_TIME_FRAME_WEEKS
 
 logger = logging.getLogger(__name__)
 

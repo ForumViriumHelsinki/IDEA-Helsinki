@@ -1,7 +1,7 @@
 # ------------------------------------------------------#
 # ---------------- GENERAL IMPORTS ---------------------#
 # ------------------------------------------------------#
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 # ------------------------------------------------------#
 # -------------- PROJECT CLASS IMPORTS -----------------#
@@ -36,7 +36,7 @@ def validate_disturbance_dates(
 
     validated_disturbances = []
 
-    current_date = datetime.now(timezone.utc)
+    current_date = datetime.now(UTC)
 
     invalid_disturbances = 0
     valid_disturbances_currently = 0
@@ -84,5 +84,7 @@ def validate_disturbance_dates(
         )
         return new_disturbance_data
     else:
-        logger.info("No valid disturbances found - no disturbances pass date validation.")
+        logger.info(
+            "No valid disturbances found - no disturbances pass date validation."
+        )
         return None

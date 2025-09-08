@@ -1,11 +1,12 @@
-import io
 import csv
-from influxdb_client import InfluxDBClient, Point
-from influxdb_client.rest import ApiException
-from influxdb_client.client.write_api import SYNCHRONOUS
-from datetime import datetime, timezone
-from urllib3.util.retry import Retry
+import io
+from datetime import UTC, datetime
+
 import pandas as pd
+from influxdb_client import InfluxDBClient, Point
+from influxdb_client.client.write_api import SYNCHRONOUS
+from influxdb_client.rest import ApiException
+from urllib3.util.retry import Retry
 
 from idea_shared.classes.Logger import Logger
 
@@ -127,9 +128,7 @@ class FCDInfluxDBManager:
                     dt_object = (
                         datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
                         if timestamp_str.endswith("Z")
-                        else datetime.fromisoformat(timestamp_str).replace(
-                            tzinfo=timezone.utc
-                        )
+                        else datetime.fromisoformat(timestamp_str).replace(tzinfo=UTC)
                     )
                 except ValueError:
                     self.logger.warning(
@@ -140,7 +139,7 @@ class FCDInfluxDBManager:
                     Point("segment_data").tag("segmentId", segment_id).time(dt_object)
                 )
                 for key, value in properties.items():
-                    if isinstance(value, (int, float, str, bool)):
+                    if isinstance(value, int | float | str | bool):
                         point.field(key, value)
                 points.append(point)
 
