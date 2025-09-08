@@ -16,11 +16,11 @@ RUN pip install --no-cache-dir uv
 WORKDIR /app
 
 # Copy shared package first
-COPY shared/ ./shared/
+COPY ../shared/ ./shared/
 
 # Copy service package and dependencies
-COPY services/traffic-monitor/pyproject.toml .
-COPY services/traffic-monitor/src/ ./src/
+COPY pyproject.toml .
+COPY src/ ./src/
 
 # Create virtual environment and install dependencies
 RUN uv venv .venv && \
