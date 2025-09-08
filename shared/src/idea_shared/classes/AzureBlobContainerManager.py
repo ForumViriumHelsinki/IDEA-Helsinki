@@ -1,9 +1,10 @@
 # ------------------------------------------------------#
 # ---------------- GENERAL IMPORTS ---------------------#
 # ------------------------------------------------------#
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
-from azure.storage.blob import BlobServiceClient, BlobProperties
+
+from azure.storage.blob import BlobProperties, BlobServiceClient
 
 # ------------------------------------------------------#
 # -------------- PROJECT CLASS IMPORTS -----------------#
@@ -227,7 +228,7 @@ class AzureBlobContainerManager:
 
         matched_blobs = []
         for prefix_item in search_prefixes:
-            for day in sorted(list(days_to_check)):
+            for day in sorted(days_to_check):
                 if prefix_item is None:
                     # The container has no folders.
                     prefix = day.strftime(TimePrecision.DAY.value)
@@ -249,7 +250,7 @@ class AzureBlobContainerManager:
                         # Get the timestamp
                         blob_dt = datetime.strptime(
                             timestamp_str, "%Y-%m-%dT%H:%M:%S"
-                        ).replace(tzinfo=timezone.utc)
+                        ).replace(tzinfo=UTC)
 
                         if start_time <= blob_dt <= end_time:
                             matched_blobs.append(blob)

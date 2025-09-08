@@ -1,9 +1,9 @@
 # ------------------------------------------------------#
 # ---------------- GENERAL IMPORTS ---------------------#
 # ------------------------------------------------------#
-import re
-import json
 import hashlib
+import json
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -148,7 +148,7 @@ def write_json_records(records: dict, json_file: str) -> bool:
             f"Successfully wrote {len(segment_ids)} records to '{json_file_path}'."
         )
         return True
-    except IOError as ioe:
+    except OSError as ioe:
         logger.error(f"Failed to write JSON records to '{json_file}': {ioe}")
         return False
     except Exception as e:
@@ -169,7 +169,7 @@ def read_existing_json_records(json_file: str) -> dict:
     json_file_path = Path(json_file)
     if json_file_path.exists() and json_file_path.stat().st_size > 0:
         try:
-            with open(json_file_path, "r", encoding="utf-8") as f:
+            with open(json_file_path, encoding="utf-8") as f:
                 existing_content = json.load(f)
             if isinstance(existing_content, dict):
                 segment_ids = existing_content.get("segmentId")
@@ -223,9 +223,9 @@ def update_segment_changelog(
     changelog = {}
     if changelog_path.exists():
         try:
-            with open(changelog_path, "r", encoding="utf-8") as f:
+            with open(changelog_path, encoding="utf-8") as f:
                 changelog = json.load(f)
-        except (json.JSONDecodeError, IOError) as e:
+        except (OSError, json.JSONDecodeError) as e:
             logger.error(
                 f"Could not load changelog file '{changelog_path}'. Aborting. Error: {e}"
             )
@@ -235,9 +235,9 @@ def update_segment_changelog(
     archived_segments = {}
     if archive_path.exists():
         try:
-            with open(archive_path, "r", encoding="utf-8") as f:
+            with open(archive_path, encoding="utf-8") as f:
                 archived_segments = json.load(f)
-        except (json.JSONDecodeError, IOError):
+        except (OSError, json.JSONDecodeError):
             logger.warning(
                 f"Could not load archive file '{archive_path}'. A new one may be created."
             )
@@ -245,7 +245,7 @@ def update_segment_changelog(
     # Load the fresh segment mapping, end function if none is available.
     fresh_segments = {}
     try:
-        with open(mapping_file_path, "r", encoding="utf-8") as f:
+        with open(mapping_file_path, encoding="utf-8") as f:
             fresh_data = json.load(f)
         for seg_id, seg_value in fresh_data.get("segmentId", {}).items():
             if isinstance(seg_value, dict) and "geometry" in seg_value:
@@ -321,5 +321,5 @@ def update_segment_changelog(
             with open(archive_path, "w", encoding="utf-8") as f:
                 json.dump(archived_segments, f, indent=4)
             logger.info("Segment archive file has been updated.")
-    except IOError as e:
+    except OSError as e:
         logger.error(f"Failed to write updated changelog or archive file: {e}")

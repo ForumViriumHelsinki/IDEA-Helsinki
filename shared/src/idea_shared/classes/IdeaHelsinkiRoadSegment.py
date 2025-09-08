@@ -2,21 +2,23 @@
 # ---------------- GENERAL IMPORTS ---------------------#
 # ------------------------------------------------------#
 import asyncio
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
+
 import pandas as pd
+
+from idea_shared.classes.FCDInfluxDBManager import FCDInfluxDBManager
 
 # ------------------------------------------------------#
 # -------------- PROJECT CLASS IMPORTS -----------------#
 # ------------------------------------------------------#
 from idea_shared.classes.Logger import Logger
-from idea_shared.classes.FCDInfluxDBManager import FCDInfluxDBManager
+from idea_shared.lib import IdeaHelsinkiDataPreProcessor
 
 # ------------------------------------------------------#
 # ------------- PROJECT MODULE IMPORTS -----------------#
 # ------------------------------------------------------#
 from idea_shared.lib.idea.profile.profile import calculate_profile
 from idea_shared.lib.idea.validation.validation import validate_roadwork
-from idea_shared.lib import IdeaHelsinkiDataPreProcessor
 
 
 class IdeaHelsinkiRoadSegment:
@@ -87,7 +89,7 @@ class IdeaHelsinkiRoadSegment:
         Example: A function called at 16:47 will wait until 16:50.
         Based on the validation_frequency
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         minutes_to_add = self.validation_frequency - (
             now.minute % self.validation_frequency
         )
@@ -204,7 +206,7 @@ class IdeaHelsinkiRoadSegment:
         # The IDEA road segment manager handles the lifecycle of the class loop.
         while True:
             # Update current time in loop
-            current_date = datetime.now(timezone.utc)
+            current_date = datetime.now(UTC)
 
             # Check is segment profiling and validation can be done
             # Determine if the segment has history enough for the IDEA algorithm.

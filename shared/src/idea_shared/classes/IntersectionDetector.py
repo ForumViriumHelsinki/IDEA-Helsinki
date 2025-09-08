@@ -1,12 +1,13 @@
 # ------------------------------------------------------#
 # ---------------- GENERAL IMPORTS ---------------------#
 # ------------------------------------------------------#
-import geopandas
-import pandas as pd
-from shapely.geometry import shape, mapping
 import json
 from pathlib import Path
 from typing import Any
+
+import geopandas
+import pandas as pd
+from shapely.geometry import mapping, shape
 
 # ------------------------------------------------------#
 # -------------- PROJECT CLASS IMPORTS -----------------#
@@ -126,7 +127,7 @@ class IntersectionDetector:
         """
         segment_json_path = Path(segment_json)
         try:
-            with open(segment_json_path, "r", encoding="utf-8") as f:
+            with open(segment_json_path, encoding="utf-8") as f:
                 data = json.load(f)
 
             if not isinstance(data, dict):
@@ -277,7 +278,7 @@ class IntersectionDetector:
 
         output_data: dict = {"segmentId": {}}
 
-        for index, row in intersecting_gdf.iterrows():
+        for _index, row in intersecting_gdf.iterrows():
             segment_id = row.get("segmentId")
             if not segment_id:
                 self.logger.warning(f"Skipping row due to missing segmentId: {row}")
@@ -354,7 +355,7 @@ class IntersectionDetector:
                 f"Successfully wrote {len(segment_ids)} records to '{json_file_path}'."
             )
             return True
-        except IOError as ioe:
+        except OSError as ioe:
             self.logger.error(f"Failed to write JSON records to '{json_file}': {ioe}")
             return False
         except Exception as e:

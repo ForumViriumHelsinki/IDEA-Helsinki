@@ -2,8 +2,8 @@
 # ---------------- GENERAL IMPORTS ---------------------#
 # ------------------------------------------------------#
 import asyncio
-from datetime import datetime, timezone, timedelta
 import json
+from datetime import UTC, datetime, timedelta
 
 # ------------------------------------------------------#
 # -------------- PROJECT CLASS IMPORTS -----------------#
@@ -65,7 +65,7 @@ class IdeaHelsinkiManager:
             Dictionary containing the latest validated disturbance data.
         """
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 return json.load(f)
         except (FileNotFoundError, json.JSONDecodeError) as e:
             self.logger.error(
@@ -81,7 +81,7 @@ class IdeaHelsinkiManager:
         Example: A function called at 16:47 will wait until 17:00.
         Based on the traffic_disturbance_update_frequency.
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         minutes_to_add = self.traffic_disturbance_update_frequency - (
             now.minute % self.traffic_disturbance_update_frequency
         )
