@@ -6,11 +6,11 @@ RUN pip install --no-cache-dir uv
 WORKDIR /app
 
 # Copy shared package first
-COPY ../shared/ ./shared/
+COPY shared/ ./shared/
 
 # Copy service package and dependencies
-COPY pyproject.toml .
-COPY src/ ./src/
+COPY services/fcd-manager/pyproject.toml .
+COPY services/fcd-manager/src/ ./src/
 
 # Create virtual environment and install dependencies
 RUN uv venv .venv && \
