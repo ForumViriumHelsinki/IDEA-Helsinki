@@ -32,11 +32,16 @@ class HealthServer:
         """Initialize health server.
 
         Args:
-            port: Port to listen on
+            port: Port to listen on (must be 1-65535)
             host: Host to bind to
             app_name: Name of the application
             enable_metrics: Whether to enable metrics endpoint
+
+        Raises:
+            ValueError: If port is not in valid range (1-65535)
         """
+        if not 1 <= port <= 65535:
+            raise ValueError(f"Port must be between 1 and 65535, got {port}")
         self.port = port
         self.host = host
         self.app_name = app_name
@@ -203,8 +208,15 @@ class HealthServer:
 
                 # Run the server
                 loop.run_until_complete(self._server.serve())
+            except OSError as e:
+                if "Address already in use" in str(e) or "bind" in str(e).lower():
+                    logger.error(f"Failed to bind to {self.host}:{self.port} - port already in use")
+                else:
+                    logger.error(f"Failed to start health server: {e}")
+                raise
             except Exception as e:
                 logger.error(f"Health server error: {e}")
+                raise
             finally:
                 self._shutdown_event.set()
 
@@ -219,18 +231,28 @@ class HealthServer:
 
         This method is for async services that can integrate the health server
         into their existing async loop.
-        """
-        config = uvicorn.Config(
-            app=self._app,
-            host=self.host,
-            port=self.port,
-            log_level="info",
-            access_log=False,
-        )
-        self._server = uvicorn.Server(config)
 
-        logger.info(f"Starting async health server on {self.host}:{self.port}")
-        await self._server.serve()
+        Raises:
+            OSError: If the port is already in use or binding fails
+        """
+        try:
+            config = uvicorn.Config(
+                app=self._app,
+                host=self.host,
+                port=self.port,
+                log_level="info",
+                access_log=False,
+            )
+            self._server = uvicorn.Server(config)
+
+            logger.info(f"Starting async health server on {self.host}:{self.port}")
+            await self._server.serve()
+        except OSError as e:
+            if "Address already in use" in str(e) or "bind" in str(e).lower():
+                logger.error(f"Failed to bind to {self.host}:{self.port} - port already in use")
+            else:
+                logger.error(f"Failed to start async health server: {e}")
+            raise
 
     def stop(self) -> None:
         """Stop the health server gracefully."""

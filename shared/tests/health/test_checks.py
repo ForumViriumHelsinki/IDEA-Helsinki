@@ -2,6 +2,7 @@
 
 import asyncio
 import tempfile
+import time
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -9,6 +10,7 @@ import aiohttp
 import pytest
 
 from idea_shared.health.checks import (
+    CircuitBreakerState,
     ExternalAPIHealthCheck,
     FileSystemHealthCheck,
     HealthCheck,
@@ -254,13 +256,13 @@ class TestExternalAPIHealthCheck:
             result1 = await check.check()
             assert result1.status == "unhealthy"
             assert check._failure_count == 1
-            assert check._circuit_open is False
+            assert check._circuit_state == CircuitBreakerState.CLOSED
 
             # Second failure - should open circuit
             result2 = await check.check()
             assert result2.status == "unhealthy"
             assert check._failure_count == 2
-            assert check._circuit_open is True
+            assert check._circuit_state == CircuitBreakerState.OPEN
 
             # Third attempt - circuit is open
             result3 = await check.check()
@@ -316,3 +318,167 @@ class TestExternalAPIHealthCheck:
             assert call_args[0][0] == "POST"
             assert call_args[0][1] == "https://api.example.com/health"
             assert call_args[1]["headers"] == {"Authorization": "Bearer token"}
+
+    @pytest.mark.asyncio
+    async def test_circuit_breaker_half_open_state(self):
+        """Test circuit breaker half-open state behavior."""
+        check = ExternalAPIHealthCheck(
+            name="api_check",
+            url="https://api.example.com/health",
+            circuit_breaker_threshold=2,
+            circuit_breaker_timeout=0.1,  # Short timeout for testing
+        )
+
+        with patch("aiohttp.ClientSession") as mock_session:
+            mock_response = AsyncMock()
+
+            # Cause circuit to open
+            mock_response.status = 500
+            mock_session.return_value.__aenter__.return_value.request.return_value.__aenter__.return_value = (
+                mock_response
+            )
+
+            # Two failures to open circuit
+            await check.check()
+            await check.check()
+            assert check._circuit_state == CircuitBreakerState.OPEN
+
+            # Wait for timeout
+            await asyncio.sleep(0.15)
+
+            # Next check should transition to half-open
+            mock_response.status = 200  # Simulate recovery
+            result = await check.check()
+            assert result.status == "healthy"
+            assert check._circuit_state == CircuitBreakerState.CLOSED
+
+    @pytest.mark.asyncio
+    async def test_circuit_breaker_half_open_failure(self):
+        """Test circuit breaker re-opening from half-open state."""
+        check = ExternalAPIHealthCheck(
+            name="api_check",
+            url="https://api.example.com/health",
+            circuit_breaker_threshold=2,
+            circuit_breaker_timeout=0.1,
+        )
+
+        with patch("aiohttp.ClientSession") as mock_session:
+            # Open the circuit
+            mock_session.return_value.__aenter__.return_value.request.side_effect = (
+                aiohttp.ClientError("Connection failed")
+            )
+            await check.check()
+            await check.check()
+            assert check._circuit_state == CircuitBreakerState.OPEN
+
+            # Wait for timeout
+            await asyncio.sleep(0.15)
+
+            # Next check should transition to half-open and fail
+            result = await check.check()
+            assert result.status == "unhealthy"
+            assert check._circuit_state == CircuitBreakerState.OPEN
+
+
+class TestConcurrentHealthChecks:
+    """Tests for concurrent health check execution."""
+
+    @pytest.mark.asyncio
+    async def test_multiple_concurrent_checks(self):
+        """Test running multiple health checks concurrently."""
+        results_list = []
+
+        class DelayedHealthCheck(HealthCheck):
+            def __init__(self, delay: float, result_status: str, **kwargs):
+                super().__init__(**kwargs)
+                self.delay = delay
+                self.result_status = result_status
+
+            async def check(self) -> HealthCheckResult:
+                await asyncio.sleep(self.delay)
+                results_list.append(self.name)
+                return HealthCheckResult(
+                    name=self.name,
+                    status=self.result_status,
+                    message=f"Delayed {self.delay}s",
+                )
+
+        # Create checks with different delays
+        check1 = DelayedHealthCheck(delay=0.1, result_status="healthy", name="fast")
+        check2 = DelayedHealthCheck(delay=0.2, result_status="healthy", name="medium")
+        check3 = DelayedHealthCheck(delay=0.3, result_status="healthy", name="slow")
+
+        # Run all checks concurrently
+        start_time = time.time()
+        results = await asyncio.gather(
+            check1.check_with_cache(),
+            check2.check_with_cache(),
+            check3.check_with_cache(),
+        )
+        elapsed_time = time.time() - start_time
+
+        # All checks should complete
+        assert len(results) == 3
+        assert all(r.status == "healthy" for r in results)
+
+        # Should complete in roughly the time of the slowest check
+        # (not the sum of all delays)
+        assert elapsed_time < 0.6  # Should be ~0.3s, not 0.6s
+        assert elapsed_time >= 0.3
+
+        # Check order of completion (fastest first)
+        assert results_list == ["fast", "medium", "slow"]
+
+    @pytest.mark.asyncio
+    async def test_concurrent_cache_access(self):
+        """Test that concurrent access to cached results works correctly."""
+        call_count = 0
+
+        class CountingHealthCheck(HealthCheck):
+            async def check(self) -> HealthCheckResult:
+                nonlocal call_count
+                call_count += 1
+                await asyncio.sleep(0.1)  # Simulate some work
+                return HealthCheckResult(
+                    name="counting",
+                    status="healthy",
+                    message=f"Call {call_count}",
+                )
+
+        check = CountingHealthCheck(name="counting", cache_ttl=1.0)
+
+        # First call to populate cache
+        await check.check_with_cache()
+        assert call_count == 1
+
+        # Multiple concurrent calls should all get cached result
+        results = await asyncio.gather(
+            *[check.check_with_cache() for _ in range(10)]
+        )
+
+        # Should still only have called check once
+        assert call_count == 1
+        assert all(r.message == "Call 1" for r in results)
+
+    @pytest.mark.asyncio
+    async def test_concurrent_filesystem_checks(self):
+        """Test concurrent filesystem health checks."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create multiple filesystem checks
+            checks = [
+                FileSystemHealthCheck(
+                    name=f"fs_check_{i}",
+                    path=tmpdir,
+                    check_write=True,
+                )
+                for i in range(5)
+            ]
+
+            # Run all checks concurrently
+            results = await asyncio.gather(
+                *[check.check() for check in checks]
+            )
+
+            # All should succeed without conflicts
+            assert all(r.status == "healthy" for r in results)
+            assert all(r.metadata["writable"] is True for r in results)
