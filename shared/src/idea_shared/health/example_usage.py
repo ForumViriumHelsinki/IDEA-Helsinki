@@ -14,11 +14,18 @@ from idea_shared.health.checks import (
     HealthCheck,
     HealthCheckResult,
 )
+from idea_shared.health.idea_checks import (
+    AzureBlobStorageHealthCheck,
+    FCDDataFreshnessHealthCheck,
+    InfluxDBHealthCheck,
+    SegmentMappingIntegrityHealthCheck,
+    WFSServiceHealthCheck,
+)
 from idea_shared.health.server import HealthServer
 
 
-# Custom health check implementation for InfluxDB
-class InfluxDBHealthCheck(HealthCheck):
+# Custom health check implementation for demonstration
+class CustomInfluxDBHealthCheck(HealthCheck):
     """Example InfluxDB health check."""
 
     def __init__(self, connection_string: str):
@@ -250,6 +257,149 @@ class ServiceWithDynamicChecks:
             self.health_server.stop()
 
 
+def example_idea_helsinki_service():
+    """Example of IDEA-Helsinki specific health checks."""
+    print("Starting IDEA-Helsinki service with health checks...")
+
+    # Create health server with custom response codes
+    server = HealthServer(
+        port=8081,
+        app_name="IDEA-Helsinki Service",
+        enable_metrics=True,
+        liveness_status_code=200,
+        readiness_success_code=200,
+        readiness_failure_code=503,
+        startup_success_code=200,
+        startup_failure_code=503,
+    )
+
+    # Add Azure Blob Storage health check
+    azure_check = AzureBlobStorageHealthCheck(
+        name="azure_fcd_storage",
+        account_name="your_account",  # Replace with actual account
+        container_name="fcd-data",
+        sas_token="your_sas_token",  # Replace with actual token
+        timeout=15.0,
+        critical=True,
+        cache_ttl=60.0,
+    )
+    server.add_check("azure_storage", azure_check)
+
+    # Add WFS service health check
+    wfs_check = WFSServiceHealthCheck(
+        name="helsinki_wfs",
+        url="https://kartta.hel.fi/ws/geoserver/avoindata/wfs",
+        timeout=10.0,
+        critical=True,
+        cache_ttl=120.0,
+    )
+    server.add_check("wfs_service", wfs_check)
+
+    # Add InfluxDB health check
+    influx_check = InfluxDBHealthCheck(
+        name="influxdb_fcd",
+        url="http://localhost:8086",
+        token="your_token",  # Replace with actual token
+        org="idea_helsinki",
+        bucket="fcd_data",
+        timeout=5.0,
+        critical=True,
+        cache_ttl=10.0,
+    )
+    server.add_check("influxdb", influx_check)
+
+    # Add FCD data freshness check
+    freshness_check = FCDDataFreshnessHealthCheck(
+        name="fcd_freshness",
+        url="http://localhost:8086",
+        token="your_token",  # Replace with actual token
+        org="idea_helsinki",
+        bucket="fcd_data",
+        max_age_minutes=30,
+        measurement="fcd_data",
+        timeout=10.0,
+        critical=False,  # Not critical for readiness
+        cache_ttl=60.0,
+    )
+    server.add_check("data_freshness", freshness_check)
+
+    # Add segment mapping integrity check
+    mapping_check = SegmentMappingIntegrityHealthCheck(
+        name="segment_mapping",
+        mapping_file_path="data/segments_mapping.json",
+        history_file_path="data/master_segment_history.json",
+        timeout=5.0,
+        critical=True,
+        cache_ttl=300.0,
+    )
+    server.add_check("mapping_integrity", mapping_check)
+
+    # Add startup-only checks
+    # For example, check that required directories exist at startup
+    startup_fs_check = FileSystemHealthCheck(
+        name="data_directory",
+        path="data",
+        check_write=False,
+        timeout=2.0,
+        critical=True,
+    )
+    server.add_check("startup_data_dir", startup_fs_check, startup_only=True)
+
+    # Start the server
+    server.start_background()
+
+    print(f"Health server running on http://localhost:{server.port}")
+    print(f"  - Liveness:  http://localhost:{server.port}/healthz")
+    print(f"  - Readiness: http://localhost:{server.port}/ready")
+    print(f"  - Startup:   http://localhost:{server.port}/startup")
+    print(f"  - Metrics:   http://localhost:{server.port}/metrics")
+    print(f"  - Details:   http://localhost:{server.port}/health/detail")
+
+    try:
+        # Simulate service work
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("\nShutting down...")
+    finally:
+        server.stop()
+
+
+async def example_async_idea_helsinki():
+    """Async example with IDEA-Helsinki health checks."""
+    print("Starting async IDEA-Helsinki service...")
+
+    server = HealthServer(
+        port=8082,
+        app_name="Async IDEA-Helsinki",
+        enable_metrics=True,
+    )
+
+    # Add health checks similar to sync example
+    server.add_check(
+        "wfs",
+        WFSServiceHealthCheck(name="wfs_check"),
+    )
+
+    server.add_check(
+        "mapping",
+        SegmentMappingIntegrityHealthCheck(
+            name="mapping_check",
+            mapping_file_path="/tmp/segments_mapping.json",  # Test path
+        ),
+    )
+
+    async with server:
+        print(f"Async health server running on http://localhost:{server.port}")
+
+        # Simulate async service work
+        try:
+            while True:
+                await asyncio.sleep(1)
+        except asyncio.CancelledError:
+            print("Service cancelled")
+
+
 if __name__ == "__main__":
     import sys
 
@@ -269,6 +419,12 @@ if __name__ == "__main__":
         # Run dynamic checks example
         service = ServiceWithDynamicChecks()
         service.run()
+    elif len(sys.argv) > 1 and sys.argv[1] == "idea":
+        # Run IDEA-Helsinki specific example
+        example_idea_helsinki_service()
+    elif len(sys.argv) > 1 and sys.argv[1] == "idea_async":
+        # Run async IDEA-Helsinki example
+        asyncio.run(example_async_idea_helsinki())
     else:
         # Run sync example by default
         example_sync_service()
