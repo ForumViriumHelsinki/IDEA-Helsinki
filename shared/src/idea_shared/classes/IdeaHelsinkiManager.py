@@ -53,6 +53,9 @@ class IdeaHelsinkiManager:
         self.target_fcd_segments = target_fcd_segments
         self.active_segments = {}  # Stores segment_id -> segment_object
         self.logger = Logger(__name__)
+        # Health monitoring attributes
+        self.last_cycle_time = datetime.now(UTC)
+        self.last_discovery_time = None
 
     def _get_disturbance_data(self, file_path: str) -> dict:
         """
@@ -102,6 +105,9 @@ class IdeaHelsinkiManager:
         The main orchestration loop for managing IdeaHelsinkiRoadSegments.
         """
         while True:
+            # Update cycle time for health monitoring
+            self.last_cycle_time = datetime.now(UTC)
+
             self.logger.info(
                 "Manager starting new cycle: discovering and updating tasks."
             )
@@ -156,6 +162,8 @@ class IdeaHelsinkiManager:
                     self.logger.info(
                         f"New disturbance detected for segment {segment_id}. Starting validation task."
                     )
+                    # Track discovery time for health monitoring
+                    self.last_discovery_time = datetime.now(UTC)
                     segment_instance = IdeaHelsinkiRoadSegment(
                         segment_id=segment_id,
                         reported_disturbances=disturbances,
@@ -182,3 +190,15 @@ class IdeaHelsinkiManager:
             )
             # Take a break and enjoy the bits and bytes.
             await self._wait_for_next_management_cycle()
+
+    async def get_worker_health_stats(self):
+        """
+        Return health statistics for monitoring.
+        Used by health checks to assess the state of the service.
+        """
+        return {
+            "total_workers": len(self.active_segments),
+            "last_discovery": self.last_discovery_time.isoformat() if self.last_discovery_time else None,
+            "last_cycle": self.last_cycle_time.isoformat() if self.last_cycle_time else None,
+            "active_segments": list(self.active_segments.keys()),
+        }
