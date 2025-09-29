@@ -15,6 +15,7 @@ from src.health_checks import (
     DisturbanceDataHealthCheck,
     WorkerStatusHealthCheck,
     OrchestratorHealthCheck,
+    InfluxDBConnectionManager,
 )
 from idea_shared.health.models import HealthCheckResult
 
@@ -336,6 +337,130 @@ class TestOrchestratorHealthCheck:
         assert result.status == "unhealthy"
         assert "deadlocked" in result.message.lower()
         assert result.metadata["minutes_since_last_cycle"] > 180
+
+
+class TestInfluxDBConnectionManager:
+    """Test InfluxDB connection manager."""
+
+    @pytest.mark.asyncio
+    async def test_singleton_behavior(self):
+        """Test that connection manager reuses instances for same credentials."""
+        url = "http://localhost:8086"
+        token = "test_token"
+        org = "test_org"
+
+        # Get two instances with same credentials
+        manager1 = await InfluxDBConnectionManager.get_instance(url, token, org)
+        manager2 = await InfluxDBConnectionManager.get_instance(url, token, org)
+
+        # Should be the same instance
+        assert manager1 is manager2
+
+        # Clean up
+        await InfluxDBConnectionManager.cleanup_all()
+
+    @pytest.mark.asyncio
+    async def test_concurrent_access(self):
+        """Test thread-safe concurrent access to connection manager."""
+        url = "http://localhost:8086"
+        token = "test_token"
+        org = "test_org"
+
+        # Create multiple concurrent requests
+        tasks = []
+        for i in range(10):
+            tasks.append(
+                InfluxDBConnectionManager.get_instance(
+                    url, f"token_{i % 3}", org  # Use 3 different tokens
+                )
+            )
+
+        # Execute concurrently
+        managers = await asyncio.gather(*tasks)
+
+        # Count unique instances
+        unique_managers = set(id(m) for m in managers)
+        assert len(unique_managers) == 3  # Should have 3 unique instances
+
+        # Clean up
+        await InfluxDBConnectionManager.cleanup_all()
+
+    @pytest.mark.asyncio
+    async def test_connection_limit(self):
+        """Test that connection limit is enforced."""
+        # Store original max connections
+        original_max = InfluxDBConnectionManager.MAX_CONNECTIONS
+        InfluxDBConnectionManager.MAX_CONNECTIONS = 3
+
+        try:
+            url = "http://localhost:8086"
+            org = "test_org"
+
+            # Create more connections than the limit
+            managers = []
+            for i in range(5):
+                manager = await InfluxDBConnectionManager.get_instance(
+                    url, f"token_{i}", org
+                )
+                managers.append(manager)
+
+            # Should have exactly MAX_CONNECTIONS instances
+            assert len(InfluxDBConnectionManager._instances) <= 3
+
+        finally:
+            # Restore and clean up
+            InfluxDBConnectionManager.MAX_CONNECTIONS = original_max
+            await InfluxDBConnectionManager.cleanup_all()
+
+    @pytest.mark.asyncio
+    async def test_stale_connection_cleanup(self):
+        """Test that stale connections are cleaned up."""
+        # Store original TTL
+        original_ttl = InfluxDBConnectionManager.CONNECTION_TTL_SECONDS
+        InfluxDBConnectionManager.CONNECTION_TTL_SECONDS = 0.001  # Very short TTL
+
+        try:
+            url = "http://localhost:8086"
+            token = "test_token"
+            org = "test_org"
+
+            # Create connection
+            manager1 = await InfluxDBConnectionManager.get_instance(url, token, org)
+            assert len(InfluxDBConnectionManager._instances) == 1
+
+            # Wait for TTL to expire
+            await asyncio.sleep(0.002)
+
+            # Get new connection (should trigger cleanup)
+            manager2 = await InfluxDBConnectionManager.get_instance(url, "token2", org)
+
+            # Old connection should be cleaned up
+            assert len(InfluxDBConnectionManager._instances) == 1
+            assert manager1 is not manager2
+
+        finally:
+            # Restore and clean up
+            InfluxDBConnectionManager.CONNECTION_TTL_SECONDS = original_ttl
+            await InfluxDBConnectionManager.cleanup_all()
+
+    @pytest.mark.asyncio
+    async def test_cache_ttl_configuration(self):
+        """Test that cache TTL can be configured."""
+        url = "http://localhost:8086"
+        token = "test_token"
+        org = "test_org"
+        custom_ttl = 15
+
+        # Get instance with custom cache TTL
+        manager = await InfluxDBConnectionManager.get_instance(
+            url, token, org, cache_ttl=custom_ttl
+        )
+
+        # Check that cache TTL was set
+        assert manager._ping_cache_ttl == custom_ttl
+
+        # Clean up
+        await InfluxDBConnectionManager.cleanup_all()
 
 
 if __name__ == "__main__":

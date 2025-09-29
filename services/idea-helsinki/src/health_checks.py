@@ -2,6 +2,7 @@
 Health checks for IDEA Helsinki service.
 """
 import asyncio
+import hashlib
 import json
 import os
 from datetime import datetime, timedelta, UTC
@@ -23,30 +24,77 @@ class InfluxDBConnectionManager:
 
     _instances: Dict[str, "InfluxDBConnectionManager"] = {}
     _lock = asyncio.Lock()
+    MAX_CONNECTIONS = 10  # Maximum number of connection managers
+    CONNECTION_TTL_SECONDS = 3600  # Time to keep unused connections (1 hour)
 
-    def __init__(self, url: str, token: str, org: str):
+    def __init__(self, url: str, token: str, org: str, cache_ttl: Optional[int] = None):
         self.url = url
         self.token = token
         self.org = org
         self._client: Optional[InfluxDBClient] = None
         self._last_ping_time: Optional[datetime] = None
-        self._ping_cache_ttl = 5  # seconds
+        self._ping_cache_ttl = cache_ttl or 5  # seconds
+        self._last_access_time = datetime.now(UTC)
+        self._client_lock = asyncio.Lock()
 
     @classmethod
-    async def get_instance(cls, url: str, token: str, org: str) -> "InfluxDBConnectionManager":
+    async def get_instance(
+        cls, url: str, token: str, org: str, cache_ttl: Optional[int] = None
+    ) -> "InfluxDBConnectionManager":
         """Get or create a shared connection manager instance."""
-        key = f"{url}:{org}:{token[:8]}"  # Use first 8 chars of token as key suffix
+        # Use SHA-256 hash of token for security instead of substring
+        token_hash = hashlib.sha256(token.encode()).hexdigest()[:16]
+        key = f"{url}:{org}:{token_hash}"
 
         async with cls._lock:
+            # Clean up stale connections before checking for existing ones
+            await cls._cleanup_stale_connections()
+
             if key not in cls._instances:
-                cls._instances[key] = cls(url, token, org)
+                # Check if we've reached the connection limit
+                if len(cls._instances) >= cls.MAX_CONNECTIONS:
+                    # Remove the oldest connection
+                    oldest_key = min(
+                        cls._instances.keys(),
+                        key=lambda k: cls._instances[k]._last_access_time
+                    )
+                    cls._instances[oldest_key].close()
+                    del cls._instances[oldest_key]
+
+                cls._instances[key] = cls(url, token, org, cache_ttl)
+
+            # Update last access time
+            cls._instances[key]._last_access_time = datetime.now(UTC)
             return cls._instances[key]
 
-    def get_client(self) -> InfluxDBClient:
-        """Get or create a client instance."""
-        if self._client is None:
-            self._client = InfluxDBClient(url=self.url, token=self.token, org=self.org)
-        return self._client
+    @classmethod
+    async def _cleanup_stale_connections(cls):
+        """Remove connections that haven't been used recently."""
+        now = datetime.now(UTC)
+        stale_keys = [
+            key for key, instance in cls._instances.items()
+            if (now - instance._last_access_time).total_seconds() > cls.CONNECTION_TTL_SECONDS
+        ]
+
+        for key in stale_keys:
+            cls._instances[key].close()
+            del cls._instances[key]
+
+    @classmethod
+    async def cleanup_all(cls):
+        """Close all connections and clear the instance cache."""
+        async with cls._lock:
+            for instance in cls._instances.values():
+                instance.close()
+            cls._instances.clear()
+
+    async def get_client(self) -> InfluxDBClient:
+        """Get or create a client instance (thread-safe)."""
+        async with self._client_lock:
+            if self._client is None:
+                self._client = InfluxDBClient(url=self.url, token=self.token, org=self.org)
+            self._last_access_time = datetime.now(UTC)
+            return self._client
 
     async def ping(self) -> bool:
         """Ping the InfluxDB server with caching."""
@@ -55,7 +103,7 @@ class InfluxDBConnectionManager:
             (now - self._last_ping_time).total_seconds() < self._ping_cache_ttl):
             return True
 
-        client = self.get_client()
+        client = await self.get_client()
         result = client.ping()
         if result:
             self._last_ping_time = now
@@ -78,6 +126,7 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
         org: str,
         bucket: str,
         data_freshness_hours: int = 1,
+        cache_ttl: Optional[int] = None,
     ):
         """
         Initialize FCD database health check.
@@ -89,19 +138,20 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
             bucket: InfluxDB bucket name
             data_freshness_hours: Maximum age of data in hours to consider fresh
         """
-        super().__init__(critical=True, cache_ttl=30)
+        super().__init__(critical=True, cache_ttl=cache_ttl or 30)
         self.url = url
         self.token = token
         self.org = org
         self.bucket = bucket
         self.data_freshness_hours = data_freshness_hours
+        self._cache_ttl = cache_ttl
 
     async def check(self) -> HealthCheckResult:
         """Check FCD database connectivity and data freshness."""
         try:
             # Get shared connection manager
             conn_manager = await InfluxDBConnectionManager.get_instance(
-                self.url, self.token, self.org
+                self.url, self.token, self.org, self._cache_ttl
             )
 
             # Test connection with ping
@@ -113,9 +163,9 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
 
             loop = asyncio.get_event_loop()
 
-            def _check_data():
+            async def _check_data():
                 # Query for recent data to verify bucket access and data availability
-                client = conn_manager.get_client()
+                client = await conn_manager.get_client()
                 query_api = client.query_api()
                 query = f"""
                 from(bucket: "{self.bucket}")
@@ -148,14 +198,22 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
                                 "data_freshness_hours": self.data_freshness_hours,
                             },
                         )
-                except Exception as query_error:
+                except InfluxDBError as query_error:
+                    # Specific InfluxDB errors
                     return HealthCheckResult(
                         status="unhealthy",
-                        message=f"Failed to query FCD bucket: {str(query_error)}",
-                        metadata={"bucket": self.bucket},
+                        message=f"InfluxDB query failed: {str(query_error)}",
+                        metadata={"bucket": self.bucket, "error_type": "InfluxDBError"},
+                    )
+                except Exception as query_error:
+                    # Other unexpected errors
+                    return HealthCheckResult(
+                        status="unhealthy",
+                        message=f"Unexpected error querying FCD bucket: {str(query_error)}",
+                        metadata={"bucket": self.bucket, "error_type": type(query_error).__name__},
                     )
 
-            return await loop.run_in_executor(None, _check_data)
+            return await _check_data()
 
         except Exception as e:
             return HealthCheckResult(
@@ -168,7 +226,9 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
 class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
     """Check InfluxDB validation bucket connectivity and write permissions."""
 
-    def __init__(self, url: str, token: str, org: str, bucket: str):
+    def __init__(
+        self, url: str, token: str, org: str, bucket: str, cache_ttl: Optional[int] = None
+    ):
         """
         Initialize validation database health check.
 
@@ -178,11 +238,12 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
             org: InfluxDB organization
             bucket: InfluxDB bucket name
         """
-        super().__init__(critical=True, cache_ttl=30)
+        super().__init__(critical=True, cache_ttl=cache_ttl or 30)
         self.url = url
         self.token = token
         self.org = org
         self.bucket = bucket
+        self._cache_ttl = cache_ttl
 
     async def check(self) -> HealthCheckResult:
         """Check validation database connectivity and write capability."""
@@ -192,7 +253,7 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
             async def _check_connection():
                 # Get shared connection manager
                 conn_manager = await InfluxDBConnectionManager.get_instance(
-                    self.url, self.token, self.org
+                    self.url, self.token, self.org, self._cache_ttl
                 )
 
                 # Test connection with ping
@@ -202,9 +263,9 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
                         message="Failed to ping InfluxDB validation bucket",
                     )
 
-                def _check_data():
+                async def _check_data():
                     # Query for recent validation results
-                    client = conn_manager.get_client()
+                    client = await conn_manager.get_client()
                     query_api = client.query_api()
                     query = f"""
                     from(bucket: "{self.bucket}")
@@ -237,18 +298,30 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
                                 ),
                             },
                         )
+                    except InfluxDBError as query_error:
+                        # InfluxDB specific errors - could indicate permission or configuration issues
+                        return HealthCheckResult(
+                            status="degraded",
+                            message=f"Validation database query warning: {str(query_error)}",
+                            metadata={
+                                "bucket": self.bucket,
+                                "note": "Database accessible but query failed",
+                                "error_type": "InfluxDBError",
+                            },
+                        )
                     except Exception as query_error:
-                        # Query failure is non-critical as database might be empty
+                        # Other errors - treat as accessible but empty
                         return HealthCheckResult(
                             status="healthy",
                             message="Validation database is accessible (no recent data)",
                             metadata={
                                 "bucket": self.bucket,
                                 "note": "Database may be empty",
+                                "error_type": type(query_error).__name__,
                             },
                         )
 
-                return await loop.run_in_executor(None, _check_data)
+                return await _check_data()
 
             return await _check_connection()
 
@@ -312,7 +385,7 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
                             metadata={"error": "Root must be a dictionary"},
                         )
 
-                    # Validate critical fields exist
+                    # Validate critical fields exist and have content
                     required_fields = ["segmentId", "trafficDisturbanceId"]
                     missing_fields = [field for field in required_fields if field not in data]
                     if missing_fields:
@@ -322,6 +395,24 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
                             metadata={
                                 "missing_fields": missing_fields,
                                 "available_fields": list(data.keys())
+                            },
+                        )
+
+                    # Validate fields have actual content (not just empty containers)
+                    empty_fields = []
+                    for field in required_fields:
+                        if data[field] is None or (
+                            isinstance(data[field], (dict, list)) and len(data[field]) == 0
+                        ):
+                            empty_fields.append(field)
+
+                    if empty_fields:
+                        return HealthCheckResult(
+                            status="degraded",
+                            message="Required fields exist but are empty",
+                            metadata={
+                                "empty_fields": empty_fields,
+                                "note": "No active disturbances to process"
                             },
                         )
 
@@ -417,13 +508,19 @@ class WorkerStatusHealthCheck(HealthCheck):
                     # Task completed or failed
                     try:
                         # Check if task raised an exception
-                        task.exception()
-                        failed_workers += 1
+                        exception = task.exception()
+                        if exception is not None:
+                            # Task failed with an exception
+                            failed_workers += 1
+                        else:
+                            # Task completed successfully (should be restarted by manager)
+                            healthy_workers += 1
                     except asyncio.CancelledError:
                         # Task was cancelled (normal during shutdown)
                         pass
-                    except Exception:
-                        failed_workers += 1
+                    except asyncio.InvalidStateError:
+                        # Task is not done yet (shouldn't happen given the if condition)
+                        healthy_workers += 1
                 else:
                     # Task is still running
                     healthy_workers += 1
@@ -482,28 +579,33 @@ class OrchestratorHealthCheck(HealthCheck):
         self.manager = manager
         self.max_cycle_time_minutes = max_cycle_time_minutes
         self.deadlock_threshold_minutes = deadlock_threshold_minutes
-        self.last_check_time: Optional[datetime] = None
+        self._access_lock = asyncio.Lock()
 
     async def check(self) -> HealthCheckResult:
         """Check if orchestrator loop is functioning."""
         try:
             current_time = datetime.now(UTC)
 
-            # Track orchestrator activity
-            if not hasattr(self.manager, "last_cycle_time"):
-                # First check, assume orchestrator just started
-                self.manager.last_cycle_time = current_time
-                return HealthCheckResult(
-                    status="healthy",
-                    message="Orchestrator initialized",
-                    metadata={
-                        "status": "initializing",
-                        "active_segments": len(self.manager.active_segments),
-                    },
-                )
+            # Thread-safe access to last_cycle_time
+            async with self._access_lock:
+                # Track orchestrator activity
+                if not hasattr(self.manager, "last_cycle_time"):
+                    # First check, assume orchestrator just started
+                    self.manager.last_cycle_time = current_time
+                    return HealthCheckResult(
+                        status="healthy",
+                        message="Orchestrator initialized",
+                        metadata={
+                            "status": "initializing",
+                            "active_segments": len(self.manager.active_segments),
+                        },
+                    )
 
-            # Calculate time since last cycle
-            time_since_last_cycle = current_time - self.manager.last_cycle_time
+                # Get last cycle time safely
+                last_cycle_time = self.manager.last_cycle_time
+
+            # Calculate time since last cycle (outside the lock)
+            time_since_last_cycle = current_time - last_cycle_time
             minutes_since_last_cycle = time_since_last_cycle.total_seconds() / 60
 
             # Check for deadlock
@@ -514,7 +616,7 @@ class OrchestratorHealthCheck(HealthCheck):
                     metadata={
                         "minutes_since_last_cycle": round(minutes_since_last_cycle, 2),
                         "deadlock_threshold": self.deadlock_threshold_minutes,
-                        "last_cycle_time": self.manager.last_cycle_time.isoformat(),
+                        "last_cycle_time": last_cycle_time.isoformat(),
                     },
                 )
 
@@ -526,7 +628,7 @@ class OrchestratorHealthCheck(HealthCheck):
                     metadata={
                         "minutes_since_last_cycle": round(minutes_since_last_cycle, 2),
                         "max_cycle_time": self.max_cycle_time_minutes,
-                        "last_cycle_time": self.manager.last_cycle_time.isoformat(),
+                        "last_cycle_time": last_cycle_time.isoformat(),
                     },
                 )
 
@@ -537,7 +639,7 @@ class OrchestratorHealthCheck(HealthCheck):
                 metadata={
                     "minutes_since_last_cycle": round(minutes_since_last_cycle, 2),
                     "active_segments": len(self.manager.active_segments),
-                    "last_cycle_time": self.manager.last_cycle_time.isoformat(),
+                    "last_cycle_time": last_cycle_time.isoformat(),
                 },
             )
 

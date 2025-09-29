@@ -17,6 +17,7 @@ from health_checks import (
     DisturbanceDataHealthCheck,
     WorkerStatusHealthCheck,
     OrchestratorHealthCheck,
+    InfluxDBConnectionManager,
 )
 
 # ------------------------------------------------------#
@@ -77,6 +78,10 @@ async def shutdown(signal_received, loop):
     # Shutdown health server
     if health_server:
         await health_server.shutdown()
+
+    # Clean up InfluxDB connections
+    logger.info("Cleaning up InfluxDB connections...")
+    await InfluxDBConnectionManager.cleanup_all()
 
     loop.stop()
 
