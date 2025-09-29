@@ -5,7 +5,7 @@ import asyncio
 import json
 import os
 from datetime import datetime, timedelta, UTC
-from typing import Optional
+from typing import Optional, Dict
 
 from influxdb_client import InfluxDBClient
 from influxdb_client.client.exceptions import InfluxDBError
@@ -16,6 +16,56 @@ from idea_shared.health.checks import (
     HealthCheck,
 )
 from idea_shared.health.models import HealthCheckResult
+
+
+class InfluxDBConnectionManager:
+    """Manages shared InfluxDB connections for health checks."""
+
+    _instances: Dict[str, "InfluxDBConnectionManager"] = {}
+    _lock = asyncio.Lock()
+
+    def __init__(self, url: str, token: str, org: str):
+        self.url = url
+        self.token = token
+        self.org = org
+        self._client: Optional[InfluxDBClient] = None
+        self._last_ping_time: Optional[datetime] = None
+        self._ping_cache_ttl = 5  # seconds
+
+    @classmethod
+    async def get_instance(cls, url: str, token: str, org: str) -> "InfluxDBConnectionManager":
+        """Get or create a shared connection manager instance."""
+        key = f"{url}:{org}:{token[:8]}"  # Use first 8 chars of token as key suffix
+
+        async with cls._lock:
+            if key not in cls._instances:
+                cls._instances[key] = cls(url, token, org)
+            return cls._instances[key]
+
+    def get_client(self) -> InfluxDBClient:
+        """Get or create a client instance."""
+        if self._client is None:
+            self._client = InfluxDBClient(url=self.url, token=self.token, org=self.org)
+        return self._client
+
+    async def ping(self) -> bool:
+        """Ping the InfluxDB server with caching."""
+        now = datetime.now(UTC)
+        if (self._last_ping_time and
+            (now - self._last_ping_time).total_seconds() < self._ping_cache_ttl):
+            return True
+
+        client = self.get_client()
+        result = client.ping()
+        if result:
+            self._last_ping_time = now
+        return result
+
+    def close(self):
+        """Close the client connection."""
+        if self._client:
+            self._client.close()
+            self._client = None
 
 
 class FCDDatabaseHealthCheck(DatabaseHealthCheck):
@@ -49,63 +99,63 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
     async def check(self) -> HealthCheckResult:
         """Check FCD database connectivity and data freshness."""
         try:
+            # Get shared connection manager
+            conn_manager = await InfluxDBConnectionManager.get_instance(
+                self.url, self.token, self.org
+            )
+
+            # Test connection with ping
+            if not await conn_manager.ping():
+                return HealthCheckResult(
+                    status="unhealthy",
+                    message="Failed to ping InfluxDB FCD bucket",
+                )
+
             loop = asyncio.get_event_loop()
 
-            def _check_influx():
-                with InfluxDBClient(
-                    url=self.url, token=self.token, org=self.org
-                ) as client:
-                    # Test connection with ping
-                    if not client.ping():
-                        return HealthCheckResult(
-                            status="unhealthy",
-                            message="Failed to ping InfluxDB FCD bucket",
-                        )
+            def _check_data():
+                # Query for recent data to verify bucket access and data availability
+                client = conn_manager.get_client()
+                query_api = client.query_api()
+                query = f"""
+                from(bucket: "{self.bucket}")
+                    |> range(start: -{self.data_freshness_hours}h)
+                    |> filter(fn: (r) => r["_measurement"] == "fcd_segment")
+                    |> limit(n: 1)
+                """
 
-                    # Query for recent data to verify bucket access and data availability
-                    query_api = client.query_api()
-                    cutoff_time = datetime.now(UTC) - timedelta(
-                        hours=self.data_freshness_hours
+                try:
+                    tables = query_api.query(query=query, org=self.org)
+                    has_recent_data = any(len(table.records) > 0 for table in tables)
+
+                    if has_recent_data:
+                        return HealthCheckResult(
+                            status="healthy",
+                            message="FCD database is accessible and contains recent data",
+                            metadata={
+                                "bucket": self.bucket,
+                                "has_recent_data": True,
+                                "data_freshness_hours": self.data_freshness_hours,
+                            },
+                        )
+                    else:
+                        return HealthCheckResult(
+                            status="degraded",
+                            message=f"FCD database accessible but no data in last {self.data_freshness_hours} hours",
+                            metadata={
+                                "bucket": self.bucket,
+                                "has_recent_data": False,
+                                "data_freshness_hours": self.data_freshness_hours,
+                            },
+                        )
+                except Exception as query_error:
+                    return HealthCheckResult(
+                        status="unhealthy",
+                        message=f"Failed to query FCD bucket: {str(query_error)}",
+                        metadata={"bucket": self.bucket},
                     )
-                    query = f"""
-                    from(bucket: "{self.bucket}")
-                        |> range(start: -{self.data_freshness_hours}h)
-                        |> filter(fn: (r) => r["_measurement"] == "fcd_segment")
-                        |> limit(n: 1)
-                    """
 
-                    try:
-                        tables = query_api.query(query=query, org=self.org)
-                        has_recent_data = any(len(table.records) > 0 for table in tables)
-
-                        if has_recent_data:
-                            return HealthCheckResult(
-                                status="healthy",
-                                message="FCD database is accessible and contains recent data",
-                                metadata={
-                                    "bucket": self.bucket,
-                                    "has_recent_data": True,
-                                    "data_freshness_hours": self.data_freshness_hours,
-                                },
-                            )
-                        else:
-                            return HealthCheckResult(
-                                status="degraded",
-                                message=f"FCD database accessible but no data in last {self.data_freshness_hours} hours",
-                                metadata={
-                                    "bucket": self.bucket,
-                                    "has_recent_data": False,
-                                    "data_freshness_hours": self.data_freshness_hours,
-                                },
-                            )
-                    except Exception as query_error:
-                        return HealthCheckResult(
-                            status="unhealthy",
-                            message=f"Failed to query FCD bucket: {str(query_error)}",
-                            metadata={"bucket": self.bucket},
-                        )
-
-            return await loop.run_in_executor(None, _check_influx)
+            return await loop.run_in_executor(None, _check_data)
 
         except Exception as e:
             return HealthCheckResult(
@@ -139,18 +189,22 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
         try:
             loop = asyncio.get_event_loop()
 
-            def _check_influx():
-                with InfluxDBClient(
-                    url=self.url, token=self.token, org=self.org
-                ) as client:
-                    # Test connection with ping
-                    if not client.ping():
-                        return HealthCheckResult(
-                            status="unhealthy",
-                            message="Failed to ping InfluxDB validation bucket",
-                        )
+            async def _check_connection():
+                # Get shared connection manager
+                conn_manager = await InfluxDBConnectionManager.get_instance(
+                    self.url, self.token, self.org
+                )
 
+                # Test connection with ping
+                if not await conn_manager.ping():
+                    return HealthCheckResult(
+                        status="unhealthy",
+                        message="Failed to ping InfluxDB validation bucket",
+                    )
+
+                def _check_data():
                     # Query for recent validation results
+                    client = conn_manager.get_client()
                     query_api = client.query_api()
                     query = f"""
                     from(bucket: "{self.bucket}")
@@ -194,7 +248,9 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
                             },
                         )
 
-            return await loop.run_in_executor(None, _check_influx)
+                return await loop.run_in_executor(None, _check_data)
+
+            return await _check_connection()
 
         except Exception as e:
             return HealthCheckResult(
@@ -256,9 +312,22 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
                             metadata={"error": "Root must be a dictionary"},
                         )
 
+                    # Validate critical fields exist
+                    required_fields = ["segmentId", "trafficDisturbanceId"]
+                    missing_fields = [field for field in required_fields if field not in data]
+                    if missing_fields:
+                        return HealthCheckResult(
+                            status="unhealthy",
+                            message="Missing required fields in disturbance data",
+                            metadata={
+                                "missing_fields": missing_fields,
+                                "available_fields": list(data.keys())
+                            },
+                        )
+
                     # Count intersected segments
                     segment_count = 0
-                    if "segmentId" in data and isinstance(data["segmentId"], dict):
+                    if isinstance(data["segmentId"], dict):
                         segment_count = len(data["segmentId"])
 
                     # Determine status based on file age
@@ -339,10 +408,9 @@ class WorkerStatusHealthCheck(HealthCheck):
 
             # Check health of each worker
             healthy_workers = 0
-            stuck_workers = 0
             failed_workers = 0
 
-            for segment_id, segment_info in self.manager.active_segments.items():
+            for _segment_id, segment_info in self.manager.active_segments.items():
                 task = segment_info["task"]
 
                 if task.done():
@@ -354,7 +422,7 @@ class WorkerStatusHealthCheck(HealthCheck):
                     except asyncio.CancelledError:
                         # Task was cancelled (normal during shutdown)
                         pass
-                    except:
+                    except Exception:
                         failed_workers += 1
                 else:
                     # Task is still running

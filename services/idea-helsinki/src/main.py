@@ -87,6 +87,13 @@ async def main():
     """
     global health_server
 
+    # Setup signal handlers early for graceful shutdown
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        loop.add_signal_handler(
+            sig, lambda s=sig: asyncio.create_task(shutdown(s, loop))
+        )
+
     logger.info("Initializing IDEA Helsinki Manager...")
 
     # Initialize health server
@@ -193,21 +200,10 @@ if __name__ == "__main__":
     logger.info("## Starting IDEA Helsinki Service Runner ##")
     logger.info("###########################################")
 
-    # Setup signal handlers for graceful shutdown
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    # Setup signal handlers
-    for sig in (signal.SIGTERM, signal.SIGINT):
-        loop.add_signal_handler(
-            sig, lambda s=sig: asyncio.create_task(shutdown(s, loop))
-        )
-
     try:
-        # Start the main function
-        loop.run_until_complete(main())
+        # Start the main function - signal handlers are now set up inside main()
+        asyncio.run(main())
     except KeyboardInterrupt:
         logger.info("Program stopped by user (Ctrl+C).")
     finally:
-        loop.close()
         logger.info("Event loop closed.")
