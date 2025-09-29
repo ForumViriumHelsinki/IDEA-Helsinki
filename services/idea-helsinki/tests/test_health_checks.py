@@ -363,7 +363,6 @@ class TestInfluxDBConnectionManager:
     async def test_concurrent_access(self):
         """Test thread-safe concurrent access to connection manager."""
         url = "http://localhost:8086"
-        token = "test_token"
         org = "test_org"
 
         # Create multiple concurrent requests
@@ -379,7 +378,7 @@ class TestInfluxDBConnectionManager:
         managers = await asyncio.gather(*tasks)
 
         # Count unique instances
-        unique_managers = set(id(m) for m in managers)
+        unique_managers = {id(m) for m in managers}
         assert len(unique_managers) == 3  # Should have 3 unique instances
 
         # Clean up

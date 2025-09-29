@@ -161,8 +161,6 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
                     message="Failed to ping InfluxDB FCD bucket",
                 )
 
-            loop = asyncio.get_event_loop()
-
             async def _check_data():
                 # Query for recent data to verify bucket access and data availability
                 client = await conn_manager.get_client()
@@ -248,8 +246,6 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
     async def check(self) -> HealthCheckResult:
         """Check validation database connectivity and write capability."""
         try:
-            loop = asyncio.get_event_loop()
-
             async def _check_connection():
                 # Get shared connection manager
                 conn_manager = await InfluxDBConnectionManager.get_instance(
