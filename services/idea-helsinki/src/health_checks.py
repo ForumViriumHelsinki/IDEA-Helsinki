@@ -1,15 +1,12 @@
 """
 Health checks for IDEA Helsinki service.
 """
+
 import asyncio
 import hashlib
 import json
 import os
-from datetime import datetime, timedelta, UTC
-from typing import Optional, Dict
-
-from influxdb_client import InfluxDBClient
-from influxdb_client.client.exceptions import InfluxDBError
+from datetime import UTC, datetime
 
 from idea_shared.health.checks import (
     DatabaseHealthCheck,
@@ -17,29 +14,31 @@ from idea_shared.health.checks import (
     HealthCheck,
 )
 from idea_shared.health.models import HealthCheckResult
+from influxdb_client import InfluxDBClient
+from influxdb_client.client.exceptions import InfluxDBError
 
 
 class InfluxDBConnectionManager:
     """Manages shared InfluxDB connections for health checks."""
 
-    _instances: Dict[str, "InfluxDBConnectionManager"] = {}
+    _instances: dict[str, "InfluxDBConnectionManager"] = {}
     _lock = asyncio.Lock()
     MAX_CONNECTIONS = 10  # Maximum number of connection managers
     CONNECTION_TTL_SECONDS = 3600  # Time to keep unused connections (1 hour)
 
-    def __init__(self, url: str, token: str, org: str, cache_ttl: Optional[int] = None):
+    def __init__(self, url: str, token: str, org: str, cache_ttl: int | None = None):
         self.url = url
         self.token = token
         self.org = org
-        self._client: Optional[InfluxDBClient] = None
-        self._last_ping_time: Optional[datetime] = None
+        self._client: InfluxDBClient | None = None
+        self._last_ping_time: datetime | None = None
         self._ping_cache_ttl = cache_ttl or 5  # seconds
         self._last_access_time = datetime.now(UTC)
         self._client_lock = asyncio.Lock()
 
     @classmethod
     async def get_instance(
-        cls, url: str, token: str, org: str, cache_ttl: Optional[int] = None
+        cls, url: str, token: str, org: str, cache_ttl: int | None = None
     ) -> "InfluxDBConnectionManager":
         """Get or create a shared connection manager instance."""
         # Use SHA-256 hash of token for security instead of substring
@@ -56,7 +55,7 @@ class InfluxDBConnectionManager:
                     # Remove the oldest connection
                     oldest_key = min(
                         cls._instances.keys(),
-                        key=lambda k: cls._instances[k]._last_access_time
+                        key=lambda k: cls._instances[k]._last_access_time,
                     )
                     cls._instances[oldest_key].close()
                     del cls._instances[oldest_key]
@@ -72,8 +71,10 @@ class InfluxDBConnectionManager:
         """Remove connections that haven't been used recently."""
         now = datetime.now(UTC)
         stale_keys = [
-            key for key, instance in cls._instances.items()
-            if (now - instance._last_access_time).total_seconds() > cls.CONNECTION_TTL_SECONDS
+            key
+            for key, instance in cls._instances.items()
+            if (now - instance._last_access_time).total_seconds()
+            > cls.CONNECTION_TTL_SECONDS
         ]
 
         for key in stale_keys:
@@ -92,15 +93,19 @@ class InfluxDBConnectionManager:
         """Get or create a client instance (thread-safe)."""
         async with self._client_lock:
             if self._client is None:
-                self._client = InfluxDBClient(url=self.url, token=self.token, org=self.org)
+                self._client = InfluxDBClient(
+                    url=self.url, token=self.token, org=self.org
+                )
             self._last_access_time = datetime.now(UTC)
             return self._client
 
     async def ping(self) -> bool:
         """Ping the InfluxDB server with caching."""
         now = datetime.now(UTC)
-        if (self._last_ping_time and
-            (now - self._last_ping_time).total_seconds() < self._ping_cache_ttl):
+        if (
+            self._last_ping_time
+            and (now - self._last_ping_time).total_seconds() < self._ping_cache_ttl
+        ):
             return True
 
         client = await self.get_client()
@@ -126,7 +131,7 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
         org: str,
         bucket: str,
         data_freshness_hours: int = 1,
-        cache_ttl: Optional[int] = None,
+        cache_ttl: int | None = None,
     ):
         """
         Initialize FCD database health check.
@@ -208,7 +213,10 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
                     return HealthCheckResult(
                         status="unhealthy",
                         message=f"Unexpected error querying FCD bucket: {str(query_error)}",
-                        metadata={"bucket": self.bucket, "error_type": type(query_error).__name__},
+                        metadata={
+                            "bucket": self.bucket,
+                            "error_type": type(query_error).__name__,
+                        },
                     )
 
             return await _check_data()
@@ -225,7 +233,12 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
     """Check InfluxDB validation bucket connectivity and write permissions."""
 
     def __init__(
-        self, url: str, token: str, org: str, bucket: str, cache_ttl: Optional[int] = None
+        self,
+        url: str,
+        token: str,
+        org: str,
+        bucket: str,
+        cache_ttl: int | None = None,
     ):
         """
         Initialize validation database health check.
@@ -246,6 +259,7 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
     async def check(self) -> HealthCheckResult:
         """Check validation database connectivity and write capability."""
         try:
+
             async def _check_connection():
                 # Get shared connection manager
                 conn_manager = await InfluxDBConnectionManager.get_instance(
@@ -363,14 +377,12 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
             def _check_file():
                 # Check file modification time
                 file_stat = os.stat(self.path)
-                file_age_seconds = (
-                    datetime.now().timestamp() - file_stat.st_mtime
-                )
+                file_age_seconds = datetime.now().timestamp() - file_stat.st_mtime
                 file_age_minutes = file_age_seconds / 60
 
                 # Check file content
                 try:
-                    with open(self.path, "r", encoding="utf-8") as f:
+                    with open(self.path, encoding="utf-8") as f:
                         data = json.load(f)
 
                     # Validate JSON structure
@@ -383,14 +395,16 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
 
                     # Validate critical fields exist and have content
                     required_fields = ["segmentId", "trafficDisturbanceId"]
-                    missing_fields = [field for field in required_fields if field not in data]
+                    missing_fields = [
+                        field for field in required_fields if field not in data
+                    ]
                     if missing_fields:
                         return HealthCheckResult(
                             status="unhealthy",
                             message="Missing required fields in disturbance data",
                             metadata={
                                 "missing_fields": missing_fields,
-                                "available_fields": list(data.keys())
+                                "available_fields": list(data.keys()),
                             },
                         )
 
@@ -398,7 +412,8 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
                     empty_fields = []
                     for field in required_fields:
                         if data[field] is None or (
-                            isinstance(data[field], (dict, list)) and len(data[field]) == 0
+                            isinstance(data[field], dict | list)
+                            and len(data[field]) == 0
                         ):
                             empty_fields.append(field)
 
@@ -408,7 +423,7 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
                             message="Required fields exist but are empty",
                             metadata={
                                 "empty_fields": empty_fields,
-                                "note": "No active disturbances to process"
+                                "note": "No active disturbances to process",
                             },
                         )
 
