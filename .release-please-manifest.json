@@ -1,5 +1,5 @@
 {
-  "services/idea-helsinki": "0.2.2",
-  "services/fcd-manager": "0.2.2",
-  "services/traffic-monitor": "0.2.2"
+  "services/idea-helsinki": "0.3.0",
+  "services/fcd-manager": "0.3.0",
+  "services/traffic-monitor": "0.3.0"
 }

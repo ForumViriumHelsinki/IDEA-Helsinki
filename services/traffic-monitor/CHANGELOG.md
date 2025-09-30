@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.2.2...traffic-monitor-v0.3.0) (2025-09-30)
+
+
+### Features
+
+* **traffic-monitor:** implement health checks for Traffic Monitor service ([#43](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/43)) ([187f8f8](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/187f8f85532290a8e875ff11b385057a9fd53751))
+
 ## [0.2.2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.2.1...traffic-monitor-v0.2.2) (2025-09-08)
 
 

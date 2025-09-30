@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.2.2...fcd-manager-v0.3.0) (2025-09-30)
+
+
+### Features
+
+* Implement health checks for FCD Manager service ([#42](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/42)) ([e3755a6](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/e3755a6c4b04c9ca93ba96e7d877fe778e1d42ed))
+
 ## [0.2.2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.2.1...fcd-manager-v0.2.2) (2025-09-08)
 
 
