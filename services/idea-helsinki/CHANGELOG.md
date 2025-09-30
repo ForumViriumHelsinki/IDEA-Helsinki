@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-helsinki-v0.2.2...idea-helsinki-v0.3.0) (2025-09-30)
+
+
+### Features
+
+* Implement health checks for FCD Manager service ([#42](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/42)) ([e3755a6](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/e3755a6c4b04c9ca93ba96e7d877fe778e1d42ed))
+* Implement health checks for IDEA Helsinki service ([#30](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/30)) ([6fb327f](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/6fb327f52e43fc3344a342e8841a8c6155b6b893))
+
 ## [0.2.2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-helsinki-v0.2.1...idea-helsinki-v0.2.2) (2025-09-08)
 
 
