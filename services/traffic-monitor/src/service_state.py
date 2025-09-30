@@ -12,25 +12,34 @@ class ServiceState:
         self._lock = threading.Lock()
         self.last_wfs_success = None
         self.last_wfs_attempt = None
+        self.last_wfs_fetch = None  # Track last WFS fetch time
         self.last_processing_time = None
+        self.last_intersection_calc = None  # Track last intersection calculation
+        self.last_file_write = None  # Track last file write
         self.last_error = None
         self.is_processing = False
         self.wfs_consecutive_failures = 0
+        self.current_disturbance_count = 0  # Current number of disturbances
+        self.current_intersection_count = 0  # Current number of intersections
         self.detector = None
 
-    def update_wfs_fetch(self, success: bool, error: str = None):
+    def update_wfs_fetch(self, success: bool, disturbance_count: int = None, error: str = None):
         """Update WFS fetch status.
 
         Args:
             success: Whether the fetch was successful
+            disturbance_count: Number of disturbances fetched (if successful)
             error: Error message if fetch failed
         """
         with self._lock:
             self.last_wfs_attempt = datetime.now(UTC)
+            self.last_wfs_fetch = self.last_wfs_attempt
             if success:
                 self.last_wfs_success = self.last_wfs_attempt
                 self.wfs_consecutive_failures = 0
                 self.last_error = None
+                if disturbance_count is not None:
+                    self.current_disturbance_count = disturbance_count
             else:
                 self.wfs_consecutive_failures += 1
                 if error:
@@ -64,10 +73,18 @@ class ServiceState:
         with self._lock:
             return self.detector
 
-    def start_processing(self):
-        """Mark that processing has started."""
+    def set_processing(self, processing: bool):
+        """Set the processing state.
+
+        Args:
+            processing: Whether processing is active
+        """
         with self._lock:
-            self.is_processing = True
+            self.is_processing = processing
+
+    def start_processing(self):
+        """Mark that processing has started (deprecated - use set_processing)."""
+        self.set_processing(True)
 
     def get_summary(self) -> dict:
         """Get a summary of the current state.
@@ -141,3 +158,49 @@ class ServiceState:
         """Clear the last error message."""
         with self._lock:
             self.last_error = None
+
+    def update_intersection(self, intersection_count: int):
+        """Update intersection calculation status.
+
+        Args:
+            intersection_count: Number of intersections calculated
+        """
+        with self._lock:
+            self.last_intersection_calc = datetime.now(UTC)
+            self.current_intersection_count = intersection_count
+
+    def update_file_write(self, success: bool, error: str = None):
+        """Update file write status.
+
+        Args:
+            success: Whether the file write was successful
+            error: Error message if write failed
+        """
+        with self._lock:
+            self.last_file_write = datetime.now(UTC)
+            if not success and error:
+                self.last_error = error
+
+    def get_status_summary(self) -> dict:
+        """Get a detailed status summary for health checks.
+
+        Returns:
+            Dictionary containing detailed status information
+        """
+        with self._lock:
+            summary = self.get_summary()  # Start with basic summary
+
+            # Add additional fields for health checks
+            summary["current_disturbance_count"] = self.current_disturbance_count
+            summary["current_intersection_count"] = self.current_intersection_count
+
+            if self.last_wfs_fetch:
+                summary["last_wfs_fetch"] = self.last_wfs_fetch
+
+            if self.last_intersection_calc:
+                summary["last_intersection_calc"] = self.last_intersection_calc
+
+            if self.last_file_write:
+                summary["last_file_write"] = self.last_file_write
+
+            return summary
