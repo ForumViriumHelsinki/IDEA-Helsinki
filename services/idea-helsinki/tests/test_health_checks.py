@@ -135,7 +135,6 @@ class TestDisturbanceDataHealthCheck:
     async def test_degraded_with_stale_data(self):
         """Test degraded status when data file is stale."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-
             # Write valid JSON
             json.dump({"segmentId": {}}, f)
             f.flush()

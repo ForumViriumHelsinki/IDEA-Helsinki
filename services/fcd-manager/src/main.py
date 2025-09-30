@@ -1,6 +1,7 @@
 # ------------------------------------------------------#
 # ---------------- GENERAL IMPORTS ---------------------#
 # ------------------------------------------------------#
+import signal
 import sys
 from datetime import UTC, datetime, timedelta
 
@@ -21,6 +22,13 @@ from idea_shared.classes.AzureBlobContainerManager import (
 )
 from idea_shared.classes.FCDInfluxDBManager import FCDInfluxDBManager
 from idea_shared.classes.Logger import Logger
+from idea_shared.health.idea_checks import (
+    AzureBlobStorageHealthCheck,
+    FCDDataFreshnessHealthCheck,
+    InfluxDBHealthCheck,
+    SegmentMappingIntegrityHealthCheck,
+)
+from idea_shared.health.server import HealthServer
 
 # ------------------------------------------------------#
 # ------------------ CONSTANTS -------------------------#
@@ -30,8 +38,13 @@ from idea_shared.lib.Constants.Constants import (
     FCD_HISTORY_START_DATE,
     FCD_MAP_DATA_FILE_LOCATION,
     FCD_UPDATE_FREQUENCY,
+    HEALTH_CHECK_CACHE_TTL_SECONDS,
+    HEALTH_CHECK_PORT,
     MASTER_SEGMENT_HISTORY_FILE_LOCATION,
     MAX_FCD_DATA_BASE_UPDATE_DOWNTIME,
+    SEGMENT_MAPPING_MAX_AGE_MINUTES,
+    UPDATE_FRESHNESS_DEGRADED_MINUTES,
+    UPDATE_FRESHNESS_HEALTHY_MINUTES,
 )
 from idea_shared.lib.Constants.PrivateConstants import (
     AZURE_ACCOUNT_NAME,
@@ -43,7 +56,31 @@ from idea_shared.lib.Constants.PrivateConstants import (
     INFLUX_DB_URL,
 )
 
+# ------------------------------------------------------#
+# -------------- HEALTH CHECK IMPORTS ------------------#
+# ------------------------------------------------------#
+from health_checks import (
+    ProcessingPipelineHealthCheck,
+    SegmentMappingFreshnessHealthCheck,
+    UpdateCycleHealthCheck,
+)
+
 logger = Logger(__name__)
+
+# Global health server and check instances
+health_server = None
+update_cycle_check = None
+pipeline_check = None
+
+
+def handle_shutdown(signum, frame):
+    """Handle graceful shutdown on SIGTERM/SIGINT."""
+    logger.info(f"Received signal {signum}, shutting down gracefully...")
+    global health_server
+    if health_server:
+        logger.info("Stopping health server...")
+        health_server.stop()
+    sys.exit(0)
 
 
 def main():
@@ -56,6 +93,109 @@ def main():
     2.  A perpetual 5-minute update cycle that fetches and processes only the
         newest data, ensuring the database remains up to date.
     """
+    global health_server, update_cycle_check, pipeline_check
+
+    # Setup signal handlers for graceful shutdown
+    signal.signal(signal.SIGTERM, handle_shutdown)
+    signal.signal(signal.SIGINT, handle_shutdown)
+
+    # Initialize health server
+    logger.info(f"Starting health server on port {HEALTH_CHECK_PORT}")
+    health_server = HealthServer(
+        port=HEALTH_CHECK_PORT,
+        app_name="FCD Manager Service",
+        enable_metrics=True,
+    )
+
+    # Add Azure Blob Storage health check
+    azure_check = AzureBlobStorageHealthCheck(
+        name="azure_storage",
+        account_name=AZURE_ACCOUNT_NAME,
+        container_name=AZURE_CONTAINER_NAME,
+        sas_token=AZURE_SAS_TOKEN,
+        timeout=10.0,
+        critical=True,
+        cache_ttl=HEALTH_CHECK_CACHE_TTL_SECONDS,
+    )
+    health_server.add_check("azure_storage", azure_check)
+
+    # Add InfluxDB health check
+    influx_check = InfluxDBHealthCheck(
+        name="influxdb",
+        url=INFLUX_DB_URL,
+        token=INFLUX_DB_FCD_TOKEN,
+        org=INFLUX_DB_ORG,
+        bucket=INFLUX_DB_FCD_BUCKET,
+        timeout=5.0,
+        critical=True,
+        cache_ttl=HEALTH_CHECK_CACHE_TTL_SECONDS,
+    )
+    health_server.add_check("influxdb", influx_check)
+
+    # Add FCD data freshness check
+    freshness_check = FCDDataFreshnessHealthCheck(
+        name="data_freshness",
+        url=INFLUX_DB_URL,
+        token=INFLUX_DB_FCD_TOKEN,
+        org=INFLUX_DB_ORG,
+        bucket=INFLUX_DB_FCD_BUCKET,
+        max_age_minutes=UPDATE_FRESHNESS_DEGRADED_MINUTES,
+        measurement="fcd_data",
+        timeout=10.0,
+        critical=False,  # Not critical for readiness
+        cache_ttl=60.0,
+    )
+    health_server.add_check("data_freshness", freshness_check)
+
+    # Add segment mapping integrity check
+    mapping_integrity_check = SegmentMappingIntegrityHealthCheck(
+        name="segment_mapping",
+        mapping_file_path=FCD_MAP_DATA_FILE_LOCATION,
+        history_file_path=MASTER_SEGMENT_HISTORY_FILE_LOCATION,
+        timeout=5.0,
+        critical=True,
+        cache_ttl=300.0,
+    )
+    health_server.add_check("mapping_integrity", mapping_integrity_check)
+
+    # Add segment mapping freshness check
+    mapping_freshness_check = SegmentMappingFreshnessHealthCheck(
+        name="mapping_freshness",
+        mapping_file_path=FCD_MAP_DATA_FILE_LOCATION,
+        max_age_minutes=SEGMENT_MAPPING_MAX_AGE_MINUTES,
+        timeout=2.0,
+        critical=False,
+        cache_ttl=30.0,
+    )
+    health_server.add_check("mapping_freshness", mapping_freshness_check)
+
+    # Add update cycle health check
+    update_cycle_check = UpdateCycleHealthCheck(
+        name="update_cycle",
+        healthy_threshold_minutes=UPDATE_FRESHNESS_HEALTHY_MINUTES,
+        degraded_threshold_minutes=UPDATE_FRESHNESS_DEGRADED_MINUTES,
+        timeout=1.0,
+        critical=False,
+        cache_ttl=5.0,
+    )
+    health_server.add_check("update_cycle", update_cycle_check)
+
+    # Add processing pipeline health check
+    pipeline_check = ProcessingPipelineHealthCheck(
+        name="processing_pipeline",
+        timeout=2.0,
+        critical=False,
+        cache_ttl=10.0,
+    )
+    health_server.add_check("processing_pipeline", pipeline_check)
+
+    # Start health server in background thread
+    health_server.start_background()
+    logger.info(f"Health server started on http://0.0.0.0:{HEALTH_CHECK_PORT}")
+    logger.info(f"  - Liveness:  http://0.0.0.0:{HEALTH_CHECK_PORT}/healthz")
+    logger.info(f"  - Readiness: http://0.0.0.0:{HEALTH_CHECK_PORT}/ready")
+    logger.info(f"  - Startup:   http://0.0.0.0:{HEALTH_CHECK_PORT}/startup")
+    logger.info(f"  - Details:   http://0.0.0.0:{HEALTH_CHECK_PORT}/health/detail")
 
     azure_manager = AzureBlobContainerManager(
         AZURE_ACCOUNT_NAME, AZURE_CONTAINER_NAME, AZURE_SAS_TOKEN
@@ -70,6 +210,8 @@ def main():
 
     if not initialize_database_update(azure_manager, update_fcd_mapping=True):
         logger.error("Program failed to initialize database update, Exiting...")
+        if health_server:
+            health_server.stop()
         sys.exit()
 
     last_fcd_mapping_done = datetime.now(UTC)
@@ -91,6 +233,9 @@ def main():
             azure_manager, current_time, update_fcd_mapping=update_fcd_mapping
         ):
             logger.info("FCD database update!")
+            # Update health check timestamp for successful update
+            if update_cycle_check:
+                update_cycle_check.update_timestamp()
             if update_fcd_mapping:
                 last_fcd_mapping_done = current_time
                 FcdUtils.update_segment_changelog(
@@ -103,6 +248,9 @@ def main():
             logger.error(
                 f"FCD database could not be updated, retrying in {FCD_UPDATE_FREQUENCY} minutes!"
             )
+            # Record error in pipeline health check
+            if pipeline_check:
+                pipeline_check.record_error("FCD database update failed")
 
         # Pause the cycle until the next update. This time is defined in the TRAFFIC_DISTURBANCE_UPDATE_FREQUENCY variable (in minutes)
         # Get a time stamp. Note timezone.
@@ -346,8 +494,14 @@ def _process_and_update_blob_list(
     """
     Helper to process a list of blobs, returning a single aggregated data dictionary.
     """
+    global pipeline_check
+
     if not blobs_to_process:
         return {}
+
+    # Record processing start
+    if pipeline_check:
+        pipeline_check.record_processing_start()
 
     aggregated_fcd_data = {}
     # Iterate through the blobs found.
@@ -397,6 +551,10 @@ def _process_and_update_blob_list(
             aggregated_fcd_data
         )
     )
+
+    # Record successful processing completion
+    if pipeline_check and fcd_database_update_file:
+        pipeline_check.record_processing_complete(len(blobs_to_process))
 
     # Return the aggregated and sorted FCD dictionary for database update.
     return fcd_database_update_file

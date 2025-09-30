@@ -28,6 +28,11 @@ dependencies = [
 dev = [
     "ruff",
 ]
+test = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "requests>=2.28.0",
+]
 
 [project.scripts]
 fcd-manager = "main:main"
