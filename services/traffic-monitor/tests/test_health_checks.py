@@ -5,10 +5,9 @@ import json
 import tempfile
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-
 from services.traffic_monitor.src.health_checks import (
     DetectorHealthCheck,
     FCDMappingHealthCheck,

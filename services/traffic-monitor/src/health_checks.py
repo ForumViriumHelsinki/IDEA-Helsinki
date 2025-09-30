@@ -4,12 +4,15 @@ import asyncio
 import json
 import logging
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 
 import aiohttp
-
-from idea_shared.health.checks import ExternalAPIHealthCheck, FileSystemHealthCheck, HealthCheck
+from idea_shared.health.checks import (
+    ExternalAPIHealthCheck,
+    FileSystemHealthCheck,
+    HealthCheck,
+)
 from idea_shared.health.models import HealthCheckResult
 
 logger = logging.getLogger(__name__)
@@ -153,7 +156,7 @@ class WFSAPIHealthCheck(ExternalAPIHealthCheck):
                 # Re-raise the exception after ensuring session handling
                 raise
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return HealthCheckResult(
                 name=self.name,
                 status="unhealthy",
@@ -337,7 +340,9 @@ class OutputFileHealthCheck(FileSystemHealthCheck):
             cache_ttl: Cache time-to-live in seconds
         """
         # Import here to avoid circular dependencies
-        from idea_shared.lib.Constants.Constants import TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION
+        from idea_shared.lib.Constants.Constants import (
+            TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION,
+        )
 
         file_path = file_path or TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION
 

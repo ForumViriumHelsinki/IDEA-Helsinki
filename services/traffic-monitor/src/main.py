@@ -20,18 +20,6 @@ from idea_shared.classes.Logger import Logger
 from idea_shared.health.server import HealthServer
 
 # ------------------------------------------------------#
-# ------------- SERVICE-SPECIFIC IMPORTS ----------------#
-# ------------------------------------------------------#
-from health_checks import (
-    DetectorHealthCheck,
-    FCDMappingHealthCheck,
-    OutputFileHealthCheck,
-    UpdateFreshnessHealthCheck,
-    WFSAPIHealthCheck,
-)
-from service_state import ServiceState
-
-# ------------------------------------------------------#
 # ------------------ CONSTANTS -------------------------#
 # ------------------------------------------------------#
 from idea_shared.lib.Constants.Constants import (
@@ -48,6 +36,18 @@ from idea_shared.lib.Constants.Constants import (
     WFS_HEALTH_CHECK_CACHE_TTL,
     WFS_HEALTH_CHECK_TIMEOUT,
 )
+
+# ------------------------------------------------------#
+# ------------- SERVICE-SPECIFIC IMPORTS ----------------#
+# ------------------------------------------------------#
+from health_checks import (
+    DetectorHealthCheck,
+    FCDMappingHealthCheck,
+    OutputFileHealthCheck,
+    UpdateFreshnessHealthCheck,
+    WFSAPIHealthCheck,
+)
+from service_state import ServiceState
 
 logger = Logger(__name__)
 
@@ -129,6 +129,7 @@ def main():
 
         # Close WFS session if exists
         import asyncio
+
         from health_checks import WFSAPIHealthCheck
         try:
             loop = asyncio.new_event_loop()
