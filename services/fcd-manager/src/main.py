@@ -22,6 +22,13 @@ from idea_shared.classes.AzureBlobContainerManager import (
 )
 from idea_shared.classes.FCDInfluxDBManager import FCDInfluxDBManager
 from idea_shared.classes.Logger import Logger
+from idea_shared.health.idea_checks import (
+    AzureBlobStorageHealthCheck,
+    FCDDataFreshnessHealthCheck,
+    InfluxDBHealthCheck,
+    SegmentMappingIntegrityHealthCheck,
+)
+from idea_shared.health.server import HealthServer
 
 # ------------------------------------------------------#
 # ------------------ CONSTANTS -------------------------#
@@ -57,13 +64,6 @@ from health_checks import (
     SegmentMappingFreshnessHealthCheck,
     UpdateCycleHealthCheck,
 )
-from idea_shared.health.idea_checks import (
-    AzureBlobStorageHealthCheck,
-    FCDDataFreshnessHealthCheck,
-    InfluxDBHealthCheck,
-    SegmentMappingIntegrityHealthCheck,
-)
-from idea_shared.health.server import HealthServer
 
 logger = Logger(__name__)
 

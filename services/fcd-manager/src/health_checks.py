@@ -1,6 +1,5 @@
 """FCD Manager specific health check implementations."""
 
-import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -64,8 +63,9 @@ class UpdateCycleHealthCheck(HealthCheck):
                 message="Service is starting up (grace period active)",
                 metadata={
                     "startup_time": self.startup_time.isoformat(),
-                    "grace_period_minutes": self.startup_grace_period.total_seconds() / 60,
-                }
+                    "grace_period_minutes": self.startup_grace_period.total_seconds()
+                    / 60,
+                },
             )
 
         # If no updates have been recorded yet after grace period
@@ -76,8 +76,11 @@ class UpdateCycleHealthCheck(HealthCheck):
                 message="No update cycles completed since startup",
                 metadata={
                     "startup_time": self.startup_time.isoformat(),
-                    "time_since_startup_minutes": (now - self.startup_time).total_seconds() / 60,
-                }
+                    "time_since_startup_minutes": (
+                        now - self.startup_time
+                    ).total_seconds()
+                    / 60,
+                },
             )
 
         # Calculate time since last update
@@ -90,7 +93,9 @@ class UpdateCycleHealthCheck(HealthCheck):
             message = f"Update cycle is running normally ({minutes_since_update:.1f} minutes ago)"
         elif time_since_update < self.degraded_threshold:
             status = "degraded"
-            message = f"Update cycle is delayed ({minutes_since_update:.1f} minutes ago)"
+            message = (
+                f"Update cycle is delayed ({minutes_since_update:.1f} minutes ago)"
+            )
         else:
             status = "unhealthy"
             message = f"Update cycle has not run for {minutes_since_update:.1f} minutes"
@@ -102,9 +107,11 @@ class UpdateCycleHealthCheck(HealthCheck):
             metadata={
                 "last_update": self.last_update_time.isoformat(),
                 "minutes_since_update": minutes_since_update,
-                "healthy_threshold_minutes": self.healthy_threshold.total_seconds() / 60,
-                "degraded_threshold_minutes": self.degraded_threshold.total_seconds() / 60,
-            }
+                "healthy_threshold_minutes": self.healthy_threshold.total_seconds()
+                / 60,
+                "degraded_threshold_minutes": self.degraded_threshold.total_seconds()
+                / 60,
+            },
         )
 
 
@@ -153,7 +160,7 @@ class SegmentMappingFreshnessHealthCheck(HealthCheck):
                     metadata={
                         "file_path": str(self.mapping_file),
                         "exists": False,
-                    }
+                    },
                 )
 
             # Get file modification time
@@ -164,10 +171,14 @@ class SegmentMappingFreshnessHealthCheck(HealthCheck):
 
             if file_age <= self.max_age:
                 status = "healthy"
-                message = f"Segment mapping file is fresh ({age_minutes:.1f} minutes old)"
+                message = (
+                    f"Segment mapping file is fresh ({age_minutes:.1f} minutes old)"
+                )
             else:
                 status = "degraded"
-                message = f"Segment mapping file is stale ({age_minutes:.1f} minutes old)"
+                message = (
+                    f"Segment mapping file is stale ({age_minutes:.1f} minutes old)"
+                )
 
             return HealthCheckResult(
                 name=self.name,
@@ -179,7 +190,7 @@ class SegmentMappingFreshnessHealthCheck(HealthCheck):
                     "age_minutes": age_minutes,
                     "max_age_minutes": self.max_age.total_seconds() / 60,
                     "file_size_bytes": self.mapping_file.stat().st_size,
-                }
+                },
             )
 
         except Exception as e:
@@ -190,7 +201,7 @@ class SegmentMappingFreshnessHealthCheck(HealthCheck):
                 metadata={
                     "file_path": str(self.mapping_file),
                     "error": str(e),
-                }
+                },
             )
 
 

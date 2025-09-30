@@ -1,11 +1,9 @@
 """Unit tests for FCD Manager health checks."""
 
-import asyncio
 import sys
 import tempfile
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -151,6 +149,7 @@ class TestSegmentMappingFreshnessHealthCheck:
         try:
             # Modify the file's timestamp to make it appear old
             import os
+
             old_time = datetime.now(UTC) - timedelta(minutes=30)
             os.utime(tmp_path, (old_time.timestamp(), old_time.timestamp()))
 

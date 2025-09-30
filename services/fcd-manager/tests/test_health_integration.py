@@ -5,7 +5,6 @@ import json
 import signal
 import sys
 import tempfile
-import threading
 import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -17,6 +16,7 @@ import requests
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from idea_shared.health.server import HealthServer
+
 from health_checks import (
     ProcessingPipelineHealthCheck,
     SegmentMappingFreshnessHealthCheck,
@@ -30,9 +30,7 @@ class TestHealthServerIntegration:
     @pytest.fixture
     def temp_mapping_file(self):
         """Create a temporary mapping file for testing."""
-        with tempfile.NamedTemporaryFile(
-            mode='w', suffix='.json', delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump({"test_segment": {"geometry": {}, "properties": {}}}, f)
             temp_path = f.name
 
@@ -159,7 +157,9 @@ class TestHealthServerIntegration:
         server, update_check, pipeline_check = health_server
 
         # Simulate grace period has passed and no updates
-        update_check.startup_time = update_check.startup_time - asyncio.timedelta(minutes=15)
+        update_check.startup_time = update_check.startup_time - asyncio.timedelta(
+            minutes=15
+        )
 
         # Simulate a recent error
         pipeline_check.record_error("Test error")
@@ -173,7 +173,9 @@ class TestHealthServerIntegration:
 
             # Should still be ready even with degraded checks (non-critical)
             assert data["ready"] is True
-            assert data["checks"]["update_cycle"] == "unhealthy"  # No updates after grace period
+            assert (
+                data["checks"]["update_cycle"] == "unhealthy"
+            )  # No updates after grace period
             assert data["checks"]["processing_pipeline"] == "degraded"  # Recent error
         finally:
             server.stop()
@@ -305,11 +307,11 @@ class TestSignalHandling:
 
     def test_graceful_shutdown_sigterm(self):
         """Test that SIGTERM triggers graceful shutdown."""
-        with patch('sys.exit') as mock_exit:
+        with patch("sys.exit") as mock_exit:
             from main import handle_shutdown
 
             # Mock health server
-            with patch('main.health_server') as mock_server:
+            with patch("main.health_server") as mock_server:
                 mock_server.stop = MagicMock()
 
                 # Call signal handler
@@ -321,11 +323,11 @@ class TestSignalHandling:
 
     def test_graceful_shutdown_sigint(self):
         """Test that SIGINT triggers graceful shutdown."""
-        with patch('sys.exit') as mock_exit:
+        with patch("sys.exit") as mock_exit:
             from main import handle_shutdown
 
             # Mock health server
-            with patch('main.health_server') as mock_server:
+            with patch("main.health_server") as mock_server:
                 mock_server.stop = MagicMock()
 
                 # Call signal handler
