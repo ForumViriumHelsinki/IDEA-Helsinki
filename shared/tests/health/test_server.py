@@ -368,9 +368,7 @@ class TestHealthCheckException:
                 raise Exception("Simulated failure")
 
         server = HealthServer()
-        server.add_check(
-            "failing", ExceptionHealthCheck(name="failing", critical=True)
-        )
+        server.add_check("failing", ExceptionHealthCheck(name="failing", critical=True))
 
         client = TestClient(server._app)
         response = client.get("/ready")
@@ -388,9 +386,7 @@ class TestHealthCheckException:
                 raise Exception("Simulated failure")
 
         server = HealthServer()
-        server.add_check(
-            "failing", ExceptionHealthCheck(name="failing", critical=True)
-        )
+        server.add_check("failing", ExceptionHealthCheck(name="failing", critical=True))
 
         client = TestClient(server._app)
         response = client.get("/health/detail")
@@ -469,7 +465,9 @@ class TestServerErrorHandling:
             # Second start attempt should log warning and return
             with patch("idea_shared.health.server.logger") as mock_logger:
                 server.start_background()
-                mock_logger.warning.assert_called_with("Health server is already running")
+                mock_logger.warning.assert_called_with(
+                    "Health server is already running"
+                )
 
 
 class TestConcurrentHealthChecksInServer:
@@ -488,7 +486,7 @@ class TestConcurrentHealthChecksInServer:
                 return HealthCheckResult(
                     name=self.name,
                     status="healthy",
-                    message=f"Completed after {self.delay}s"
+                    message=f"Completed after {self.delay}s",
                 )
 
         server = HealthServer()
@@ -519,9 +517,8 @@ class TestConcurrentHealthChecksInServer:
             server.add_check(
                 f"check_{i}",
                 MockHealthCheck(
-                    f"check_{i}",
-                    HealthCheckResult(name=f"check_{i}", status="healthy")
-                )
+                    f"check_{i}", HealthCheckResult(name=f"check_{i}", status="healthy")
+                ),
             )
 
         client = TestClient(server._app)

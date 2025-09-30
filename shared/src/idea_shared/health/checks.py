@@ -2,16 +2,13 @@
 
 import asyncio
 import logging
-import os
 import time
 import uuid
 from abc import ABC, abstractmethod
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, Optional
 
 import aiohttp
-import requests
 
 from .models import HealthCheckResult
 
@@ -48,7 +45,7 @@ class HealthCheck(ABC):
         self.timeout = timeout
         self.critical = critical
         self.cache_ttl = cache_ttl
-        self._cached_result: Optional[HealthCheckResult] = None
+        self._cached_result: HealthCheckResult | None = None
         self._cache_timestamp: float = 0
 
     @abstractmethod
@@ -80,7 +77,7 @@ class HealthCheck(ABC):
                 self._cached_result = result
                 self._cache_timestamp = now
             return result
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return HealthCheckResult(
                 name=self.name,
                 status="unhealthy",
@@ -199,7 +196,12 @@ class FileSystemHealthCheck(HealthCheck):
             if self.check_write:
                 # Use UUID to prevent predictable test file names
                 test_uuid = uuid.uuid4().hex[:8]
-                test_file = self.path / f".health_check_test_{test_uuid}" if self.path.is_dir() else self.path.parent / f".health_check_{self.path.name}_{test_uuid}"
+                test_file = (
+                    self.path / f".health_check_test_{test_uuid}"
+                    if self.path.is_dir()
+                    else self.path.parent
+                    / f".health_check_{self.path.name}_{test_uuid}"
+                )
                 try:
                     # Use async file operations
                     await asyncio.get_event_loop().run_in_executor(
@@ -212,7 +214,9 @@ class FileSystemHealthCheck(HealthCheck):
                             test_file.unlink,
                         )
                     except Exception as cleanup_error:
-                        logger.warning(f"Failed to cleanup test file {test_file}: {cleanup_error}")
+                        logger.warning(
+                            f"Failed to cleanup test file {test_file}: {cleanup_error}"
+                        )
                 except Exception as e:
                     return HealthCheckResult(
                         name=self.name,
@@ -243,7 +247,7 @@ class ExternalAPIHealthCheck(HealthCheck):
         name: str,
         url: str,
         method: str = "GET",
-        headers: Optional[Dict[str, str]] = None,
+        headers: dict[str, str] | None = None,
         expected_status: int = 200,
         timeout: float = 5.0,
         critical: bool = True,
@@ -292,13 +296,16 @@ class ExternalAPIHealthCheck(HealthCheck):
                     metadata={
                         "circuit_state": self._circuit_state.value,
                         "failures": self._failure_count,
-                        "time_remaining": self.circuit_breaker_timeout - (time.time() - self._circuit_open_time),
+                        "time_remaining": self.circuit_breaker_timeout
+                        - (time.time() - self._circuit_open_time),
                     },
                 )
             else:
                 # Transition to half-open state to test recovery
                 self._circuit_state = CircuitBreakerState.HALF_OPEN
-                logger.info(f"Circuit breaker for {self.name} transitioning to half-open state")
+                logger.info(
+                    f"Circuit breaker for {self.name} transitioning to half-open state"
+                )
 
         try:
             async with aiohttp.ClientSession() as session:
@@ -311,7 +318,9 @@ class ExternalAPIHealthCheck(HealthCheck):
                     if response.status == self.expected_status:
                         # Success - handle state transitions
                         if self._circuit_state == CircuitBreakerState.HALF_OPEN:
-                            logger.info(f"Circuit breaker for {self.name} closing - service recovered")
+                            logger.info(
+                                f"Circuit breaker for {self.name} closing - service recovered"
+                            )
                             self._circuit_state = CircuitBreakerState.CLOSED
                         self._failure_count = 0
                         return HealthCheckResult(
@@ -330,13 +339,17 @@ class ExternalAPIHealthCheck(HealthCheck):
                             # Failed during half-open, re-open circuit
                             self._circuit_state = CircuitBreakerState.OPEN
                             self._circuit_open_time = time.time()
-                            logger.warning(f"Circuit breaker for {self.name} re-opening - service still failing")
+                            logger.warning(
+                                f"Circuit breaker for {self.name} re-opening - service still failing"
+                            )
                         else:
                             self._failure_count += 1
                             if self._failure_count >= self.circuit_breaker_threshold:
                                 self._circuit_state = CircuitBreakerState.OPEN
                                 self._circuit_open_time = time.time()
-                                logger.warning(f"Circuit breaker for {self.name} opening after {self._failure_count} failures")
+                                logger.warning(
+                                    f"Circuit breaker for {self.name} opening after {self._failure_count} failures"
+                                )
 
                         return HealthCheckResult(
                             name=self.name,
@@ -357,13 +370,17 @@ class ExternalAPIHealthCheck(HealthCheck):
                 # Failed during half-open, re-open circuit
                 self._circuit_state = CircuitBreakerState.OPEN
                 self._circuit_open_time = time.time()
-                logger.warning(f"Circuit breaker for {self.name} re-opening - network error during recovery test")
+                logger.warning(
+                    f"Circuit breaker for {self.name} re-opening - network error during recovery test"
+                )
             else:
                 self._failure_count += 1
                 if self._failure_count >= self.circuit_breaker_threshold:
                     self._circuit_state = CircuitBreakerState.OPEN
                     self._circuit_open_time = time.time()
-                    logger.warning(f"Circuit breaker for {self.name} opening after {self._failure_count} network errors")
+                    logger.warning(
+                        f"Circuit breaker for {self.name} opening after {self._failure_count} network errors"
+                    )
 
             return HealthCheckResult(
                 name=self.name,

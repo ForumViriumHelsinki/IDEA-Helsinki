@@ -11,14 +11,6 @@ import sys
 from idea_shared.classes.IdeaHelsinkiManager import IdeaHelsinkiManager
 from idea_shared.classes.Logger import Logger
 from idea_shared.health.server import HealthServer
-from health_checks import (
-    FCDDatabaseHealthCheck,
-    ValidationDatabaseHealthCheck,
-    DisturbanceDataHealthCheck,
-    WorkerStatusHealthCheck,
-    OrchestratorHealthCheck,
-    InfluxDBConnectionManager,
-)
 
 # ------------------------------------------------------#
 # ------------------ CONSTANTS -------------------------#
@@ -38,6 +30,15 @@ from idea_shared.lib.Constants.PrivateConstants import (
     INFLUX_DB_URL,
     INFLUX_DB_VALIDATION_BUCKET,
     INFLUX_DB_VALIDATION_TOKEN,
+)
+
+from health_checks import (
+    DisturbanceDataHealthCheck,
+    FCDDatabaseHealthCheck,
+    InfluxDBConnectionManager,
+    OrchestratorHealthCheck,
+    ValidationDatabaseHealthCheck,
+    WorkerStatusHealthCheck,
 )
 
 # for testing, based on intersected segments.
@@ -103,8 +104,7 @@ async def main():
 
     # Initialize health server
     health_server = HealthServer(
-        port=HEALTH_CHECK_PORT,
-        app_name="IDEA Helsinki Service"
+        port=HEALTH_CHECK_PORT, app_name="IDEA Helsinki Service"
     )
 
     # Create an instance of the manager with the required configuration.
@@ -137,7 +137,7 @@ async def main():
             org=INFLUX_DB_ORG,
             bucket=INFLUX_DB_FCD_BUCKET,
             data_freshness_hours=FCD_DATA_FRESHNESS_HOURS,
-        )
+        ),
     )
 
     health_server.add_check(
@@ -147,7 +147,7 @@ async def main():
             token=INFLUX_DB_VALIDATION_TOKEN,
             org=INFLUX_DB_ORG,
             bucket=INFLUX_DB_VALIDATION_BUCKET,
-        )
+        ),
     )
 
     # Disturbance data health check
@@ -157,7 +157,7 @@ async def main():
             file_path=TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION,
             max_age_minutes=DISTURBANCE_DATA_MAX_AGE_MINUTES,
             critical=False,  # Service can start without disturbance data
-        )
+        ),
     )
 
     # Worker and orchestrator health checks
@@ -166,7 +166,7 @@ async def main():
         WorkerStatusHealthCheck(
             manager=manager,
             health_threshold_percent=WORKER_HEALTH_THRESHOLD_PERCENT,
-        )
+        ),
     )
 
     health_server.add_check(
@@ -175,7 +175,7 @@ async def main():
             manager=manager,
             max_cycle_time_minutes=ORCHESTRATOR_MAX_CYCLE_TIME_MINUTES,
             deadlock_threshold_minutes=ORCHESTRATOR_DEADLOCK_THRESHOLD_MINUTES,
-        )
+        ),
     )
 
     # Start health server with async integration

@@ -2,12 +2,9 @@
 
 import asyncio
 import logging
-import signal
-import sys
 import threading
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import Any, Dict, List, Optional
 
 import uvicorn
 from fastapi import FastAPI, Response
@@ -61,12 +58,12 @@ class HealthServer:
         self.readiness_failure_code = readiness_failure_code
         self.startup_success_code = startup_success_code
         self.startup_failure_code = startup_failure_code
-        self._health_checks: Dict[str, HealthCheck] = {}
-        self._startup_checks: Dict[str, HealthCheck] = {}
-        self._server: Optional[uvicorn.Server] = None
-        self._thread: Optional[threading.Thread] = None
+        self._health_checks: dict[str, HealthCheck] = {}
+        self._startup_checks: dict[str, HealthCheck] = {}
+        self._server: uvicorn.Server | None = None
+        self._thread: threading.Thread | None = None
         self._shutdown_event = threading.Event()
-        self._app: Optional[FastAPI] = None
+        self._app: FastAPI | None = None
         self._startup_complete = False
         self._setup_app()
 
@@ -142,7 +139,9 @@ class HealthServer:
             all_ready = True
 
             # Check if we have startup checks defined
-            checks_to_run = self._startup_checks if self._startup_checks else self._health_checks
+            checks_to_run = (
+                self._startup_checks if self._startup_checks else self._health_checks
+            )
 
             # Perform all startup checks
             for name, check in checks_to_run.items():
@@ -221,7 +220,9 @@ class HealthServer:
                 }
             )
 
-    def add_check(self, name: str, check: HealthCheck, startup_only: bool = False) -> None:
+    def add_check(
+        self, name: str, check: HealthCheck, startup_only: bool = False
+    ) -> None:
         """Add a health check.
 
         Args:
@@ -286,7 +287,9 @@ class HealthServer:
                 loop.run_until_complete(self._server.serve())
             except OSError as e:
                 if "Address already in use" in str(e) or "bind" in str(e).lower():
-                    logger.error(f"Failed to bind to {self.host}:{self.port} - port already in use")
+                    logger.error(
+                        f"Failed to bind to {self.host}:{self.port} - port already in use"
+                    )
                 else:
                     logger.error(f"Failed to start health server: {e}")
                 raise
@@ -298,9 +301,7 @@ class HealthServer:
 
         self._thread = threading.Thread(target=run_server, daemon=True)
         self._thread.start()
-        logger.info(
-            f"Health server started in background on {self.host}:{self.port}"
-        )
+        logger.info(f"Health server started in background on {self.host}:{self.port}")
 
     async def start_async(self) -> None:
         """Start the health server asynchronously.
@@ -325,7 +326,9 @@ class HealthServer:
             await self._server.serve()
         except OSError as e:
             if "Address already in use" in str(e) or "bind" in str(e).lower():
-                logger.error(f"Failed to bind to {self.host}:{self.port} - port already in use")
+                logger.error(
+                    f"Failed to bind to {self.host}:{self.port} - port already in use"
+                )
             else:
                 logger.error(f"Failed to start async health server: {e}")
             raise

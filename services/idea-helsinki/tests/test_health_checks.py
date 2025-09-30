@@ -1,23 +1,23 @@
 """
 Unit tests for IDEA Helsinki health checks.
 """
+
 import asyncio
 import json
 import os
 import tempfile
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 
 from src.health_checks import (
-    FCDDatabaseHealthCheck,
-    ValidationDatabaseHealthCheck,
     DisturbanceDataHealthCheck,
-    WorkerStatusHealthCheck,
-    OrchestratorHealthCheck,
+    FCDDatabaseHealthCheck,
     InfluxDBConnectionManager,
+    OrchestratorHealthCheck,
+    WorkerStatusHealthCheck,
 )
-from idea_shared.health.models import HealthCheckResult
 
 
 class TestFCDDatabaseHealthCheck:
@@ -42,7 +42,7 @@ class TestFCDDatabaseHealthCheck:
                 token="test_token",
                 org="test_org",
                 bucket="test_bucket",
-                data_freshness_hours=1
+                data_freshness_hours=1,
             )
 
             result = await check.check()
@@ -70,7 +70,7 @@ class TestFCDDatabaseHealthCheck:
                 token="test_token",
                 org="test_org",
                 bucket="test_bucket",
-                data_freshness_hours=1
+                data_freshness_hours=1,
             )
 
             result = await check.check()
@@ -92,7 +92,7 @@ class TestFCDDatabaseHealthCheck:
                 url="http://localhost:8086",
                 token="test_token",
                 org="test_org",
-                bucket="test_bucket"
+                bucket="test_bucket",
             )
 
             result = await check.check()
@@ -107,12 +107,12 @@ class TestDisturbanceDataHealthCheck:
     @pytest.mark.asyncio
     async def test_healthy_with_fresh_valid_data(self):
         """Test healthy status with fresh and valid JSON data."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             # Write valid JSON with segments
             data = {
                 "segmentId": {
                     "seg1": {"detailedCollisions": []},
-                    "seg2": {"detailedCollisions": []}
+                    "seg2": {"detailedCollisions": []},
                 }
             }
             json.dump(data, f)
@@ -120,8 +120,7 @@ class TestDisturbanceDataHealthCheck:
 
             try:
                 check = DisturbanceDataHealthCheck(
-                    file_path=f.name,
-                    max_age_minutes=120
+                    file_path=f.name, max_age_minutes=120
                 )
 
                 result = await check.check()
@@ -135,7 +134,7 @@ class TestDisturbanceDataHealthCheck:
     @pytest.mark.asyncio
     async def test_degraded_with_stale_data(self):
         """Test degraded status when data file is stale."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             # Write valid JSON
             json.dump({"segmentId": {}}, f)
             f.flush()
@@ -146,9 +145,7 @@ class TestDisturbanceDataHealthCheck:
 
             try:
                 check = DisturbanceDataHealthCheck(
-                    file_path=f.name,
-                    max_age_minutes=120,
-                    critical=False
+                    file_path=f.name, max_age_minutes=120, critical=False
                 )
 
                 result = await check.check()
@@ -162,15 +159,14 @@ class TestDisturbanceDataHealthCheck:
     @pytest.mark.asyncio
     async def test_unhealthy_with_invalid_json(self):
         """Test unhealthy status with invalid JSON."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             # Write invalid JSON
             f.write("{ invalid json }")
             f.flush()
 
             try:
                 check = DisturbanceDataHealthCheck(
-                    file_path=f.name,
-                    max_age_minutes=120
+                    file_path=f.name, max_age_minutes=120
                 )
 
                 result = await check.check()
@@ -191,8 +187,7 @@ class TestWorkerStatusHealthCheck:
         mock_manager.active_segments = {}
 
         check = WorkerStatusHealthCheck(
-            manager=mock_manager,
-            health_threshold_percent=80.0
+            manager=mock_manager, health_threshold_percent=80.0
         )
 
         result = await check.check()
@@ -214,12 +209,11 @@ class TestWorkerStatusHealthCheck:
 
         mock_manager.active_segments = {
             "seg1": {"task": task1},
-            "seg2": {"task": task2}
+            "seg2": {"task": task2},
         }
 
         check = WorkerStatusHealthCheck(
-            manager=mock_manager,
-            health_threshold_percent=80.0
+            manager=mock_manager, health_threshold_percent=80.0
         )
 
         result = await check.check()
@@ -245,12 +239,11 @@ class TestWorkerStatusHealthCheck:
         mock_manager.active_segments = {
             "seg1": {"task": task1},
             "seg2": {"task": task2},
-            "seg3": {"task": task3}
+            "seg3": {"task": task3},
         }
 
         check = WorkerStatusHealthCheck(
-            manager=mock_manager,
-            health_threshold_percent=80.0
+            manager=mock_manager, health_threshold_percent=80.0
         )
 
         result = await check.check()
@@ -272,7 +265,7 @@ class TestOrchestratorHealthCheck:
         check = OrchestratorHealthCheck(
             manager=mock_manager,
             max_cycle_time_minutes=90,
-            deadlock_threshold_minutes=180
+            deadlock_threshold_minutes=180,
         )
 
         result = await check.check()
@@ -291,7 +284,7 @@ class TestOrchestratorHealthCheck:
         check = OrchestratorHealthCheck(
             manager=mock_manager,
             max_cycle_time_minutes=90,
-            deadlock_threshold_minutes=180
+            deadlock_threshold_minutes=180,
         )
 
         result = await check.check()
@@ -310,7 +303,7 @@ class TestOrchestratorHealthCheck:
         check = OrchestratorHealthCheck(
             manager=mock_manager,
             max_cycle_time_minutes=90,
-            deadlock_threshold_minutes=180
+            deadlock_threshold_minutes=180,
         )
 
         result = await check.check()
@@ -329,7 +322,7 @@ class TestOrchestratorHealthCheck:
         check = OrchestratorHealthCheck(
             manager=mock_manager,
             max_cycle_time_minutes=90,
-            deadlock_threshold_minutes=180
+            deadlock_threshold_minutes=180,
         )
 
         result = await check.check()
@@ -370,7 +363,9 @@ class TestInfluxDBConnectionManager:
         for i in range(10):
             tasks.append(
                 InfluxDBConnectionManager.get_instance(
-                    url, f"token_{i % 3}", org  # Use 3 different tokens
+                    url,
+                    f"token_{i % 3}",
+                    org,  # Use 3 different tokens
                 )
             )
 
