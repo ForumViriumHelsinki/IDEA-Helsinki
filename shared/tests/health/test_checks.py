@@ -4,7 +4,7 @@ import asyncio
 import tempfile
 import time
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import aiohttp
 import pytest
@@ -135,9 +135,7 @@ class TestFileSystemHealthCheck:
     @pytest.mark.asyncio
     async def test_check_non_existing_path(self):
         """Test checking a non-existing path."""
-        check = FileSystemHealthCheck(
-            name="missing", path="/non/existent/path/test123"
-        )
+        check = FileSystemHealthCheck(name="missing", path="/non/existent/path/test123")
         result = await check.check()
         assert result.status == "unhealthy"
         assert "does not exist" in result.message
@@ -185,9 +183,7 @@ class TestExternalAPIHealthCheck:
         with patch("aiohttp.ClientSession") as mock_session:
             mock_response = AsyncMock()
             mock_response.status = 200
-            mock_session.return_value.__aenter__.return_value.request.return_value.__aenter__.return_value = (
-                mock_response
-            )
+            mock_session.return_value.__aenter__.return_value.request.return_value.__aenter__.return_value = mock_response
 
             check = ExternalAPIHealthCheck(
                 name="api_check", url="https://api.example.com/health"
@@ -204,9 +200,7 @@ class TestExternalAPIHealthCheck:
         with patch("aiohttp.ClientSession") as mock_session:
             mock_response = AsyncMock()
             mock_response.status = 500
-            mock_session.return_value.__aenter__.return_value.request.return_value.__aenter__.return_value = (
-                mock_response
-            )
+            mock_session.return_value.__aenter__.return_value.request.return_value.__aenter__.return_value = mock_response
 
             check = ExternalAPIHealthCheck(
                 name="api_check",
@@ -283,10 +277,8 @@ class TestExternalAPIHealthCheck:
 
             # First failure
             mock_response.status = 500
-            mock_session.return_value.__aenter__.return_value.request.return_value.__aenter__.return_value = (
-                mock_response
-            )
-            result1 = await check.check()
+            mock_session.return_value.__aenter__.return_value.request.return_value.__aenter__.return_value = mock_response
+            _result1 = await check.check()
             assert check._failure_count == 1
 
             # Success - should reset failure count
@@ -311,7 +303,7 @@ class TestExternalAPIHealthCheck:
                 method="POST",
                 headers={"Authorization": "Bearer token"},
             )
-            result = await check.check()
+            _result = await check.check()
 
             mock_request.assert_called_once()
             call_args = mock_request.call_args
@@ -334,9 +326,7 @@ class TestExternalAPIHealthCheck:
 
             # Cause circuit to open
             mock_response.status = 500
-            mock_session.return_value.__aenter__.return_value.request.return_value.__aenter__.return_value = (
-                mock_response
-            )
+            mock_session.return_value.__aenter__.return_value.request.return_value.__aenter__.return_value = mock_response
 
             # Two failures to open circuit
             await check.check()
@@ -452,9 +442,7 @@ class TestConcurrentHealthChecks:
         assert call_count == 1
 
         # Multiple concurrent calls should all get cached result
-        results = await asyncio.gather(
-            *[check.check_with_cache() for _ in range(10)]
-        )
+        results = await asyncio.gather(*[check.check_with_cache() for _ in range(10)])
 
         # Should still only have called check once
         assert call_count == 1
@@ -475,9 +463,7 @@ class TestConcurrentHealthChecks:
             ]
 
             # Run all checks concurrently
-            results = await asyncio.gather(
-                *[check.check() for check in checks]
-            )
+            results = await asyncio.gather(*[check.check() for check in checks])
 
             # All should succeed without conflicts
             assert all(r.status == "healthy" for r in results)

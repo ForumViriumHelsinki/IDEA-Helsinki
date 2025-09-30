@@ -2,6 +2,7 @@
 # ---------------- GENERAL IMPORTS ---------------------#
 # ------------------------------------------------------#
 import asyncio
+import signal
 import sys
 
 # ------------------------------------------------------#
@@ -9,6 +10,15 @@ import sys
 # ------------------------------------------------------#
 from idea_shared.classes.IdeaHelsinkiManager import IdeaHelsinkiManager
 from idea_shared.classes.Logger import Logger
+from idea_shared.health.server import HealthServer
+from health_checks import (
+    FCDDatabaseHealthCheck,
+    ValidationDatabaseHealthCheck,
+    DisturbanceDataHealthCheck,
+    WorkerStatusHealthCheck,
+    OrchestratorHealthCheck,
+    InfluxDBConnectionManager,
+)
 
 # ------------------------------------------------------#
 # ------------------ CONSTANTS -------------------------#
@@ -33,14 +43,69 @@ from idea_shared.lib.Constants.PrivateConstants import (
 # for testing, based on intersected segments.
 # target_fcd_segments = ["1195756141337706497","1195756141314637825"]
 
+# Health check settings
+HEALTH_CHECK_PORT = 8080
+HEALTH_CHECK_TIMEOUT_SECONDS = 5
+WORKER_HEALTH_THRESHOLD_PERCENT = 80
+DISTURBANCE_DATA_MAX_AGE_MINUTES = 120
+ORCHESTRATOR_MAX_CYCLE_TIME_MINUTES = 90
+ORCHESTRATOR_DEADLOCK_THRESHOLD_MINUTES = 180
+FCD_DATA_FRESHNESS_HOURS = 1
+
 logger = Logger(__name__)
+health_server = None
+
+
+async def shutdown(signal_received, loop):
+    """Handle graceful shutdown."""
+    global health_server
+
+    logger.info(f"Received exit signal {signal_received.name}...")
+
+    if health_server:
+        # Mark health server as shutting down
+        await health_server.mark_shutting_down()
+
+    # Cancel all running tasks
+    tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
+    logger.info(f"Cancelling {len(tasks)} outstanding tasks")
+    for task in tasks:
+        task.cancel()
+
+    # Wait for all tasks to complete cancellation
+    await asyncio.gather(*tasks, return_exceptions=True)
+
+    # Shutdown health server
+    if health_server:
+        await health_server.shutdown()
+
+    # Clean up InfluxDB connections
+    logger.info("Cleaning up InfluxDB connections...")
+    await InfluxDBConnectionManager.cleanup_all()
+
+    loop.stop()
 
 
 async def main():
     """
-    Initializes and runs the main IdeaHelsinkiManager orchestration task.
+    Initializes and runs the main IdeaHelsinkiManager orchestration task with health checks.
     """
+    global health_server
+
+    # Setup signal handlers early for graceful shutdown
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        loop.add_signal_handler(
+            sig, lambda s=sig: asyncio.create_task(shutdown(s, loop))
+        )
+
     logger.info("Initializing IDEA Helsinki Manager...")
+
+    # Initialize health server
+    health_server = HealthServer(
+        port=HEALTH_CHECK_PORT,
+        app_name="IDEA Helsinki Service"
+    )
 
     # Create an instance of the manager with the required configuration.
     # The target_fcd_segments argument is omitted to process all segments by default.
@@ -60,9 +125,67 @@ async def main():
         db_validation_token=INFLUX_DB_VALIDATION_TOKEN,
     )
 
+    # Add service-specific health checks
+    logger.info("Registering health checks...")
+
+    # Database health checks
+    health_server.add_check(
+        "influxdb_fcd",
+        FCDDatabaseHealthCheck(
+            url=INFLUX_DB_URL,
+            token=INFLUX_DB_FCD_TOKEN,
+            org=INFLUX_DB_ORG,
+            bucket=INFLUX_DB_FCD_BUCKET,
+            data_freshness_hours=FCD_DATA_FRESHNESS_HOURS,
+        )
+    )
+
+    health_server.add_check(
+        "influxdb_validation",
+        ValidationDatabaseHealthCheck(
+            url=INFLUX_DB_URL,
+            token=INFLUX_DB_VALIDATION_TOKEN,
+            org=INFLUX_DB_ORG,
+            bucket=INFLUX_DB_VALIDATION_BUCKET,
+        )
+    )
+
+    # Disturbance data health check
+    health_server.add_check(
+        "disturbance_data",
+        DisturbanceDataHealthCheck(
+            file_path=TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION,
+            max_age_minutes=DISTURBANCE_DATA_MAX_AGE_MINUTES,
+            critical=False,  # Service can start without disturbance data
+        )
+    )
+
+    # Worker and orchestrator health checks
+    health_server.add_check(
+        "worker_status",
+        WorkerStatusHealthCheck(
+            manager=manager,
+            health_threshold_percent=WORKER_HEALTH_THRESHOLD_PERCENT,
+        )
+    )
+
+    health_server.add_check(
+        "orchestrator_loop",
+        OrchestratorHealthCheck(
+            manager=manager,
+            max_cycle_time_minutes=ORCHESTRATOR_MAX_CYCLE_TIME_MINUTES,
+            deadlock_threshold_minutes=ORCHESTRATOR_DEADLOCK_THRESHOLD_MINUTES,
+        )
+    )
+
+    # Start health server with async integration
+    logger.info(f"Starting health server on port {HEALTH_CHECK_PORT}...")
+    await health_server.start_async()
+
     try:
         # Start the manager's main loop and let it run forever.
         # This loop will discover and manage all the individual road segment tasks.
+        logger.info("Starting orchestration loop...")
         await manager.run_main_loop()
     except asyncio.CancelledError:
         logger.info("###########################################")
@@ -72,6 +195,8 @@ async def main():
         logger.error(
             f"A critical error occurred in the IdeaHelsinkiManager: {e}", exc_info=True
         )
+        if health_server:
+            await health_server.shutdown()
         sys.exit(1)  # Exit with an error code
 
 
@@ -79,8 +204,11 @@ if __name__ == "__main__":
     logger.info("###########################################")
     logger.info("## Starting IDEA Helsinki Service Runner ##")
     logger.info("###########################################")
+
     try:
-        # start the asyncio event loop and run the main function.
+        # Start the main function - signal handlers are now set up inside main()
         asyncio.run(main())
     except KeyboardInterrupt:
         logger.info("Program stopped by user (Ctrl+C).")
+    finally:
+        logger.info("Event loop closed.")
