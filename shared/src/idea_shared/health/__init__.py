@@ -14,7 +14,12 @@ from .idea_checks import (
     SegmentMappingIntegrityHealthCheck,
     WFSServiceHealthCheck,
 )
-from .models import HealthCheckResult, LivenessResponse, MetricsResponse, ReadinessResponse
+from .models import (
+    HealthCheckResult,
+    LivenessResponse,
+    MetricsResponse,
+    ReadinessResponse,
+)
 from .server import HealthServer
 
 __all__ = [

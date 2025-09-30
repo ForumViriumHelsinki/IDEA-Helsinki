@@ -2,15 +2,18 @@
 
 import asyncio
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 
-import aiohttp
 from azure.storage.blob import BlobServiceClient
 from influxdb_client import InfluxDBClient
 
-from .checks import DatabaseHealthCheck, ExternalAPIHealthCheck, FileSystemHealthCheck, HealthCheck
+from .checks import (
+    DatabaseHealthCheck,
+    ExternalAPIHealthCheck,
+    FileSystemHealthCheck,
+    HealthCheck,
+)
 from .models import HealthCheckResult
 
 
@@ -57,8 +60,7 @@ class AzureBlobStorageHealthCheck(HealthCheck):
             def check_blob_storage():
                 """Synchronous blob storage check."""
                 blob_service_client = BlobServiceClient(
-                    account_url=self.account_url,
-                    credential=self.sas_token
+                    account_url=self.account_url, credential=self.sas_token
                 )
                 container_client = blob_service_client.get_container_client(
                     self.container_name
@@ -291,26 +293,30 @@ class FCDDataFreshnessHealthCheck(DatabaseHealthCheck):
                     query_api = client.query_api()
 
                     # Query for the most recent data point
-                    query = f'''
+                    query = f"""
                     from(bucket: "{self.bucket}")
                       |> range(start: -{self.max_age_minutes}m)
                       |> filter(fn: (r) => r["_measurement"] == "{self.measurement}")
                       |> last()
                       |> limit(n: 1)
-                    '''
+                    """
 
                     result = query_api.query(org=self.org, query=query)
 
                     if result and len(result) > 0 and len(result[0].records) > 0:
                         last_record_time = result[0].records[0].get_time()
-                        age_minutes = (datetime.now(UTC) - last_record_time).total_seconds() / 60
+                        age_minutes = (
+                            datetime.now(UTC) - last_record_time
+                        ).total_seconds() / 60
                         return True, age_minutes
                     else:
                         return False, None
                 finally:
                     client.close()
 
-            has_recent_data, age_minutes = await loop.run_in_executor(None, check_freshness)
+            has_recent_data, age_minutes = await loop.run_in_executor(
+                None, check_freshness
+            )
 
             if has_recent_data:
                 return HealthCheckResult(
@@ -400,7 +406,7 @@ class SegmentMappingIntegrityHealthCheck(FileSystemHealthCheck):
                     issues.append(f"Mapping file not found: {self.mapping_file_path}")
                 else:
                     try:
-                        with open(self.mapping_file_path, 'r') as f:
+                        with open(self.mapping_file_path) as f:
                             mapping_data = json.load(f)
 
                         if not isinstance(mapping_data, dict):
@@ -413,16 +419,22 @@ class SegmentMappingIntegrityHealthCheck(FileSystemHealthCheck):
                                 issues.append("No segments found in mapping file")
 
                             # Validate structure of a few segments
-                            for segment_id, segment_data in list(mapping_data.items())[:5]:
+                            for segment_id, segment_data in list(mapping_data.items())[
+                                :5
+                            ]:
                                 if not isinstance(segment_data, dict):
-                                    issues.append(f"Invalid segment data for {segment_id}")
+                                    issues.append(
+                                        f"Invalid segment data for {segment_id}"
+                                    )
                                     break
 
                                 # Check for required fields
                                 required_fields = ["geometry", "properties"]
                                 for field in required_fields:
                                     if field not in segment_data:
-                                        issues.append(f"Segment {segment_id} missing '{field}' field")
+                                        issues.append(
+                                            f"Segment {segment_id} missing '{field}' field"
+                                        )
                                         break
                     except json.JSONDecodeError as e:
                         issues.append(f"Invalid JSON in mapping file: {e}")
@@ -432,7 +444,7 @@ class SegmentMappingIntegrityHealthCheck(FileSystemHealthCheck):
                 # Check history file if it exists
                 if self.history_file_path.exists():
                     try:
-                        with open(self.history_file_path, 'r') as f:
+                        with open(self.history_file_path) as f:
                             history_data = json.load(f)
 
                         if isinstance(history_data, dict):

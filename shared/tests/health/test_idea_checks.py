@@ -2,7 +2,6 @@
 
 import json
 from datetime import UTC, datetime
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -85,7 +84,10 @@ class TestWFSServiceHealthCheck:
             mock_check.return_value = mock_result
 
             # Call the actual check method (need to use super's implementation)
-            with patch("idea_shared.health.idea_checks.ExternalAPIHealthCheck.check", new=AsyncMock()) as mock_super:
+            with patch(
+                "idea_shared.health.idea_checks.ExternalAPIHealthCheck.check",
+                new=AsyncMock(),
+            ) as mock_super:
                 mock_super.return_value = mock_result
                 result = await check.check()
 

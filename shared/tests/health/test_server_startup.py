@@ -1,11 +1,5 @@
 """Tests for startup probe and custom response codes."""
 
-import asyncio
-from unittest.mock import MagicMock, patch
-
-import httpx
-import pytest
-import uvicorn
 from fastapi.testclient import TestClient
 
 from idea_shared.health import HealthCheck, HealthCheckResult, HealthServer
@@ -93,7 +87,9 @@ class TestStartupProbe:
         server.add_check("regular", SimpleHealthCheck("regular", healthy=True))
 
         # Add startup-only check
-        server.add_check("startup", SimpleHealthCheck("startup", healthy=False), startup_only=True)
+        server.add_check(
+            "startup", SimpleHealthCheck("startup", healthy=False), startup_only=True
+        )
 
         client = TestClient(server._app)
 
@@ -116,7 +112,9 @@ class TestStartupProbe:
         server = HealthServer(port=8095, app_name="Test")
 
         # Add and remove startup check
-        server.add_check("startup", SimpleHealthCheck("startup", healthy=True), startup_only=True)
+        server.add_check(
+            "startup", SimpleHealthCheck("startup", healthy=True), startup_only=True
+        )
         server.remove_check("startup", startup_only=True)
 
         client = TestClient(server._app)

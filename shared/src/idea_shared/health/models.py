@@ -1,7 +1,7 @@
 """Pydantic models for health check responses."""
 
 from datetime import datetime
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -13,8 +13,8 @@ class HealthCheckResult(BaseModel):
     status: Literal["healthy", "unhealthy", "degraded"] = Field(
         ..., description="Current status of the check"
     )
-    message: Optional[str] = Field(None, description="Optional status message")
-    metadata: Optional[Dict[str, Any]] = Field(
+    message: str | None = Field(None, description="Optional status message")
+    metadata: dict[str, Any] | None = Field(
         None, description="Optional additional metadata"
     )
 
@@ -23,7 +23,7 @@ class ReadinessResponse(BaseModel):
     """Response model for the readiness endpoint."""
 
     ready: bool = Field(..., description="Whether the service is ready")
-    checks: Dict[str, str] = Field(
+    checks: dict[str, str] = Field(
         ..., description="Status of individual health checks"
     )
     timestamp: datetime = Field(
@@ -43,9 +43,7 @@ class LivenessResponse(BaseModel):
 class MetricsResponse(BaseModel):
     """Response model for the metrics endpoint (placeholder for future use)."""
 
-    metrics: Dict[str, Any] = Field(
-        default_factory=dict, description="Service metrics"
-    )
+    metrics: dict[str, Any] = Field(default_factory=dict, description="Service metrics")
     timestamp: datetime = Field(
         default_factory=datetime.utcnow, description="Timestamp of the metrics"
     )

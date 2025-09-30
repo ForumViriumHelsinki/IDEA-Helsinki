@@ -1,18 +1,20 @@
 """
 Integration tests for IDEA Helsinki health server.
 """
-import asyncio
-import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
 
-from idea_shared.health.server import HealthServer
+import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 from idea_shared.classes.IdeaHelsinkiManager import IdeaHelsinkiManager
+from idea_shared.health.server import HealthServer
+
 from src.health_checks import (
-    FCDDatabaseHealthCheck,
-    ValidationDatabaseHealthCheck,
     DisturbanceDataHealthCheck,
-    WorkerStatusHealthCheck,
+    FCDDatabaseHealthCheck,
     OrchestratorHealthCheck,
+    ValidationDatabaseHealthCheck,
+    WorkerStatusHealthCheck,
 )
 
 
@@ -38,8 +40,8 @@ class TestHealthServerIntegration:
                     url="http://localhost:8086",
                     token="test_token",
                     org="test_org",
-                    bucket="fcd_bucket"
-                )
+                    bucket="fcd_bucket",
+                ),
             )
 
             health_server.add_check(
@@ -48,8 +50,8 @@ class TestHealthServerIntegration:
                     url="http://localhost:8086",
                     token="test_token",
                     org="test_org",
-                    bucket="validation_bucket"
-                )
+                    bucket="validation_bucket",
+                ),
             )
 
         health_server.add_check(
@@ -57,16 +59,15 @@ class TestHealthServerIntegration:
             DisturbanceDataHealthCheck(
                 file_path="/tmp/test_disturbance.json",
                 max_age_minutes=120,
-                critical=False
-            )
+                critical=False,
+            ),
         )
 
         health_server.add_check(
             "worker_status",
             WorkerStatusHealthCheck(
-                manager=mock_manager,
-                health_threshold_percent=80.0
-            )
+                manager=mock_manager, health_threshold_percent=80.0
+            ),
         )
 
         health_server.add_check(
@@ -74,8 +75,8 @@ class TestHealthServerIntegration:
             OrchestratorHealthCheck(
                 manager=mock_manager,
                 max_cycle_time_minutes=90,
-                deadlock_threshold_minutes=180
-            )
+                deadlock_threshold_minutes=180,
+            ),
         )
 
         # Verify all checks are registered
@@ -120,6 +121,7 @@ class TestHealthServerIntegration:
 
         # Run checks concurrently
         import time
+
         start = time.time()
         results = await health_server._run_checks(health_server.readiness_checks)
         duration = time.time() - start
@@ -139,8 +141,7 @@ class TestHealthServerIntegration:
 
         # Add a simple check
         health_server.add_check(
-            "worker_status",
-            WorkerStatusHealthCheck(manager=mock_manager)
+            "worker_status", WorkerStatusHealthCheck(manager=mock_manager)
         )
 
         # Test shutdown sequence
@@ -182,7 +183,7 @@ class TestHealthServerIntegration:
         mock_critical = AsyncMock()
         mock_critical.check.return_value = {
             "status": "unhealthy",
-            "message": "Critical service down"
+            "message": "Critical service down",
         }
         mock_critical.critical = True
         mock_critical.cache_ttl = 0
@@ -191,7 +192,7 @@ class TestHealthServerIntegration:
         mock_non_critical = AsyncMock()
         mock_non_critical.check.return_value = {
             "status": "unhealthy",
-            "message": "Non-critical service down"
+            "message": "Non-critical service down",
         }
         mock_non_critical.critical = False
         mock_non_critical.cache_ttl = 0

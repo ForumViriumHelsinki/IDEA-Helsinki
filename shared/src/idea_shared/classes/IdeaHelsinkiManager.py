@@ -198,7 +198,11 @@ class IdeaHelsinkiManager:
         """
         return {
             "total_workers": len(self.active_segments),
-            "last_discovery": self.last_discovery_time.isoformat() if self.last_discovery_time else None,
-            "last_cycle": self.last_cycle_time.isoformat() if self.last_cycle_time else None,
+            "last_discovery": self.last_discovery_time.isoformat()
+            if self.last_discovery_time
+            else None,
+            "last_cycle": self.last_cycle_time.isoformat()
+            if self.last_cycle_time
+            else None,
             "active_segments": list(self.active_segments.keys()),
         }
