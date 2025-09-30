@@ -18,6 +18,10 @@ logger = logging.getLogger(__name__)
 class WFSAPIHealthCheck(ExternalAPIHealthCheck):
     """Check Helsinki WFS API accessibility for traffic disturbances."""
 
+    # Class-level session for connection pooling
+    _session = None
+    _session_lock = asyncio.Lock()
+
     def __init__(
         self,
         name: str = "wfs_api",
@@ -52,6 +56,32 @@ class WFSAPIHealthCheck(ExternalAPIHealthCheck):
         self.wfs_url = wfs_url
         self.test_feature_type = test_feature_type
 
+    @classmethod
+    async def get_session(cls) -> aiohttp.ClientSession:
+        """Get or create the shared session with connection pooling.
+
+        Returns:
+            The shared ClientSession instance
+        """
+        async with cls._session_lock:
+            if cls._session is None or cls._session.closed:
+                # Configure connection pooling
+                connector = aiohttp.TCPConnector(
+                    limit=10,  # Total connection pool limit
+                    limit_per_host=5,  # Per-host connection limit
+                    ttl_dns_cache=300,  # DNS cache TTL
+                )
+                cls._session = aiohttp.ClientSession(connector=connector)
+            return cls._session
+
+    @classmethod
+    async def close_session(cls):
+        """Close the shared session if it exists."""
+        async with cls._session_lock:
+            if cls._session and not cls._session.closed:
+                await cls._session.close()
+                cls._session = None
+
     async def check(self) -> HealthCheckResult:
         """Check WFS API accessibility and feature type availability.
 
@@ -77,7 +107,8 @@ class WFSAPIHealthCheck(ExternalAPIHealthCheck):
                 f"resultType=hits"  # This only returns count, not actual features
             )
 
-            async with aiohttp.ClientSession() as session:
+            session = await self.get_session()
+            try:
                 async with session.get(
                     test_url, timeout=aiohttp.ClientTimeout(total=self.timeout)
                 ) as response:
@@ -118,6 +149,9 @@ class WFSAPIHealthCheck(ExternalAPIHealthCheck):
                                 "response_time_ms": response_time,
                             },
                         )
+            except Exception:
+                # Re-raise the exception after ensuring session handling
+                raise
 
         except asyncio.TimeoutError:
             return HealthCheckResult(
@@ -362,7 +396,10 @@ class OutputFileHealthCheck(FileSystemHealthCheck):
                 total, used, free = shutil.disk_usage(self.output_file_path.parent)
                 free_gb = free / (1024**3)
 
-                metadata.update({"disk_free_gb": free_gb, "disk_used_percent": (used / total) * 100})
+                metadata.update({
+                    "disk_free_gb": free_gb,
+                    "disk_used_percent": (used / total) * 100 if total > 0 else 0
+                })
 
                 if free_gb < 0.1:  # Less than 100MB free
                     return {
@@ -445,6 +482,7 @@ class UpdateFreshnessHealthCheck(HealthCheck):
         }
 
         # Check last successful WFS fetch
+        wfs_age_minutes = None  # Initialize the variable
         if self.service_state.last_wfs_success:
             wfs_age_minutes = (now - self.service_state.last_wfs_success).total_seconds() / 60
             metadata["last_wfs_success_minutes_ago"] = wfs_age_minutes
@@ -482,7 +520,7 @@ class UpdateFreshnessHealthCheck(HealthCheck):
             }
         )
 
-        # Determine status based on age
+        # Determine status based on age (wfs_age_minutes is guaranteed to be set here)
         if wfs_age_minutes < self.healthy_minutes:
             status = "healthy"
             message = f"Updates are fresh (last success {wfs_age_minutes:.1f} minutes ago)"

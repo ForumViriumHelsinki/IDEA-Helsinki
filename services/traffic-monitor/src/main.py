@@ -106,10 +106,38 @@ def main():
 
     # Define graceful shutdown handler
     def handle_shutdown(signum, frame):
+        import time
         logger.info("Shutting down Traffic Monitor...")
+
+        # Wait for current processing to complete with timeout
         if service_state.is_processing:
             logger.info("Waiting for current processing to complete...")
-        health_server.stop()
+            max_wait_time = 30  # Maximum 30 seconds wait
+            start_time = time.time()
+
+            while service_state.is_processing and (time.time() - start_time) < max_wait_time:
+                time.sleep(0.5)
+
+            if service_state.is_processing:
+                logger.warning(f"Processing did not complete within {max_wait_time} seconds, forcing shutdown")
+
+        # Stop health server
+        try:
+            health_server.stop()
+        except Exception as e:
+            logger.error(f"Error stopping health server: {e}")
+
+        # Close WFS session if exists
+        import asyncio
+        from health_checks import WFSAPIHealthCheck
+        try:
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(WFSAPIHealthCheck.close_session())
+            loop.close()
+        except Exception as e:
+            logger.error(f"Error closing WFS session: {e}")
+
+        logger.info("Shutdown complete")
         sys.exit(0)
 
     # Register signal handlers
