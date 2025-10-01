@@ -37,12 +37,12 @@ from idea_shared.lib.Constants.Constants import (
     ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION,
     FCD_HISTORY_START_DATE,
     FCD_MAP_DATA_FILE_LOCATION,
+    FCD_MAPPING_MAX_AGE_MINUTES,
     FCD_UPDATE_FREQUENCY,
     HEALTH_CHECK_CACHE_TTL_SECONDS,
     HEALTH_CHECK_PORT,
     MASTER_SEGMENT_HISTORY_FILE_LOCATION,
     MAX_FCD_DATA_BASE_UPDATE_DOWNTIME,
-    SEGMENT_MAPPING_MAX_AGE_MINUTES,
     UPDATE_FRESHNESS_DEGRADED_MINUTES,
     UPDATE_FRESHNESS_HEALTHY_MINUTES,
 )
@@ -162,7 +162,7 @@ def main():
     mapping_freshness_check = SegmentMappingFreshnessHealthCheck(
         name="mapping_freshness",
         mapping_file_path=FCD_MAP_DATA_FILE_LOCATION,
-        max_age_minutes=SEGMENT_MAPPING_MAX_AGE_MINUTES,
+        max_age_minutes=FCD_MAPPING_MAX_AGE_MINUTES,
         timeout=2.0,
         critical=False,
         cache_ttl=30.0,
