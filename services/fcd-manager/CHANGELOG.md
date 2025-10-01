@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.3.0...fcd-manager-v0.3.1) (2025-10-01)
+
+
+### Bug Fixes
+
+* replace SEGMENT_MAPPING_MAX_AGE_MINUTES with FCD_MAPPING_MAX_AGE_MINUTES ([#45](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/45)) ([e296166](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/e2961667db9b016888b236249138ec1971967684)), closes [#44](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/44)
+
 ## [0.3.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.2.2...fcd-manager-v0.3.0) (2025-09-30)
 
 
