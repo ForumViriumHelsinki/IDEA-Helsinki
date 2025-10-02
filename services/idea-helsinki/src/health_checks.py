@@ -131,6 +131,7 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
         org: str,
         bucket: str,
         data_freshness_hours: int = 1,
+        name: str = "fcd_database",
         cache_ttl: int | None = None,
     ):
         """
@@ -142,8 +143,17 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
             org: InfluxDB organization
             bucket: InfluxDB bucket name
             data_freshness_hours: Maximum age of data in hours to consider fresh
+            name: Name of the health check
+            cache_ttl: Cache time-to-live in seconds
         """
-        super().__init__(critical=True, cache_ttl=cache_ttl or 30)
+        # Use URL as connection string proxy for InfluxDB
+        connection_string = f"{url}/api/v2/buckets/{bucket}"
+        super().__init__(
+            name=name,
+            connection_string=connection_string,
+            critical=True,
+            cache_ttl=cache_ttl or 30,
+        )
         self.url = url
         self.token = token
         self.org = org
@@ -238,6 +248,7 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
         token: str,
         org: str,
         bucket: str,
+        name: str = "validation_database",
         cache_ttl: int | None = None,
     ):
         """
@@ -248,8 +259,17 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
             token: InfluxDB authentication token
             org: InfluxDB organization
             bucket: InfluxDB bucket name
+            name: Name of the health check
+            cache_ttl: Cache time-to-live in seconds
         """
-        super().__init__(critical=True, cache_ttl=cache_ttl or 30)
+        # Use URL as connection string proxy for InfluxDB
+        connection_string = f"{url}/api/v2/buckets/{bucket}"
+        super().__init__(
+            name=name,
+            connection_string=connection_string,
+            critical=True,
+            cache_ttl=cache_ttl or 30,
+        )
         self.url = url
         self.token = token
         self.org = org
