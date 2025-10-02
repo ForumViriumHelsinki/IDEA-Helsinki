@@ -11,17 +11,87 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from idea_shared.lib.Constants.Constants import (
+    HEALTH_CHECK_FCD_DATABASE,
+    HEALTH_CHECK_VALIDATION_DATABASE,
+)
+
 from src.health_checks import (
     DisturbanceDataHealthCheck,
     FCDDatabaseHealthCheck,
     InfluxDBConnectionManager,
     OrchestratorHealthCheck,
+    ValidationDatabaseHealthCheck,
     WorkerStatusHealthCheck,
 )
 
 
 class TestFCDDatabaseHealthCheck:
     """Test FCD database health check."""
+
+    def test_initialization_with_defaults(self):
+        """Test that initialization sets name and connection_string correctly."""
+        check = FCDDatabaseHealthCheck(
+            url="http://localhost:8086",
+            token="test_token",
+            org="test_org",
+            bucket="test_bucket",
+            data_freshness_hours=1,
+        )
+
+        # Verify name uses constant
+        assert check.name == HEALTH_CHECK_FCD_DATABASE
+        assert check.name == "fcd_database"
+
+        # Verify connection string is properly formatted
+        assert "api/v2/buckets/test_bucket" in check.connection_string
+        assert "http://localhost:8086" in check.connection_string
+
+    def test_initialization_with_custom_name(self):
+        """Test that custom name can be provided."""
+        check = FCDDatabaseHealthCheck(
+            url="http://localhost:8086",
+            token="test_token",
+            org="test_org",
+            bucket="test_bucket",
+            name="custom_fcd_db",
+        )
+
+        assert check.name == "custom_fcd_db"
+
+    def test_parameter_validation(self):
+        """Test that empty parameters raise ValueError."""
+        with pytest.raises(ValueError, match="cannot be empty"):
+            FCDDatabaseHealthCheck(
+                url="",
+                token="test_token",
+                org="test_org",
+                bucket="test_bucket",
+            )
+
+        with pytest.raises(ValueError, match="cannot be empty"):
+            FCDDatabaseHealthCheck(
+                url="http://localhost:8086",
+                token="",
+                org="test_org",
+                bucket="test_bucket",
+            )
+
+        with pytest.raises(ValueError, match="cannot be empty"):
+            FCDDatabaseHealthCheck(
+                url="http://localhost:8086",
+                token="test_token",
+                org="",
+                bucket="test_bucket",
+            )
+
+        with pytest.raises(ValueError, match="cannot be empty"):
+            FCDDatabaseHealthCheck(
+                url="http://localhost:8086",
+                token="test_token",
+                org="test_org",
+                bucket="",
+            )
 
     @pytest.mark.asyncio
     async def test_healthy_with_recent_data(self):
@@ -99,6 +169,73 @@ class TestFCDDatabaseHealthCheck:
 
             assert result.status == "unhealthy"
             assert "Failed to ping" in result.message
+
+
+class TestValidationDatabaseHealthCheck:
+    """Test validation database health check."""
+
+    def test_initialization_with_defaults(self):
+        """Test that initialization sets name and connection_string correctly."""
+        check = ValidationDatabaseHealthCheck(
+            url="http://localhost:8086",
+            token="test_token",
+            org="test_org",
+            bucket="validation_bucket",
+        )
+
+        # Verify name uses constant
+        assert check.name == HEALTH_CHECK_VALIDATION_DATABASE
+        assert check.name == "validation_database"
+
+        # Verify connection string is properly formatted
+        assert "api/v2/buckets/validation_bucket" in check.connection_string
+        assert "http://localhost:8086" in check.connection_string
+
+    def test_initialization_with_custom_name(self):
+        """Test that custom name can be provided."""
+        check = ValidationDatabaseHealthCheck(
+            url="http://localhost:8086",
+            token="test_token",
+            org="test_org",
+            bucket="validation_bucket",
+            name="custom_validation_db",
+        )
+
+        assert check.name == "custom_validation_db"
+
+    def test_parameter_validation(self):
+        """Test that empty parameters raise ValueError."""
+        with pytest.raises(ValueError, match="cannot be empty"):
+            ValidationDatabaseHealthCheck(
+                url="",
+                token="test_token",
+                org="test_org",
+                bucket="validation_bucket",
+            )
+
+        with pytest.raises(ValueError, match="cannot be empty"):
+            ValidationDatabaseHealthCheck(
+                url="http://localhost:8086",
+                token="",
+                org="test_org",
+                bucket="validation_bucket",
+            )
+
+        with pytest.raises(ValueError, match="cannot be empty"):
+            ValidationDatabaseHealthCheck(
+                url="http://localhost:8086",
+                token="test_token",
+                org="",
+                bucket="validation_bucket",
+            )
+
+        with pytest.raises(ValueError, match="cannot be empty"):
+            ValidationDatabaseHealthCheck(
+                url="http://localhost:8086",
+                token="test_token",
+                org="test_org",
+                bucket="",
+            )
 
 
 class TestDisturbanceDataHealthCheck:

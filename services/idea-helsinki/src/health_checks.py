@@ -14,6 +14,10 @@ from idea_shared.health.checks import (
     HealthCheck,
 )
 from idea_shared.health.models import HealthCheckResult
+from idea_shared.lib.Constants.Constants import (
+    HEALTH_CHECK_FCD_DATABASE,
+    HEALTH_CHECK_VALIDATION_DATABASE,
+)
 from influxdb_client import InfluxDBClient
 from influxdb_client.client.exceptions import InfluxDBError
 
@@ -131,7 +135,7 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
         org: str,
         bucket: str,
         data_freshness_hours: int = 1,
-        name: str = "fcd_database",
+        name: str | None = None,
         cache_ttl: int | None = None,
     ):
         """
@@ -143,9 +147,22 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
             org: InfluxDB organization
             bucket: InfluxDB bucket name
             data_freshness_hours: Maximum age of data in hours to consider fresh
-            name: Name of the health check
+            name: Name of the health check (defaults to HEALTH_CHECK_FCD_DATABASE constant)
             cache_ttl: Cache time-to-live in seconds
+
+        Raises:
+            ValueError: If any required connection parameters are empty
         """
+        # Validate required parameters
+        if not url or not token or not org or not bucket:
+            raise ValueError(
+                "InfluxDB connection parameters (url, token, org, bucket) cannot be empty"
+            )
+
+        # Use constant for default name
+        if name is None:
+            name = HEALTH_CHECK_FCD_DATABASE
+
         # Use URL as connection string proxy for InfluxDB
         connection_string = f"{url}/api/v2/buckets/{bucket}"
         super().__init__(
@@ -248,7 +265,7 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
         token: str,
         org: str,
         bucket: str,
-        name: str = "validation_database",
+        name: str | None = None,
         cache_ttl: int | None = None,
     ):
         """
@@ -259,9 +276,22 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
             token: InfluxDB authentication token
             org: InfluxDB organization
             bucket: InfluxDB bucket name
-            name: Name of the health check
+            name: Name of the health check (defaults to HEALTH_CHECK_VALIDATION_DATABASE constant)
             cache_ttl: Cache time-to-live in seconds
+
+        Raises:
+            ValueError: If any required connection parameters are empty
         """
+        # Validate required parameters
+        if not url or not token or not org or not bucket:
+            raise ValueError(
+                "InfluxDB connection parameters (url, token, org, bucket) cannot be empty"
+            )
+
+        # Use constant for default name
+        if name is None:
+            name = HEALTH_CHECK_VALIDATION_DATABASE
+
         # Use URL as connection string proxy for InfluxDB
         connection_string = f"{url}/api/v2/buckets/{bucket}"
         super().__init__(

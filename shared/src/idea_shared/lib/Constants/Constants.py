@@ -36,6 +36,10 @@ HEALTH_CHECK_PORT = 8080
 HEALTH_CHECK_TIMEOUT_SECONDS = 10
 HEALTH_CHECK_CACHE_TTL_SECONDS = 5
 
+# Health check names
+HEALTH_CHECK_FCD_DATABASE = "fcd_database"
+HEALTH_CHECK_VALIDATION_DATABASE = "validation_database"
+
 # Update freshness thresholds for Traffic Monitor
 UPDATE_FRESHNESS_HEALTHY_MINUTES = 90  # Consider healthy if last update < 90 minutes
 UPDATE_FRESHNESS_DEGRADED_MINUTES = (
