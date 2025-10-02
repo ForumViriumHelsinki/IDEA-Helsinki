@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.3.0...traffic-monitor-v0.3.1) (2025-10-02)
+
+
+### Bug Fixes
+
+* **idea-helsinki:** add required parameters to DatabaseHealthCheck initialization ([#48](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/48)) ([6ecac59](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/6ecac59193c2376fccc75f2203a53b877e02ff96))
+
 ## [0.3.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.2.2...traffic-monitor-v0.3.0) (2025-09-30)
 
 
