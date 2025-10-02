@@ -107,6 +107,7 @@ def main():
     # Define graceful shutdown handler
     def handle_shutdown(signum, frame):
         import time
+
         logger.info("Shutting down Traffic Monitor...")
 
         # Wait for current processing to complete with timeout
@@ -115,11 +116,16 @@ def main():
             max_wait_time = 30  # Maximum 30 seconds wait
             start_time = time.time()
 
-            while service_state.is_processing and (time.time() - start_time) < max_wait_time:
+            while (
+                service_state.is_processing
+                and (time.time() - start_time) < max_wait_time
+            ):
                 time.sleep(0.5)
 
             if service_state.is_processing:
-                logger.warning(f"Processing did not complete within {max_wait_time} seconds, forcing shutdown")
+                logger.warning(
+                    f"Processing did not complete within {max_wait_time} seconds, forcing shutdown"
+                )
 
         # Stop health server
         try:
@@ -131,6 +137,7 @@ def main():
         import asyncio
 
         from health_checks import WFSAPIHealthCheck
+
         try:
             loop = asyncio.new_event_loop()
             loop.run_until_complete(WFSAPIHealthCheck.close_session())
@@ -184,7 +191,9 @@ def main():
             logger.info("Successfully fetched WFS data")
             service_state.update_wfs_fetch(
                 success=True,
-                disturbance_count=len(allu_wfs_data) if isinstance(allu_wfs_data, list) else 0,
+                disturbance_count=len(allu_wfs_data)
+                if isinstance(allu_wfs_data, list)
+                else 0,
             )
 
             # If we get data, validate the reported disturbances.
@@ -227,7 +236,9 @@ def main():
 
                 # Update intersection count
                 service_state.update_intersection(
-                    len(final_model_data) if isinstance(final_model_data, (list, dict)) else 0
+                    len(final_model_data)
+                    if isinstance(final_model_data, list | dict)
+                    else 0
                 )
 
                 try:
@@ -244,7 +255,9 @@ def main():
                 )
         else:
             logger.error("Failed to fetch WFS data.")
-            service_state.update_wfs_fetch(success=False, error="No data returned from WFS")
+            service_state.update_wfs_fetch(
+                success=False, error="No data returned from WFS"
+            )
 
         # Mark processing as complete
         service_state.set_processing(False)

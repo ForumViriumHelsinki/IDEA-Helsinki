@@ -401,10 +401,12 @@ class OutputFileHealthCheck(FileSystemHealthCheck):
                 total, used, free = shutil.disk_usage(self.output_file_path.parent)
                 free_gb = free / (1024**3)
 
-                metadata.update({
-                    "disk_free_gb": free_gb,
-                    "disk_used_percent": (used / total) * 100 if total > 0 else 0
-                })
+                metadata.update(
+                    {
+                        "disk_free_gb": free_gb,
+                        "disk_used_percent": (used / total) * 100 if total > 0 else 0,
+                    }
+                )
 
                 if free_gb < 0.1:  # Less than 100MB free
                     return {
@@ -489,17 +491,23 @@ class UpdateFreshnessHealthCheck(HealthCheck):
         # Check last successful WFS fetch
         wfs_age_minutes = None  # Initialize the variable
         if self.service_state.last_wfs_success:
-            wfs_age_minutes = (now - self.service_state.last_wfs_success).total_seconds() / 60
+            wfs_age_minutes = (
+                now - self.service_state.last_wfs_success
+            ).total_seconds() / 60
             metadata["last_wfs_success_minutes_ago"] = wfs_age_minutes
         else:
             # Service hasn't successfully fetched WFS data yet
             if self.service_state.last_wfs_fetch:
                 # There was an attempt but it failed
-                attempt_age = (now - self.service_state.last_wfs_fetch).total_seconds() / 60
+                attempt_age = (
+                    now - self.service_state.last_wfs_fetch
+                ).total_seconds() / 60
                 metadata["last_wfs_attempt_minutes_ago"] = attempt_age
                 return HealthCheckResult(
                     name=self.name,
-                    status="degraded" if attempt_age < self.healthy_minutes else "unhealthy",
+                    status="degraded"
+                    if attempt_age < self.healthy_minutes
+                    else "unhealthy",
                     message="No successful WFS fetches yet",
                     metadata=metadata,
                 )
@@ -514,7 +522,9 @@ class UpdateFreshnessHealthCheck(HealthCheck):
 
         # Check last intersection calculation
         if self.service_state.last_intersection_calc:
-            calc_age_minutes = (now - self.service_state.last_intersection_calc).total_seconds() / 60
+            calc_age_minutes = (
+                now - self.service_state.last_intersection_calc
+            ).total_seconds() / 60
             metadata["last_intersection_calc_minutes_ago"] = calc_age_minutes
 
         # Add current counts to metadata
@@ -528,19 +538,25 @@ class UpdateFreshnessHealthCheck(HealthCheck):
         # Determine status based on age (wfs_age_minutes is guaranteed to be set here)
         if wfs_age_minutes < self.healthy_minutes:
             status = "healthy"
-            message = f"Updates are fresh (last success {wfs_age_minutes:.1f} minutes ago)"
+            message = (
+                f"Updates are fresh (last success {wfs_age_minutes:.1f} minutes ago)"
+            )
         elif wfs_age_minutes < self.degraded_minutes:
             status = "degraded"
             message = f"Updates are getting stale (last success {wfs_age_minutes:.1f} minutes ago)"
         else:
             status = "unhealthy"
-            message = f"Updates are too old (last success {wfs_age_minutes:.1f} minutes ago)"
+            message = (
+                f"Updates are too old (last success {wfs_age_minutes:.1f} minutes ago)"
+            )
 
         # If currently processing, add that to the message
         if self.service_state.is_processing:
             message += " - currently processing"
 
-        return HealthCheckResult(name=self.name, status=status, message=message, metadata=metadata)
+        return HealthCheckResult(
+            name=self.name, status=status, message=message, metadata=metadata
+        )
 
 
 class DetectorHealthCheck(HealthCheck):

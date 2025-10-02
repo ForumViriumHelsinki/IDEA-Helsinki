@@ -23,7 +23,9 @@ class ServiceState:
         self.current_intersection_count = 0  # Current number of intersections
         self.detector = None
 
-    def update_wfs_fetch(self, success: bool, disturbance_count: int = None, error: str = None):
+    def update_wfs_fetch(
+        self, success: bool, disturbance_count: int = None, error: str = None
+    ):
         """Update WFS fetch status.
 
         Args:
@@ -101,11 +103,15 @@ class ServiceState:
             }
 
             if self.last_wfs_success:
-                minutes_since_success = (now - self.last_wfs_success).total_seconds() / 60
+                minutes_since_success = (
+                    now - self.last_wfs_success
+                ).total_seconds() / 60
                 summary["minutes_since_wfs_success"] = minutes_since_success
 
             if self.last_wfs_attempt:
-                minutes_since_attempt = (now - self.last_wfs_attempt).total_seconds() / 60
+                minutes_since_attempt = (
+                    now - self.last_wfs_attempt
+                ).total_seconds() / 60
                 summary["minutes_since_wfs_attempt"] = minutes_since_attempt
 
             if self.last_processing_time:

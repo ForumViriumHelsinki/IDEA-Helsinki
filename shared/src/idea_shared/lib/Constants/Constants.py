@@ -36,12 +36,20 @@ HEALTH_CHECK_PORT = 8080
 HEALTH_CHECK_TIMEOUT_SECONDS = 10
 HEALTH_CHECK_CACHE_TTL_SECONDS = 5
 
+# Health check names
+HEALTH_CHECK_FCD_DATABASE = "fcd_database"
+HEALTH_CHECK_VALIDATION_DATABASE = "validation_database"
+
 # Update freshness thresholds for Traffic Monitor
 UPDATE_FRESHNESS_HEALTHY_MINUTES = 90  # Consider healthy if last update < 90 minutes
-UPDATE_FRESHNESS_DEGRADED_MINUTES = 180  # Consider degraded if < 180 minutes, unhealthy if > 180
+UPDATE_FRESHNESS_DEGRADED_MINUTES = (
+    180  # Consider degraded if < 180 minutes, unhealthy if > 180
+)
 
 # FCD mapping freshness threshold
-FCD_MAPPING_MAX_AGE_MINUTES = 15  # FCD mapping file should be updated at least every 15 minutes
+FCD_MAPPING_MAX_AGE_MINUTES = (
+    15  # FCD mapping file should be updated at least every 15 minutes
+)
 
 # WFS API health check settings
 WFS_HEALTH_CHECK_TIMEOUT = 10  # Timeout for WFS health check in seconds

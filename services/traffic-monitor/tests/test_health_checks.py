@@ -124,7 +124,9 @@ class TestFCDMappingHealthCheck:
             f.flush()
 
             try:
-                check = FCDMappingHealthCheck(file_path=f.name, max_age_minutes=60, cache_ttl=0)
+                check = FCDMappingHealthCheck(
+                    file_path=f.name, max_age_minutes=60, cache_ttl=0
+                )
 
                 result = await check.check()
 
@@ -147,7 +149,9 @@ class TestFCDMappingHealthCheck:
                 old_time = datetime.now(UTC) - timedelta(minutes=30)
                 Path(f.name).touch()
 
-                check = FCDMappingHealthCheck(file_path=f.name, max_age_minutes=15, cache_ttl=0)
+                check = FCDMappingHealthCheck(
+                    file_path=f.name, max_age_minutes=15, cache_ttl=0
+                )
 
                 # Mock the file modification time
                 with patch("pathlib.Path.stat") as mock_stat:
@@ -226,7 +230,9 @@ class TestOutputFileHealthCheck:
     @pytest.mark.asyncio
     async def test_output_file_no_permission(self):
         """Test output file check when directory is not writable."""
-        check = OutputFileHealthCheck(file_path="/root/cannot_write_here.json", cache_ttl=0)
+        check = OutputFileHealthCheck(
+            file_path="/root/cannot_write_here.json", cache_ttl=0
+        )
 
         result = await check.check()
 
