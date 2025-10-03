@@ -397,7 +397,11 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
     """Verify traffic disturbance intersection data availability and freshness."""
 
     def __init__(
-        self, file_path: str, max_age_minutes: int = 120, critical: bool = False
+        self,
+        file_path: str,
+        max_age_minutes: int = 120,
+        critical: bool = False,
+        name: str = "disturbance_data",
     ):
         """
         Initialize disturbance data health check.
@@ -406,8 +410,11 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
             file_path: Path to the traffic disturbance data file
             max_age_minutes: Maximum file age in minutes to consider fresh
             critical: Whether this check is critical for service readiness
+            name: Name of the health check
         """
-        super().__init__(path=file_path, check_write=False, critical=critical)
+        super().__init__(
+            name=name, path=file_path, check_write=False, critical=critical
+        )
         self.max_age_minutes = max_age_minutes
 
     async def check(self) -> HealthCheckResult:
