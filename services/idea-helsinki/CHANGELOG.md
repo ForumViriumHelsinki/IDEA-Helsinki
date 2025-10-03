@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.3](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-helsinki-v0.3.2...idea-helsinki-v0.3.3) (2025-10-03)
+
+
+### Bug Fixes
+
+* enhance error messages in health checks ([#53](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/53)) ([fe0e250](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/fe0e250fbad3ce6f7c5c39d069c52c3a2eb64283))
+
 ## [0.3.2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-helsinki-v0.3.1...idea-helsinki-v0.3.2) (2025-10-03)
 
 
