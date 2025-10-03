@@ -46,7 +46,7 @@ def _format_time_range(hours: float) -> dict:
 
 
 class InfluxDBConnectionManager:
-    """Manages shared InfluxDB connections for health checks."""
+    """Manages shared InfluxDB connections for health checks with LRU cache and scoring."""
 
     _instances: dict[str, "InfluxDBConnectionManager"] = {}
     _lock = asyncio.Lock()
@@ -63,11 +63,74 @@ class InfluxDBConnectionManager:
         self._last_access_time = datetime.now(UTC)
         self._client_lock = asyncio.Lock()
 
+        # LRU cache and metrics
+        self._created_at = datetime.now(UTC)
+        self._usage_count = 0  # Total number of times this connection was used
+        self._ping_count = 0  # Total pings attempted
+        self._failed_ping_count = 0  # Failed pings
+        self._query_count = 0  # Approximate query count (tracked via get_client calls)
+        self._last_successful_operation: datetime | None = None  # Last successful ping/query
+        self._health_score = 1.0  # Connection health score (0.0 to 1.0)
+
+    def _calculate_score(self) -> float:
+        """
+        Calculate connection score for LRU eviction policy.
+
+        Score is based on:
+        - Usage frequency (higher usage = higher score)
+        - Health (ping success rate)
+        - Recency of successful operations
+        - Connection age
+
+        Returns:
+            float: Score between 0.0 (worst) and 1.0 (best)
+        """
+        now = datetime.now(UTC)
+
+        # Component 1: Usage frequency (0.0 to 1.0, normalized by age)
+        connection_age_seconds = (now - self._created_at).total_seconds()
+        if connection_age_seconds > 0:
+            usage_per_second = self._usage_count / connection_age_seconds
+            # Normalize to 0-1 range (assume 1 use per 10 seconds is high usage)
+            usage_score = min(usage_per_second * 10, 1.0)
+        else:
+            usage_score = 0.0
+
+        # Component 2: Health score based on ping success rate
+        if self._ping_count > 0:
+            success_rate = (
+                self._ping_count - self._failed_ping_count
+            ) / self._ping_count
+            health_score = success_rate
+        else:
+            # No pings yet, assume healthy
+            health_score = 1.0
+
+        # Component 3: Recency of successful operations (0.0 to 1.0)
+        if self._last_successful_operation:
+            time_since_success = (now - self._last_successful_operation).total_seconds()
+            # Decay over 1 hour: fresh operations get higher score
+            recency_score = max(0.0, 1.0 - (time_since_success / 3600))
+        else:
+            recency_score = 0.0
+
+        # Component 4: Connection age penalty (prefer newer connections slightly)
+        # Connections older than 1 hour get slight penalty
+        age_penalty = min(connection_age_seconds / 7200, 0.2)  # Max 0.2 penalty
+
+        # Weighted combination
+        # Usage: 40%, Health: 30%, Recency: 20%, Age penalty: 10%
+        total_score = (
+            usage_score * 0.4 + health_score * 0.3 + recency_score * 0.2 - age_penalty
+        )
+
+        return max(0.0, min(total_score, 1.0))
+
     @classmethod
     async def get_instance(
         cls, url: str, token: str, org: str, cache_ttl: int | None = None
     ) -> "InfluxDBConnectionManager":
-        """Get or create a shared connection manager instance."""
+        """Get or create a shared connection manager instance with LRU cache."""
         # Use SHA-256 hash of token for security instead of substring
         token_hash = hashlib.sha256(token.encode()).hexdigest()[:16]
         key = f"{url}:{org}:{token_hash}"
@@ -79,19 +142,24 @@ class InfluxDBConnectionManager:
             if key not in cls._instances:
                 # Check if we've reached the connection limit
                 if len(cls._instances) >= cls.MAX_CONNECTIONS:
-                    # Remove the oldest connection
-                    oldest_key = min(
+                    # Remove connection with lowest score (LRU with scoring)
+                    worst_key = min(
                         cls._instances.keys(),
-                        key=lambda k: cls._instances[k]._last_access_time,
+                        key=lambda k: cls._instances[k]._calculate_score(),
                     )
-                    cls._instances[oldest_key].close()
-                    del cls._instances[oldest_key]
+                    logger.debug(
+                        f"Evicting connection {worst_key} with score {cls._instances[worst_key]._calculate_score():.3f}"
+                    )
+                    cls._instances[worst_key].close()
+                    del cls._instances[worst_key]
 
                 cls._instances[key] = cls(url, token, org, cache_ttl)
 
-            # Update last access time
-            cls._instances[key]._last_access_time = datetime.now(UTC)
-            return cls._instances[key]
+            # Update last access time and usage count
+            instance = cls._instances[key]
+            instance._last_access_time = datetime.now(UTC)
+            instance._usage_count += 1
+            return instance
 
     @classmethod
     async def _cleanup_stale_connections(cls):
@@ -117,29 +185,87 @@ class InfluxDBConnectionManager:
             cls._instances.clear()
 
     async def get_client(self) -> InfluxDBClient:
-        """Get or create a client instance (thread-safe)."""
+        """Get or create a client instance (thread-safe) and track query metrics."""
         async with self._client_lock:
             if self._client is None:
                 self._client = InfluxDBClient(
                     url=self.url, token=self.token, org=self.org
                 )
             self._last_access_time = datetime.now(UTC)
+            self._query_count += 1
             return self._client
 
     async def ping(self) -> bool:
-        """Ping the InfluxDB server with caching."""
+        """Ping the InfluxDB server with caching and track health metrics."""
         now = datetime.now(UTC)
         if (
             self._last_ping_time
             and (now - self._last_ping_time).total_seconds() < self._ping_cache_ttl
         ):
+            # Cached successful ping
             return True
 
         client = await self.get_client()
-        result = client.ping()
-        if result:
-            self._last_ping_time = now
-        return result
+        self._ping_count += 1
+
+        try:
+            result = client.ping()
+            if result:
+                self._last_ping_time = now
+                self._last_successful_operation = now
+            else:
+                self._failed_ping_count += 1
+            return result
+        except Exception:
+            self._failed_ping_count += 1
+            raise
+
+    def get_metrics(self) -> dict:
+        """
+        Get connection metrics for monitoring and debugging.
+
+        Returns:
+            dict: Connection metrics including usage, health, and scoring information
+        """
+        now = datetime.now(UTC)
+        connection_age = (now - self._created_at).total_seconds()
+
+        metrics = {
+            "url": self.url,
+            "org": self.org,
+            "created_at": self._created_at.isoformat(),
+            "connection_age_seconds": round(connection_age, 2),
+            "usage_count": self._usage_count,
+            "ping_count": self._ping_count,
+            "failed_ping_count": self._failed_ping_count,
+            "query_count": self._query_count,
+            "last_access": self._last_access_time.isoformat(),
+            "last_successful_operation": (
+                self._last_successful_operation.isoformat()
+                if self._last_successful_operation
+                else None
+            ),
+            "health_score": round(self._calculate_score(), 3),
+        }
+
+        # Add ping success rate if pings have been attempted
+        if self._ping_count > 0:
+            success_rate = (
+                self._ping_count - self._failed_ping_count
+            ) / self._ping_count
+            metrics["ping_success_rate"] = round(success_rate, 3)
+
+        return metrics
+
+    @classmethod
+    def get_all_metrics(cls) -> list[dict]:
+        """
+        Get metrics for all connection instances.
+
+        Returns:
+            list[dict]: List of metrics dictionaries for all connections
+        """
+        return [instance.get_metrics() for instance in cls._instances.values()]
 
     def close(self):
         """Close the client connection."""

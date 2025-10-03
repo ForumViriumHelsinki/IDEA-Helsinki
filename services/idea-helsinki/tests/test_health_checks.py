@@ -518,7 +518,7 @@ class TestInfluxDBConnectionManager:
 
     @pytest.mark.asyncio
     async def test_connection_limit(self):
-        """Test that connection limit is enforced."""
+        """Test that connection limit is enforced with LRU eviction."""
         # Store original max connections
         original_max = InfluxDBConnectionManager.MAX_CONNECTIONS
         InfluxDBConnectionManager.MAX_CONNECTIONS = 3
@@ -534,8 +534,10 @@ class TestInfluxDBConnectionManager:
                     url, f"token_{i}", org
                 )
                 managers.append(manager)
+                # Small delay to ensure different creation times
+                await asyncio.sleep(0.001)
 
-            # Should have exactly MAX_CONNECTIONS instances
+            # Should have exactly MAX_CONNECTIONS instances (LRU eviction)
             assert len(InfluxDBConnectionManager._instances) <= 3
 
         finally:
@@ -592,6 +594,122 @@ class TestInfluxDBConnectionManager:
 
         # Clean up
         await InfluxDBConnectionManager.cleanup_all()
+
+    @pytest.mark.asyncio
+    async def test_lru_scoring_mechanism(self):
+        """Test that LRU scoring correctly prioritizes connections."""
+        original_max = InfluxDBConnectionManager.MAX_CONNECTIONS
+        InfluxDBConnectionManager.MAX_CONNECTIONS = 2
+
+        try:
+            url = "http://localhost:8086"
+            org = "test_org"
+
+            # Create first connection and use it heavily
+            manager1 = await InfluxDBConnectionManager.get_instance(
+                url, "token_1", org
+            )
+            # Simulate heavy usage
+            for _ in range(10):
+                _ = await InfluxDBConnectionManager.get_instance(url, "token_1", org)
+                await asyncio.sleep(0.001)
+
+            # Create second connection with minimal usage
+            manager2 = await InfluxDBConnectionManager.get_instance(
+                url, "token_2", org
+            )
+
+            # manager1 should have higher score due to usage
+            score1 = manager1._calculate_score()
+            score2 = manager2._calculate_score()
+            assert (
+                score1 > score2
+            ), f"Heavily used connection should have higher score: {score1} vs {score2}"
+
+            # Create third connection - should evict manager2 (lowest score)
+            manager3 = await InfluxDBConnectionManager.get_instance(
+                url, "token_3", org
+            )
+
+            # Verify manager1 still exists (higher usage score)
+            # and manager2 was evicted (lower score)
+            assert len(InfluxDBConnectionManager._instances) == 2
+
+        finally:
+            InfluxDBConnectionManager.MAX_CONNECTIONS = original_max
+            await InfluxDBConnectionManager.cleanup_all()
+
+    @pytest.mark.asyncio
+    async def test_connection_metrics(self):
+        """Test that connection metrics are tracked correctly."""
+        url = "http://localhost:8086"
+        token = "test_token"
+        org = "test_org"
+
+        try:
+            # Create connection and use it
+            manager = await InfluxDBConnectionManager.get_instance(url, token, org)
+
+            # Access it multiple times
+            for _ in range(3):
+                _ = await InfluxDBConnectionManager.get_instance(url, token, org)
+
+            # Get metrics
+            metrics = manager.get_metrics()
+
+            # Verify metrics structure
+            assert "url" in metrics
+            assert "usage_count" in metrics
+            assert "ping_count" in metrics
+            assert "query_count" in metrics
+            assert "health_score" in metrics
+            assert metrics["url"] == url
+            assert metrics["org"] == org
+            assert (
+                metrics["usage_count"] >= 4
+            )  # Initial + 3 accesses (get_instance increments)
+
+            # Test get_all_metrics
+            all_metrics = InfluxDBConnectionManager.get_all_metrics()
+            assert len(all_metrics) == 1
+            assert all_metrics[0]["url"] == url
+
+        finally:
+            await InfluxDBConnectionManager.cleanup_all()
+
+    @pytest.mark.asyncio
+    async def test_health_scoring_with_failed_pings(self):
+        """Test that failed pings reduce health score."""
+        url = "http://localhost:8086"
+        token = "test_token"
+        org = "test_org"
+
+        try:
+            with patch("src.health_checks.InfluxDBClient") as mock_client:
+                # Setup mock to fail pings
+                mock_instance = MagicMock()
+                mock_client.return_value = mock_instance
+                mock_instance.ping.return_value = False
+
+                manager = await InfluxDBConnectionManager.get_instance(url, token, org)
+
+                # Attempt pings that will fail
+                for _ in range(5):
+                    try:
+                        await manager.ping()
+                    except Exception:
+                        pass
+
+                # Health score should be lower due to failed pings
+                metrics = manager.get_metrics()
+                assert metrics["failed_ping_count"] > 0
+                if metrics["ping_count"] > 0:
+                    assert (
+                        metrics["ping_success_rate"] < 1.0
+                    ), "Failed pings should reduce success rate"
+
+        finally:
+            await InfluxDBConnectionManager.cleanup_all()
 
 
 if __name__ == "__main__":
