@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-helsinki-v0.3.1...idea-helsinki-v0.3.2) (2025-10-03)
+
+
+### Bug Fixes
+
+* add missing name parameter to DisturbanceDataHealthCheck ([#51](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/51)) ([bb2323e](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/bb2323e03c7284e37c25bcf2e58b4c3c6e45e358)), closes [#50](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/50)
+
 ## [0.3.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-helsinki-v0.3.0...idea-helsinki-v0.3.1) (2025-10-02)
 
 
