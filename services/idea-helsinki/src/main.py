@@ -17,7 +17,10 @@ from idea_shared.health.server import HealthServer
 # ------------------------------------------------------#
 from idea_shared.lib.Constants.Constants import (
     DISTURBANCE_DATA_MAX_AGE_MINUTES,
+    FCD_DATA_FRESHNESS_HOURS,
     HEALTH_CHECK_PORT,
+    ORCHESTRATOR_DEADLOCK_THRESHOLD_MINUTES,
+    ORCHESTRATOR_MAX_CYCLE_TIME_MINUTES,
     PROFILE_END_LEAD_TIME_HOURS,
     PROFILE_TIME_FRAME_WEEKS,
     TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION,
@@ -46,12 +49,6 @@ from health_checks import (
 
 # for testing, based on intersected segments.
 # target_fcd_segments = ["1195756141337706497","1195756141314637825"]
-
-# Health check settings (not yet externalized)
-HEALTH_CHECK_TIMEOUT_SECONDS = 5
-ORCHESTRATOR_MAX_CYCLE_TIME_MINUTES = 90
-ORCHESTRATOR_DEADLOCK_THRESHOLD_MINUTES = 180
-FCD_DATA_FRESHNESS_HOURS = 1
 
 logger = Logger(__name__)
 health_server = None
