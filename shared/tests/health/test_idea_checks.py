@@ -20,7 +20,12 @@ class TestAzureBlobStorageHealthCheck:
 
     @pytest.mark.asyncio
     async def test_healthy_connection(self):
-        """Test successful Azure connection."""
+        """Test successful Azure connection.
+
+        Verifies that the Azure Blob Storage health check correctly validates
+        connectivity to Azure storage accounts. This ensures the FCD data
+        synchronization can access TomTom floating car data from blob storage.
+        """
         check = AzureBlobStorageHealthCheck(
             name="azure_check",
             account_name="testaccount",
@@ -45,7 +50,12 @@ class TestAzureBlobStorageHealthCheck:
 
     @pytest.mark.asyncio
     async def test_failed_connection(self):
-        """Test failed Azure connection."""
+        """Test failed Azure connection.
+
+        Verifies that authentication failures and connection errors to Azure
+        Blob Storage are properly detected and reported as unhealthy. This
+        prevents silent failures in FCD data ingestion pipeline.
+        """
         check = AzureBlobStorageHealthCheck(
             name="azure_check",
             account_name="testaccount",
@@ -69,7 +79,12 @@ class TestWFSServiceHealthCheck:
 
     @pytest.mark.asyncio
     async def test_healthy_wfs_service(self):
-        """Test successful WFS service check."""
+        """Test successful WFS service check.
+
+        Verifies that the WFS (Web Feature Service) health check correctly
+        validates connectivity to Helsinki's traffic disturbance API. This
+        ensures the system can fetch planned roadworks data for validation.
+        """
         check = WFSServiceHealthCheck(
             name="wfs_check",
             url="https://test.wfs.service",
@@ -97,7 +112,12 @@ class TestWFSServiceHealthCheck:
 
     @pytest.mark.asyncio
     async def test_wfs_circuit_breaker(self):
-        """Test WFS service with circuit breaker."""
+        """Test WFS service with circuit breaker.
+
+        Verifies that the WFS health check includes circuit breaker configuration
+        with appropriate thresholds (3 failures) and timeout (120s). This protects
+        the system from repeatedly calling a failing WFS service.
+        """
         check = WFSServiceHealthCheck(
             name="wfs_check",
             url="https://test.wfs.service",
@@ -113,7 +133,12 @@ class TestInfluxDBHealthCheck:
 
     @pytest.mark.asyncio
     async def test_healthy_influxdb(self):
-        """Test successful InfluxDB connection."""
+        """Test successful InfluxDB connection.
+
+        Verifies that the InfluxDB health check successfully validates database
+        connectivity using the ping API. This ensures timeseries storage for
+        FCD data and validation results is accessible.
+        """
         check = InfluxDBHealthCheck(
             name="influx_check",
             url="http://localhost:8086",
@@ -138,7 +163,12 @@ class TestInfluxDBHealthCheck:
 
     @pytest.mark.asyncio
     async def test_influxdb_ping_failure(self):
-        """Test InfluxDB ping failure."""
+        """Test InfluxDB ping failure.
+
+        Verifies that failed InfluxDB ping attempts (due to invalid credentials
+        or unreachable database) are detected and reported as unhealthy. This
+        prevents data writes to inaccessible storage.
+        """
         check = InfluxDBHealthCheck(
             name="influx_check",
             url="http://localhost:8086",
@@ -165,7 +195,12 @@ class TestFCDDataFreshnessHealthCheck:
 
     @pytest.mark.asyncio
     async def test_fresh_data(self):
-        """Test with fresh data."""
+        """Test with fresh data.
+
+        Verifies that the FCD freshness check correctly identifies recent data
+        within the configured time window. This ensures the IDEA validation
+        system has up-to-date traffic data for accurate analysis.
+        """
         check = FCDDataFreshnessHealthCheck(
             name="freshness_check",
             url="http://localhost:8086",
@@ -197,7 +232,12 @@ class TestFCDDataFreshnessHealthCheck:
 
     @pytest.mark.asyncio
     async def test_no_recent_data(self):
-        """Test with no recent data."""
+        """Test with no recent data.
+
+        Verifies that the freshness check returns degraded status when no data
+        is found within the time window. This indicates potential issues with
+        the FCD synchronization pipeline without marking the service as completely down.
+        """
         check = FCDDataFreshnessHealthCheck(
             name="freshness_check",
             url="http://localhost:8086",
@@ -227,7 +267,12 @@ class TestSegmentMappingIntegrityHealthCheck:
 
     @pytest.mark.asyncio
     async def test_valid_mapping_files(self, tmp_path):
-        """Test with valid mapping files."""
+        """Test with valid mapping files.
+
+        Verifies that the segment mapping integrity check correctly validates
+        properly formatted mapping and history JSON files. This ensures the
+        system can track road segment geometries and their changes over time.
+        """
         # Create test files
         mapping_file = tmp_path / "segments_mapping.json"
         history_file = tmp_path / "master_segment_history.json"
@@ -258,7 +303,12 @@ class TestSegmentMappingIntegrityHealthCheck:
 
     @pytest.mark.asyncio
     async def test_missing_mapping_file(self, tmp_path):
-        """Test with missing mapping file."""
+        """Test with missing mapping file.
+
+        Verifies that the integrity check detects missing segment mapping files
+        and returns degraded status. This prevents the system from attempting
+        to process segments without valid geometry data.
+        """
         missing_file = tmp_path / "nonexistent.json"
 
         check = SegmentMappingIntegrityHealthCheck(
@@ -274,7 +324,12 @@ class TestSegmentMappingIntegrityHealthCheck:
 
     @pytest.mark.asyncio
     async def test_invalid_json(self, tmp_path):
-        """Test with invalid JSON in mapping file."""
+        """Test with invalid JSON in mapping file.
+
+        Verifies that the integrity check detects corrupted or malformed JSON
+        in segment mapping files. This prevents parsing errors during segment
+        processing and ensures data integrity.
+        """
         mapping_file = tmp_path / "segments_mapping.json"
         mapping_file.write_text("invalid json {")
 
@@ -291,7 +346,12 @@ class TestSegmentMappingIntegrityHealthCheck:
 
     @pytest.mark.asyncio
     async def test_missing_required_fields(self, tmp_path):
-        """Test with missing required fields in segments."""
+        """Test with missing required fields in segments.
+
+        Verifies that the integrity check detects segments missing required
+        fields like geometry. This ensures all segments have the necessary
+        data for spatial intersection detection and validation processing.
+        """
         mapping_file = tmp_path / "segments_mapping.json"
 
         # Missing geometry field

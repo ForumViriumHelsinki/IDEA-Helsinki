@@ -35,7 +35,11 @@ class TestHealthCheck:
 
     @pytest.mark.asyncio
     async def test_successful_check(self):
-        """Test a successful health check."""
+        """Test a successful health check.
+
+        Verifies that a health check returns the expected healthy status
+        when the check passes successfully.
+        """
         expected = HealthCheckResult(name="test", status="healthy")
         check = ConcreteHealthCheck(result=expected, name="test")
         result = await check.check_with_cache()
@@ -43,7 +47,12 @@ class TestHealthCheck:
 
     @pytest.mark.asyncio
     async def test_check_with_timeout(self):
-        """Test health check timeout handling."""
+        """Test health check timeout handling.
+
+        Verifies that health checks properly handle timeout scenarios by
+        returning an unhealthy status when a check exceeds its timeout duration.
+        This ensures slow or hanging checks don't block the health server.
+        """
 
         async def slow_check():
             await asyncio.sleep(2)
@@ -60,7 +69,12 @@ class TestHealthCheck:
 
     @pytest.mark.asyncio
     async def test_check_with_exception(self):
-        """Test health check exception handling."""
+        """Test health check exception handling.
+
+        Verifies that exceptions raised during health checks are caught
+        and converted to unhealthy status with error messages. This prevents
+        health check failures from crashing the health server.
+        """
 
         class FailingHealthCheck(HealthCheck):
             async def check(self):
@@ -73,7 +87,15 @@ class TestHealthCheck:
 
     @pytest.mark.asyncio
     async def test_cache_functionality(self):
-        """Test that caching works correctly."""
+        """Test that caching works correctly.
+
+        Verifies the cache TTL mechanism by ensuring that:
+        1. First call executes the health check
+        2. Subsequent calls within TTL return cached result
+        3. Calls after TTL expiration execute the check again
+
+        This reduces load on dependencies during frequent health check requests.
+        """
         call_count = 0
 
         class CountingHealthCheck(HealthCheck):
@@ -105,7 +127,11 @@ class TestHealthCheck:
         assert result3.message == "Call 2"
 
     def test_sync_check(self):
-        """Test synchronous version of health check."""
+        """Test synchronous version of health check.
+
+        Verifies that health checks can be executed synchronously using
+        check_sync(), which is useful for services without async event loops.
+        """
         expected = HealthCheckResult(name="sync", status="healthy")
         check = ConcreteHealthCheck(result=expected, name="sync")
         result = check.check_sync()
@@ -117,7 +143,12 @@ class TestFileSystemHealthCheck:
 
     @pytest.mark.asyncio
     async def test_check_existing_directory(self):
-        """Test checking an existing directory."""
+        """Test checking an existing directory.
+
+        Verifies that the FileSystemHealthCheck correctly identifies and reports
+        healthy status for existing directories. This is critical for ensuring
+        data directories like segment mappings and archives are accessible.
+        """
         with tempfile.TemporaryDirectory() as tmpdir:
             check = FileSystemHealthCheck(name="dir_check", path=tmpdir)
             result = await check.check()
@@ -126,7 +157,12 @@ class TestFileSystemHealthCheck:
 
     @pytest.mark.asyncio
     async def test_check_existing_file(self):
-        """Test checking an existing file."""
+        """Test checking an existing file.
+
+        Verifies that the FileSystemHealthCheck correctly validates the existence
+        of individual files. This is important for checking critical JSON files
+        like segments_mapping.json and master_segment_history.json.
+        """
         with tempfile.NamedTemporaryFile() as tmpfile:
             check = FileSystemHealthCheck(name="file_check", path=tmpfile.name)
             result = await check.check()
@@ -134,7 +170,12 @@ class TestFileSystemHealthCheck:
 
     @pytest.mark.asyncio
     async def test_check_non_existing_path(self):
-        """Test checking a non-existing path."""
+        """Test checking a non-existing path.
+
+        Verifies that the FileSystemHealthCheck returns unhealthy status when
+        checking paths that don't exist. This ensures the system can detect
+        missing configuration files or data directories before processing fails.
+        """
         check = FileSystemHealthCheck(name="missing", path="/non/existent/path/test123")
         result = await check.check()
         assert result.status == "unhealthy"
@@ -142,7 +183,12 @@ class TestFileSystemHealthCheck:
 
     @pytest.mark.asyncio
     async def test_write_permission_check_success(self):
-        """Test successful write permission check."""
+        """Test successful write permission check.
+
+        Verifies that the FileSystemHealthCheck can validate write permissions
+        on directories when check_write is enabled. This is essential for ensuring
+        the application can write updated segment mappings and validation results.
+        """
         with tempfile.TemporaryDirectory() as tmpdir:
             check = FileSystemHealthCheck(
                 name="write_check", path=tmpdir, check_write=True
@@ -153,7 +199,13 @@ class TestFileSystemHealthCheck:
 
     @pytest.mark.asyncio
     async def test_write_permission_check_failure(self):
-        """Test write permission check on read-only directory."""
+        """Test write permission check on read-only directory.
+
+        Verifies that the FileSystemHealthCheck detects when directories lack
+        write permissions. This test creates a read-only directory to simulate
+        permission issues that could prevent data updates. Note that on some
+        systems, directory owners may retain write access even with 0o444 permissions.
+        """
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir_path = Path(tmpdir)
             # Create a subdirectory and make it read-only
@@ -179,7 +231,12 @@ class TestExternalAPIHealthCheck:
 
     @pytest.mark.asyncio
     async def test_successful_api_check(self):
-        """Test successful API health check."""
+        """Test successful API health check.
+
+        Verifies that the ExternalAPIHealthCheck correctly validates external
+        API availability by checking HTTP response codes. This ensures proper
+        monitoring of dependencies like the Helsinki WFS service and Azure APIs.
+        """
         with patch("aiohttp.ClientSession") as mock_session:
             mock_response = AsyncMock()
             mock_response.status = 200
@@ -196,7 +253,12 @@ class TestExternalAPIHealthCheck:
 
     @pytest.mark.asyncio
     async def test_api_unexpected_status(self):
-        """Test API returning unexpected status code."""
+        """Test API returning unexpected status code.
+
+        Verifies that the ExternalAPIHealthCheck detects when external APIs
+        return error status codes (like 500). The check returns unhealthy status
+        and includes both actual and expected status codes in metadata for debugging.
+        """
         with patch("aiohttp.ClientSession") as mock_session:
             mock_response = AsyncMock()
             mock_response.status = 500
@@ -216,7 +278,12 @@ class TestExternalAPIHealthCheck:
 
     @pytest.mark.asyncio
     async def test_api_connection_error(self):
-        """Test API connection error handling."""
+        """Test API connection error handling.
+
+        Verifies that the ExternalAPIHealthCheck gracefully handles network-level
+        connection failures. This ensures that transient network issues don't crash
+        the health check system and are properly reported as unhealthy status.
+        """
         with patch("aiohttp.ClientSession") as mock_session:
             mock_session.return_value.__aenter__.return_value.request.side_effect = (
                 aiohttp.ClientError("Connection failed")
@@ -232,7 +299,13 @@ class TestExternalAPIHealthCheck:
 
     @pytest.mark.asyncio
     async def test_circuit_breaker_opens(self):
-        """Test that circuit breaker opens after threshold failures."""
+        """Test that circuit breaker opens after threshold failures.
+
+        Verifies the circuit breaker pattern implementation by checking that
+        after the configured failure threshold is reached, the circuit opens
+        and subsequent checks return degraded status without attempting actual
+        API calls. This protects the system from repeatedly calling failing services.
+        """
         check = ExternalAPIHealthCheck(
             name="api_check",
             url="https://api.example.com/health",
@@ -265,7 +338,12 @@ class TestExternalAPIHealthCheck:
 
     @pytest.mark.asyncio
     async def test_circuit_breaker_resets_on_success(self):
-        """Test that circuit breaker resets on successful check."""
+        """Test that circuit breaker resets on successful check.
+
+        Verifies that the circuit breaker properly resets its failure count
+        when a health check succeeds after previous failures. This allows the
+        system to recover automatically when external services come back online.
+        """
         check = ExternalAPIHealthCheck(
             name="api_check",
             url="https://api.example.com/health",
@@ -289,7 +367,12 @@ class TestExternalAPIHealthCheck:
 
     @pytest.mark.asyncio
     async def test_custom_http_method_and_headers(self):
-        """Test custom HTTP method and headers."""
+        """Test custom HTTP method and headers.
+
+        Verifies that the ExternalAPIHealthCheck correctly passes custom HTTP
+        methods and headers to the underlying HTTP client. This is important
+        for APIs that require authentication tokens or specific request methods.
+        """
         with patch("aiohttp.ClientSession") as mock_session:
             mock_response = AsyncMock()
             mock_response.status = 200
@@ -313,7 +396,13 @@ class TestExternalAPIHealthCheck:
 
     @pytest.mark.asyncio
     async def test_circuit_breaker_half_open_state(self):
-        """Test circuit breaker half-open state behavior."""
+        """Test circuit breaker half-open state behavior.
+
+        Verifies the circuit breaker's half-open state transition, which occurs
+        after the timeout period expires following an open circuit. In half-open
+        state, the system attempts one test request, and if successful, closes
+        the circuit to resume normal operation.
+        """
         check = ExternalAPIHealthCheck(
             name="api_check",
             url="https://api.example.com/health",
@@ -344,7 +433,12 @@ class TestExternalAPIHealthCheck:
 
     @pytest.mark.asyncio
     async def test_circuit_breaker_half_open_failure(self):
-        """Test circuit breaker re-opening from half-open state."""
+        """Test circuit breaker re-opening from half-open state.
+
+        Verifies that if the test request fails during the half-open state,
+        the circuit breaker immediately reopens to continue protecting the
+        system. This prevents premature recovery when services are still unstable.
+        """
         check = ExternalAPIHealthCheck(
             name="api_check",
             url="https://api.example.com/health",
@@ -375,7 +469,13 @@ class TestConcurrentHealthChecks:
 
     @pytest.mark.asyncio
     async def test_multiple_concurrent_checks(self):
-        """Test running multiple health checks concurrently."""
+        """Test running multiple health checks concurrently.
+
+        Verifies that multiple health checks can execute simultaneously without
+        blocking each other. This tests that asyncio.gather properly parallelizes
+        checks, completing in the time of the slowest check rather than the sum
+        of all check durations, which is crucial for fast health endpoint responses.
+        """
         results_list = []
 
         class DelayedHealthCheck(HealthCheck):
@@ -421,7 +521,13 @@ class TestConcurrentHealthChecks:
 
     @pytest.mark.asyncio
     async def test_concurrent_cache_access(self):
-        """Test that concurrent access to cached results works correctly."""
+        """Test that concurrent access to cached results works correctly.
+
+        Verifies that when multiple concurrent requests access the same cached
+        health check result, they all receive the cached value without triggering
+        additional check executions. This ensures efficient resource usage during
+        high-frequency health check polling.
+        """
         call_count = 0
 
         class CountingHealthCheck(HealthCheck):
@@ -450,7 +556,13 @@ class TestConcurrentHealthChecks:
 
     @pytest.mark.asyncio
     async def test_concurrent_filesystem_checks(self):
-        """Test concurrent filesystem health checks."""
+        """Test concurrent filesystem health checks.
+
+        Verifies that multiple filesystem health checks can safely execute
+        concurrently on the same directory without conflicts or race conditions.
+        This is important when checking multiple paths or performing write
+        permission tests simultaneously.
+        """
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create multiple filesystem checks
             checks = [
