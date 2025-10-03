@@ -27,6 +27,24 @@ from influxdb_client.client.exceptions import InfluxDBError
 logger = Logger(__name__, level=logging.INFO)
 
 
+def _format_time_range(hours: float) -> dict:
+    """
+    Format time range for queries and error messages.
+
+    Args:
+        hours: Number of hours back from current time
+
+    Returns:
+        Dictionary with 'start' and 'end' ISO format timestamps
+    """
+    now = datetime.now(UTC)
+    start_time = now.timestamp() - (hours * 3600)
+    return {
+        "start": datetime.fromtimestamp(start_time, UTC).isoformat(),
+        "end": now.isoformat(),
+    }
+
+
 class InfluxDBConnectionManager:
     """Manages shared InfluxDB connections for health checks."""
 
@@ -215,10 +233,7 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
                 query_api = client.query_api()
 
                 # Calculate time range for better error messages
-                now = datetime.now(UTC)
-                start_time = now.timestamp() - (self.data_freshness_hours * 3600)
-                start_time_str = datetime.fromtimestamp(start_time, UTC).isoformat()
-                end_time_str = now.isoformat()
+                time_range = _format_time_range(self.data_freshness_hours)
 
                 query = f"""
                 from(bucket: "{self.bucket}")
@@ -233,7 +248,7 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
 
                     if has_recent_data:
                         logger.debug(
-                            f"FCD database health check passed: data found in time range {start_time_str} to {end_time_str}"
+                            f"FCD database health check passed: data found in time range {time_range['start']} to {time_range['end']}"
                         )
                         return HealthCheckResult(
                             status="healthy",
@@ -242,14 +257,11 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
                                 "bucket": self.bucket,
                                 "has_recent_data": True,
                                 "data_freshness_hours": self.data_freshness_hours,
-                                "query_time_range": {
-                                    "start": start_time_str,
-                                    "end": end_time_str,
-                                },
+                                "query_time_range": time_range,
                             },
                         )
                     else:
-                        warning_msg = f"FCD database accessible but no data in last {self.data_freshness_hours} hours (queried from {start_time_str} to {end_time_str})"
+                        warning_msg = f"FCD database accessible but no data in last {self.data_freshness_hours} hours (queried from {time_range['start']} to {time_range['end']})"
                         logger.warning(warning_msg)
                         return HealthCheckResult(
                             status="degraded",
@@ -258,15 +270,12 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
                                 "bucket": self.bucket,
                                 "has_recent_data": False,
                                 "data_freshness_hours": self.data_freshness_hours,
-                                "query_time_range": {
-                                    "start": start_time_str,
-                                    "end": end_time_str,
-                                },
+                                "query_time_range": time_range,
                             },
                         )
                 except InfluxDBError as query_error:
                     # Specific InfluxDB errors
-                    error_msg = f"InfluxDB query failed for bucket '{self.bucket}' (time range: {start_time_str} to {end_time_str}): {str(query_error)}"
+                    error_msg = f"InfluxDB query failed for bucket '{self.bucket}' (time range: {time_range['start']} to {time_range['end']}): {str(query_error)}"
                     logger.error(error_msg, exc_info=True)
                     return HealthCheckResult(
                         status="unhealthy",
@@ -274,16 +283,13 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
                         metadata={
                             "bucket": self.bucket,
                             "error_type": "InfluxDBError",
-                            "query_time_range": {
-                                "start": start_time_str,
-                                "end": end_time_str,
-                            },
+                            "query_time_range": time_range,
                             "error_details": str(query_error),
                         },
                     )
                 except Exception as query_error:
                     # Other unexpected errors
-                    error_msg = f"Unexpected error querying FCD bucket '{self.bucket}' (time range: {start_time_str} to {end_time_str}): {str(query_error)}"
+                    error_msg = f"Unexpected error querying FCD bucket '{self.bucket}' (time range: {time_range['start']} to {time_range['end']}): {str(query_error)}"
                     logger.error(error_msg, exc_info=True)
                     return HealthCheckResult(
                         status="unhealthy",
@@ -291,10 +297,7 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
                         metadata={
                             "bucket": self.bucket,
                             "error_type": type(query_error).__name__,
-                            "query_time_range": {
-                                "start": start_time_str,
-                                "end": end_time_str,
-                            },
+                            "query_time_range": time_range,
                             "error_details": str(query_error),
                         },
                     )
@@ -400,10 +403,7 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
                     query_api = client.query_api()
 
                     # Calculate time range for better error messages
-                    now = datetime.now(UTC)
-                    start_time = now.timestamp() - (24 * 3600)  # 24 hours
-                    start_time_str = datetime.fromtimestamp(start_time, UTC).isoformat()
-                    end_time_str = now.isoformat()
+                    time_range = _format_time_range(24)  # 24 hours
 
                     query = f"""
                     from(bucket: "{self.bucket}")
@@ -437,15 +437,12 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
                                     if last_write_time
                                     else None
                                 ),
-                                "query_time_range": {
-                                    "start": start_time_str,
-                                    "end": end_time_str,
-                                },
+                                "query_time_range": time_range,
                             },
                         )
                     except InfluxDBError as query_error:
                         # InfluxDB specific errors - could indicate permission or configuration issues
-                        error_msg = f"Validation database query warning for bucket '{self.bucket}' (time range: {start_time_str} to {end_time_str}): {str(query_error)}"
+                        error_msg = f"Validation database query warning for bucket '{self.bucket}' (time range: {time_range['start']} to {time_range['end']}): {str(query_error)}"
                         logger.warning(error_msg)
                         return HealthCheckResult(
                             status="degraded",
@@ -454,16 +451,13 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
                                 "bucket": self.bucket,
                                 "note": "Database accessible but query failed",
                                 "error_type": "InfluxDBError",
-                                "query_time_range": {
-                                    "start": start_time_str,
-                                    "end": end_time_str,
-                                },
+                                "query_time_range": time_range,
                                 "error_details": str(query_error),
                             },
                         )
                     except Exception as query_error:
                         # Other errors - treat as accessible but empty
-                        logger.info(
+                        logger.warning(
                             f"Validation database accessible but no recent data in bucket '{self.bucket}'"
                         )
                         return HealthCheckResult(
@@ -473,10 +467,7 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
                                 "bucket": self.bucket,
                                 "note": "Database may be empty",
                                 "error_type": type(query_error).__name__,
-                                "query_time_range": {
-                                    "start": start_time_str,
-                                    "end": end_time_str,
-                                },
+                                "query_time_range": time_range,
                             },
                         )
 
