@@ -17,8 +17,13 @@ from idea_shared.health.checks import (
 )
 from idea_shared.health.models import HealthCheckResult
 from idea_shared.lib.Constants.Constants import (
+    DISTURBANCE_DATA_MAX_AGE_MINUTES,
     HEALTH_CHECK_FCD_DATABASE,
     HEALTH_CHECK_VALIDATION_DATABASE,
+    INFLUXDB_CONNECTION_TTL_SECONDS,
+    INFLUXDB_MAX_CONNECTIONS,
+    INFLUXDB_PING_CACHE_TTL_SECONDS,
+    WORKER_HEALTH_THRESHOLD_PERCENT,
 )
 from influxdb_client import InfluxDBClient
 from influxdb_client.client.exceptions import InfluxDBError
@@ -50,8 +55,8 @@ class InfluxDBConnectionManager:
 
     _instances: dict[str, "InfluxDBConnectionManager"] = {}
     _lock = asyncio.Lock()
-    MAX_CONNECTIONS = 10  # Maximum number of connection managers
-    CONNECTION_TTL_SECONDS = 3600  # Time to keep unused connections (1 hour)
+    MAX_CONNECTIONS = INFLUXDB_MAX_CONNECTIONS
+    CONNECTION_TTL_SECONDS = INFLUXDB_CONNECTION_TTL_SECONDS
 
     def __init__(self, url: str, token: str, org: str, cache_ttl: int | None = None):
         self.url = url
@@ -59,7 +64,7 @@ class InfluxDBConnectionManager:
         self.org = org
         self._client: InfluxDBClient | None = None
         self._last_ping_time: datetime | None = None
-        self._ping_cache_ttl = cache_ttl or 5  # seconds
+        self._ping_cache_ttl = cache_ttl or INFLUXDB_PING_CACHE_TTL_SECONDS
         self._last_access_time = datetime.now(UTC)
         self._client_lock = asyncio.Lock()
 
@@ -496,7 +501,7 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
     def __init__(
         self,
         file_path: str,
-        max_age_minutes: int = 120,
+        max_age_minutes: int = DISTURBANCE_DATA_MAX_AGE_MINUTES,
         critical: bool = False,
         name: str = "disturbance_data",
     ):
@@ -674,7 +679,7 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
 class WorkerStatusHealthCheck(HealthCheck):
     """Monitor status of road segment worker tasks."""
 
-    def __init__(self, manager, health_threshold_percent: float = 80.0):
+    def __init__(self, manager, health_threshold_percent: float = WORKER_HEALTH_THRESHOLD_PERCENT):
         """
         Initialize worker status health check.
 
