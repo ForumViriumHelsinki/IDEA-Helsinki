@@ -593,6 +593,74 @@ class TestInfluxDBConnectionManager:
         # Clean up
         await InfluxDBConnectionManager.cleanup_all()
 
+    @pytest.mark.asyncio
+    async def test_context_manager_protocol(self):
+        """Test that InfluxDBConnectionManager supports async context manager protocol."""
+        url = "http://localhost:8086"
+        token = "test_token"
+        org = "test_org"
+
+        # Get instance
+        manager = await InfluxDBConnectionManager.get_instance(url, token, org)
+
+        # Use as async context manager
+        async with manager:
+            # Should be able to use manager inside context
+            assert manager.url == url
+            assert manager.org == org
+
+        # Manager should still be accessible after context (singleton pattern)
+        assert manager.url == url
+
+        # Clean up
+        await InfluxDBConnectionManager.cleanup_all()
+
+    @pytest.mark.asyncio
+    async def test_context_manager_with_exception(self):
+        """Test that context manager properly handles exceptions."""
+        url = "http://localhost:8086"
+        token = "test_token"
+        org = "test_org"
+
+        manager = await InfluxDBConnectionManager.get_instance(url, token, org)
+
+        # Test that exceptions are propagated
+        with pytest.raises(ValueError, match="Test exception"):
+            async with manager:
+                raise ValueError("Test exception")
+
+        # Manager should still be in singleton cache after exception
+        manager2 = await InfluxDBConnectionManager.get_instance(url, token, org)
+        assert manager is manager2
+
+        # Clean up
+        await InfluxDBConnectionManager.cleanup_all()
+
+    @pytest.mark.asyncio
+    async def test_health_check_with_context_manager_exception(self):
+        """Test that health checks handle exceptions within context manager properly."""
+        with patch("src.health_checks.InfluxDBClient") as mock_client:
+            # Setup mocks to raise exception
+            mock_instance = MagicMock()
+            mock_client.return_value = mock_instance
+            mock_instance.ping.side_effect = Exception("Connection error")
+
+            check = FCDDatabaseHealthCheck(
+                url="http://localhost:8086",
+                token="test_token",
+                org="test_org",
+                bucket="test_bucket",
+            )
+
+            result = await check.check()
+
+            # Should handle exception and return unhealthy status
+            assert result.status == "unhealthy"
+            assert "failed" in result.message.lower()
+
+        # Clean up
+        await InfluxDBConnectionManager.cleanup_all()
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

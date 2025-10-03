@@ -147,6 +147,17 @@ class InfluxDBConnectionManager:
             self._client.close()
             self._client = None
 
+    async def __aenter__(self) -> "InfluxDBConnectionManager":
+        """Async context manager entry."""
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Async context manager exit with proper cleanup."""
+        # Note: We don't close the connection here as it's managed by the singleton pattern
+        # The connection manager reuses connections across multiple health checks
+        # Cleanup is handled by cleanup_all() or _cleanup_stale_connections()
+        pass
+
 
 class FCDDatabaseHealthCheck(DatabaseHealthCheck):
     """Check InfluxDB FCD bucket connectivity and data availability."""
@@ -204,105 +215,106 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
     async def check(self) -> HealthCheckResult:
         """Check FCD database connectivity and data freshness."""
         try:
-            # Get shared connection manager
+            # Get shared connection manager and use as context manager
             conn_manager = await InfluxDBConnectionManager.get_instance(
                 self.url, self.token, self.org, self._cache_ttl
             )
 
-            # Test connection with ping
-            if not await conn_manager.ping():
-                error_msg = f"Failed to ping InfluxDB FCD bucket at {self.url}"
-                logger.error(
-                    f"FCD database connection failure: {error_msg}",
-                    exc_info=False,
-                )
-                return HealthCheckResult(
-                    status="unhealthy",
-                    message=error_msg,
-                    metadata={
-                        "url": self.url,
-                        "bucket": self.bucket,
-                        "org": self.org,
-                        "error_type": "connection_failure",
-                    },
-                )
-
-            async def _check_data():
-                # Query for recent data to verify bucket access and data availability
-                client = await conn_manager.get_client()
-                query_api = client.query_api()
-
-                # Calculate time range for better error messages
-                time_range = _format_time_range(self.data_freshness_hours)
-
-                query = f"""
-                from(bucket: "{self.bucket}")
-                    |> range(start: -{self.data_freshness_hours}h)
-                    |> filter(fn: (r) => r["_measurement"] == "fcd_segment")
-                    |> limit(n: 1)
-                """
-
-                try:
-                    tables = query_api.query(query=query, org=self.org)
-                    has_recent_data = any(len(table.records) > 0 for table in tables)
-
-                    if has_recent_data:
-                        logger.debug(
-                            f"FCD database health check passed: data found in time range {time_range['start']} to {time_range['end']}"
-                        )
-                        return HealthCheckResult(
-                            status="healthy",
-                            message="FCD database is accessible and contains recent data",
-                            metadata={
-                                "bucket": self.bucket,
-                                "has_recent_data": True,
-                                "data_freshness_hours": self.data_freshness_hours,
-                                "query_time_range": time_range,
-                            },
-                        )
-                    else:
-                        warning_msg = f"FCD database accessible but no data in last {self.data_freshness_hours} hours (queried from {time_range['start']} to {time_range['end']})"
-                        logger.warning(warning_msg)
-                        return HealthCheckResult(
-                            status="degraded",
-                            message=warning_msg,
-                            metadata={
-                                "bucket": self.bucket,
-                                "has_recent_data": False,
-                                "data_freshness_hours": self.data_freshness_hours,
-                                "query_time_range": time_range,
-                            },
-                        )
-                except InfluxDBError as query_error:
-                    # Specific InfluxDB errors
-                    error_msg = f"InfluxDB query failed for bucket '{self.bucket}' (time range: {time_range['start']} to {time_range['end']}): {str(query_error)}"
-                    logger.error(error_msg, exc_info=True)
+            async with conn_manager:
+                # Test connection with ping
+                if not await conn_manager.ping():
+                    error_msg = f"Failed to ping InfluxDB FCD bucket at {self.url}"
+                    logger.error(
+                        f"FCD database connection failure: {error_msg}",
+                        exc_info=False,
+                    )
                     return HealthCheckResult(
                         status="unhealthy",
                         message=error_msg,
                         metadata={
+                            "url": self.url,
                             "bucket": self.bucket,
-                            "error_type": "InfluxDBError",
-                            "query_time_range": time_range,
-                            "error_details": str(query_error),
-                        },
-                    )
-                except Exception as query_error:
-                    # Other unexpected errors
-                    error_msg = f"Unexpected error querying FCD bucket '{self.bucket}' (time range: {time_range['start']} to {time_range['end']}): {str(query_error)}"
-                    logger.error(error_msg, exc_info=True)
-                    return HealthCheckResult(
-                        status="unhealthy",
-                        message=error_msg,
-                        metadata={
-                            "bucket": self.bucket,
-                            "error_type": type(query_error).__name__,
-                            "query_time_range": time_range,
-                            "error_details": str(query_error),
+                            "org": self.org,
+                            "error_type": "connection_failure",
                         },
                     )
 
-            return await _check_data()
+                async def _check_data():
+                    # Query for recent data to verify bucket access and data availability
+                    client = await conn_manager.get_client()
+                    query_api = client.query_api()
+
+                    # Calculate time range for better error messages
+                    time_range = _format_time_range(self.data_freshness_hours)
+
+                    query = f"""
+                    from(bucket: "{self.bucket}")
+                        |> range(start: -{self.data_freshness_hours}h)
+                        |> filter(fn: (r) => r["_measurement"] == "fcd_segment")
+                        |> limit(n: 1)
+                    """
+
+                    try:
+                        tables = query_api.query(query=query, org=self.org)
+                        has_recent_data = any(len(table.records) > 0 for table in tables)
+
+                        if has_recent_data:
+                            logger.debug(
+                                f"FCD database health check passed: data found in time range {time_range['start']} to {time_range['end']}"
+                            )
+                            return HealthCheckResult(
+                                status="healthy",
+                                message="FCD database is accessible and contains recent data",
+                                metadata={
+                                    "bucket": self.bucket,
+                                    "has_recent_data": True,
+                                    "data_freshness_hours": self.data_freshness_hours,
+                                    "query_time_range": time_range,
+                                },
+                            )
+                        else:
+                            warning_msg = f"FCD database accessible but no data in last {self.data_freshness_hours} hours (queried from {time_range['start']} to {time_range['end']})"
+                            logger.warning(warning_msg)
+                            return HealthCheckResult(
+                                status="degraded",
+                                message=warning_msg,
+                                metadata={
+                                    "bucket": self.bucket,
+                                    "has_recent_data": False,
+                                    "data_freshness_hours": self.data_freshness_hours,
+                                    "query_time_range": time_range,
+                                },
+                            )
+                    except InfluxDBError as query_error:
+                        # Specific InfluxDB errors
+                        error_msg = f"InfluxDB query failed for bucket '{self.bucket}' (time range: {time_range['start']} to {time_range['end']}): {str(query_error)}"
+                        logger.error(error_msg, exc_info=True)
+                        return HealthCheckResult(
+                            status="unhealthy",
+                            message=error_msg,
+                            metadata={
+                                "bucket": self.bucket,
+                                "error_type": "InfluxDBError",
+                                "query_time_range": time_range,
+                                "error_details": str(query_error),
+                            },
+                        )
+                    except Exception as query_error:
+                        # Other unexpected errors
+                        error_msg = f"Unexpected error querying FCD bucket '{self.bucket}' (time range: {time_range['start']} to {time_range['end']}): {str(query_error)}"
+                        logger.error(error_msg, exc_info=True)
+                        return HealthCheckResult(
+                            status="unhealthy",
+                            message=error_msg,
+                            metadata={
+                                "bucket": self.bucket,
+                                "error_type": type(query_error).__name__,
+                                "query_time_range": time_range,
+                                "error_details": str(query_error),
+                            },
+                        )
+
+                return await _check_data()
 
         except Exception as e:
             error_msg = f"FCD database check failed: {str(e)}"
@@ -374,104 +386,105 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
         try:
 
             async def _check_connection():
-                # Get shared connection manager
+                # Get shared connection manager and use as context manager
                 conn_manager = await InfluxDBConnectionManager.get_instance(
                     self.url, self.token, self.org, self._cache_ttl
                 )
 
-                # Test connection with ping
-                if not await conn_manager.ping():
-                    error_msg = f"Failed to ping InfluxDB validation bucket at {self.url}"
-                    logger.error(
-                        f"Validation database connection failure: {error_msg}",
-                        exc_info=False,
-                    )
-                    return HealthCheckResult(
-                        status="unhealthy",
-                        message=error_msg,
-                        metadata={
-                            "url": self.url,
-                            "bucket": self.bucket,
-                            "org": self.org,
-                            "error_type": "connection_failure",
-                        },
-                    )
-
-                async def _check_data():
-                    # Query for recent validation results
-                    client = await conn_manager.get_client()
-                    query_api = client.query_api()
-
-                    # Calculate time range for better error messages
-                    time_range = _format_time_range(24)  # 24 hours
-
-                    query = f"""
-                    from(bucket: "{self.bucket}")
-                        |> range(start: -24h)
-                        |> filter(fn: (r) => r["_measurement"] == "validation_result")
-                        |> limit(n: 1)
-                    """
-
-                    try:
-                        tables = query_api.query(query=query, org=self.org)
-                        last_write_time = None
-
-                        for table in tables:
-                            for record in table.records:
-                                if record.get_time():
-                                    last_write_time = record.get_time()
-                                    break
-                            if last_write_time:
-                                break
-
-                        logger.debug(
-                            f"Validation database health check passed: bucket '{self.bucket}' accessible"
+                async with conn_manager:
+                    # Test connection with ping
+                    if not await conn_manager.ping():
+                        error_msg = f"Failed to ping InfluxDB validation bucket at {self.url}"
+                        logger.error(
+                            f"Validation database connection failure: {error_msg}",
+                            exc_info=False,
                         )
                         return HealthCheckResult(
-                            status="healthy",
-                            message="Validation database is accessible",
-                            metadata={
-                                "bucket": self.bucket,
-                                "last_write": (
-                                    last_write_time.isoformat()
-                                    if last_write_time
-                                    else None
-                                ),
-                                "query_time_range": time_range,
-                            },
-                        )
-                    except InfluxDBError as query_error:
-                        # InfluxDB specific errors - could indicate permission or configuration issues
-                        error_msg = f"Validation database query warning for bucket '{self.bucket}' (time range: {time_range['start']} to {time_range['end']}): {str(query_error)}"
-                        logger.warning(error_msg)
-                        return HealthCheckResult(
-                            status="degraded",
+                            status="unhealthy",
                             message=error_msg,
                             metadata={
+                                "url": self.url,
                                 "bucket": self.bucket,
-                                "note": "Database accessible but query failed",
-                                "error_type": "InfluxDBError",
-                                "query_time_range": time_range,
-                                "error_details": str(query_error),
-                            },
-                        )
-                    except Exception as query_error:
-                        # Other errors - treat as accessible but empty
-                        logger.warning(
-                            f"Validation database accessible but no recent data in bucket '{self.bucket}'"
-                        )
-                        return HealthCheckResult(
-                            status="healthy",
-                            message="Validation database is accessible (no recent data)",
-                            metadata={
-                                "bucket": self.bucket,
-                                "note": "Database may be empty",
-                                "error_type": type(query_error).__name__,
-                                "query_time_range": time_range,
+                                "org": self.org,
+                                "error_type": "connection_failure",
                             },
                         )
 
-                return await _check_data()
+                    async def _check_data():
+                        # Query for recent validation results
+                        client = await conn_manager.get_client()
+                        query_api = client.query_api()
+
+                        # Calculate time range for better error messages
+                        time_range = _format_time_range(24)  # 24 hours
+
+                        query = f"""
+                        from(bucket: "{self.bucket}")
+                            |> range(start: -24h)
+                            |> filter(fn: (r) => r["_measurement"] == "validation_result")
+                            |> limit(n: 1)
+                        """
+
+                        try:
+                            tables = query_api.query(query=query, org=self.org)
+                            last_write_time = None
+
+                            for table in tables:
+                                for record in table.records:
+                                    if record.get_time():
+                                        last_write_time = record.get_time()
+                                        break
+                                if last_write_time:
+                                    break
+
+                            logger.debug(
+                                f"Validation database health check passed: bucket '{self.bucket}' accessible"
+                            )
+                            return HealthCheckResult(
+                                status="healthy",
+                                message="Validation database is accessible",
+                                metadata={
+                                    "bucket": self.bucket,
+                                    "last_write": (
+                                        last_write_time.isoformat()
+                                        if last_write_time
+                                        else None
+                                    ),
+                                    "query_time_range": time_range,
+                                },
+                            )
+                        except InfluxDBError as query_error:
+                            # InfluxDB specific errors - could indicate permission or configuration issues
+                            error_msg = f"Validation database query warning for bucket '{self.bucket}' (time range: {time_range['start']} to {time_range['end']}): {str(query_error)}"
+                            logger.warning(error_msg)
+                            return HealthCheckResult(
+                                status="degraded",
+                                message=error_msg,
+                                metadata={
+                                    "bucket": self.bucket,
+                                    "note": "Database accessible but query failed",
+                                    "error_type": "InfluxDBError",
+                                    "query_time_range": time_range,
+                                    "error_details": str(query_error),
+                                },
+                            )
+                        except Exception as query_error:
+                            # Other errors - treat as accessible but empty
+                            logger.warning(
+                                f"Validation database accessible but no recent data in bucket '{self.bucket}'"
+                            )
+                            return HealthCheckResult(
+                                status="healthy",
+                                message="Validation database is accessible (no recent data)",
+                                metadata={
+                                    "bucket": self.bucket,
+                                    "note": "Database may be empty",
+                                    "error_type": type(query_error).__name__,
+                                    "query_time_range": time_range,
+                                },
+                            )
+
+                    return await _check_data()
 
             return await _check_connection()
 
