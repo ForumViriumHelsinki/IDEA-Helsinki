@@ -661,7 +661,7 @@ class TestInfluxDBConnectionManager:
             assert "url" in metrics
             assert "usage_count" in metrics
             assert "ping_count" in metrics
-            assert "query_count" in metrics
+            assert "client_access_count" in metrics
             assert "health_score" in metrics
             assert metrics["url"] == url
             assert metrics["org"] == org
@@ -707,6 +707,38 @@ class TestInfluxDBConnectionManager:
                     assert (
                         metrics["ping_success_rate"] < 1.0
                     ), "Failed pings should reduce success rate"
+
+        finally:
+            await InfluxDBConnectionManager.cleanup_all()
+
+    @pytest.mark.asyncio
+    async def test_concurrent_metric_updates(self):
+        """Test that concurrent access updates metrics correctly (thread-safe)."""
+        url = "http://localhost:8086"
+        token = "test_token"
+        org = "test_org"
+
+        try:
+            # Create multiple concurrent requests to the same connection
+            tasks = []
+            num_concurrent_requests = 50
+
+            for _ in range(num_concurrent_requests):
+                tasks.append(
+                    InfluxDBConnectionManager.get_instance(url, token, org)
+                )
+
+            # Execute all concurrently
+            managers = await asyncio.gather(*tasks)
+
+            # Should all be the same instance
+            assert all(m is managers[0] for m in managers)
+
+            # Get metrics and verify usage count matches the number of requests
+            metrics = managers[0].get_metrics()
+            assert (
+                metrics["usage_count"] == num_concurrent_requests
+            ), f"Expected {num_concurrent_requests} usages, got {metrics['usage_count']}"
 
         finally:
             await InfluxDBConnectionManager.cleanup_all()

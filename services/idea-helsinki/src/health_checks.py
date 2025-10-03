@@ -53,6 +53,17 @@ class InfluxDBConnectionManager:
     MAX_CONNECTIONS = 10  # Maximum number of connection managers
     CONNECTION_TTL_SECONDS = 3600  # Time to keep unused connections (1 hour)
 
+    # Scoring algorithm constants
+    USAGE_NORMALIZATION_FACTOR = 10  # 1 use per 10 seconds = high usage
+    RECENCY_DECAY_SECONDS = 3600  # 1 hour decay window
+    AGE_PENALTY_THRESHOLD = 7200  # 2 hours for max age penalty
+    MAX_AGE_PENALTY = 0.2
+
+    # Score weights
+    WEIGHT_USAGE = 0.4
+    WEIGHT_HEALTH = 0.3
+    WEIGHT_RECENCY = 0.2
+
     def __init__(self, url: str, token: str, org: str, cache_ttl: int | None = None):
         self.url = url
         self.token = token
@@ -68,9 +79,8 @@ class InfluxDBConnectionManager:
         self._usage_count = 0  # Total number of times this connection was used
         self._ping_count = 0  # Total pings attempted
         self._failed_ping_count = 0  # Failed pings
-        self._query_count = 0  # Approximate query count (tracked via get_client calls)
+        self._client_access_count = 0  # Number of times get_client was called
         self._last_successful_operation: datetime | None = None  # Last successful ping/query
-        self._health_score = 1.0  # Connection health score (0.0 to 1.0)
 
     def _calculate_score(self) -> float:
         """
@@ -91,8 +101,10 @@ class InfluxDBConnectionManager:
         connection_age_seconds = (now - self._created_at).total_seconds()
         if connection_age_seconds > 0:
             usage_per_second = self._usage_count / connection_age_seconds
-            # Normalize to 0-1 range (assume 1 use per 10 seconds is high usage)
-            usage_score = min(usage_per_second * 10, 1.0)
+            # Normalize to 0-1 range
+            usage_score = min(
+                usage_per_second * self.USAGE_NORMALIZATION_FACTOR, 1.0
+            )
         else:
             usage_score = 0.0
 
@@ -109,19 +121,24 @@ class InfluxDBConnectionManager:
         # Component 3: Recency of successful operations (0.0 to 1.0)
         if self._last_successful_operation:
             time_since_success = (now - self._last_successful_operation).total_seconds()
-            # Decay over 1 hour: fresh operations get higher score
-            recency_score = max(0.0, 1.0 - (time_since_success / 3600))
+            # Decay over configured time window
+            recency_score = max(
+                0.0, 1.0 - (time_since_success / self.RECENCY_DECAY_SECONDS)
+            )
         else:
             recency_score = 0.0
 
         # Component 4: Connection age penalty (prefer newer connections slightly)
-        # Connections older than 1 hour get slight penalty
-        age_penalty = min(connection_age_seconds / 7200, 0.2)  # Max 0.2 penalty
+        age_penalty = min(
+            connection_age_seconds / self.AGE_PENALTY_THRESHOLD, self.MAX_AGE_PENALTY
+        )
 
         # Weighted combination
-        # Usage: 40%, Health: 30%, Recency: 20%, Age penalty: 10%
         total_score = (
-            usage_score * 0.4 + health_score * 0.3 + recency_score * 0.2 - age_penalty
+            usage_score * self.WEIGHT_USAGE
+            + health_score * self.WEIGHT_HEALTH
+            + recency_score * self.WEIGHT_RECENCY
+            - age_penalty
         )
 
         return max(0.0, min(total_score, 1.0))
@@ -155,7 +172,7 @@ class InfluxDBConnectionManager:
 
                 cls._instances[key] = cls(url, token, org, cache_ttl)
 
-            # Update last access time and usage count
+            # Update last access time and usage count (inside lock to prevent race condition)
             instance = cls._instances[key]
             instance._last_access_time = datetime.now(UTC)
             instance._usage_count += 1
@@ -185,14 +202,14 @@ class InfluxDBConnectionManager:
             cls._instances.clear()
 
     async def get_client(self) -> InfluxDBClient:
-        """Get or create a client instance (thread-safe) and track query metrics."""
+        """Get or create a client instance (thread-safe) and track client access metrics."""
         async with self._client_lock:
             if self._client is None:
                 self._client = InfluxDBClient(
                     url=self.url, token=self.token, org=self.org
                 )
             self._last_access_time = datetime.now(UTC)
-            self._query_count += 1
+            self._client_access_count += 1
             return self._client
 
     async def ping(self) -> bool:
@@ -238,7 +255,7 @@ class InfluxDBConnectionManager:
             "usage_count": self._usage_count,
             "ping_count": self._ping_count,
             "failed_ping_count": self._failed_ping_count,
-            "query_count": self._query_count,
+            "client_access_count": self._client_access_count,
             "last_access": self._last_access_time.isoformat(),
             "last_successful_operation": (
                 self._last_successful_operation.isoformat()
