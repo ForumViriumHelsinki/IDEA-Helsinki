@@ -217,6 +217,7 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
                     exc_info=False,
                 )
                 return HealthCheckResult(
+                    name=self.name,
                     status="unhealthy",
                     message=error_msg,
                     metadata={
@@ -251,6 +252,7 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
                             f"FCD database health check passed: data found in time range {time_range['start']} to {time_range['end']}"
                         )
                         return HealthCheckResult(
+                            name=self.name,
                             status="healthy",
                             message="FCD database is accessible and contains recent data",
                             metadata={
@@ -264,6 +266,7 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
                         warning_msg = f"FCD database accessible but no data in last {self.data_freshness_hours} hours (queried from {time_range['start']} to {time_range['end']})"
                         logger.warning(warning_msg)
                         return HealthCheckResult(
+                            name=self.name,
                             status="degraded",
                             message=warning_msg,
                             metadata={
@@ -278,6 +281,7 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
                     error_msg = f"InfluxDB query failed for bucket '{self.bucket}' (time range: {time_range['start']} to {time_range['end']}): {str(query_error)}"
                     logger.error(error_msg, exc_info=True)
                     return HealthCheckResult(
+                        name=self.name,
                         status="unhealthy",
                         message=error_msg,
                         metadata={
@@ -292,6 +296,7 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
                     error_msg = f"Unexpected error querying FCD bucket '{self.bucket}' (time range: {time_range['start']} to {time_range['end']}): {str(query_error)}"
                     logger.error(error_msg, exc_info=True)
                     return HealthCheckResult(
+                        name=self.name,
                         status="unhealthy",
                         message=error_msg,
                         metadata={
@@ -308,6 +313,7 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
             error_msg = f"FCD database check failed: {str(e)}"
             logger.error(error_msg, exc_info=True)
             return HealthCheckResult(
+                name=self.name,
                 status="unhealthy",
                 message=error_msg,
                 metadata={
@@ -381,12 +387,15 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
 
                 # Test connection with ping
                 if not await conn_manager.ping():
-                    error_msg = f"Failed to ping InfluxDB validation bucket at {self.url}"
+                    error_msg = (
+                        f"Failed to ping InfluxDB validation bucket at {self.url}"
+                    )
                     logger.error(
                         f"Validation database connection failure: {error_msg}",
                         exc_info=False,
                     )
                     return HealthCheckResult(
+                        name=self.name,
                         status="unhealthy",
                         message=error_msg,
                         metadata={
@@ -428,6 +437,7 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
                             f"Validation database health check passed: bucket '{self.bucket}' accessible"
                         )
                         return HealthCheckResult(
+                            name=self.name,
                             status="healthy",
                             message="Validation database is accessible",
                             metadata={
@@ -445,6 +455,7 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
                         error_msg = f"Validation database query warning for bucket '{self.bucket}' (time range: {time_range['start']} to {time_range['end']}): {str(query_error)}"
                         logger.warning(error_msg)
                         return HealthCheckResult(
+                            name=self.name,
                             status="degraded",
                             message=error_msg,
                             metadata={
@@ -461,6 +472,7 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
                             f"Validation database accessible but no recent data in bucket '{self.bucket}'"
                         )
                         return HealthCheckResult(
+                            name=self.name,
                             status="healthy",
                             message="Validation database is accessible (no recent data)",
                             metadata={
@@ -479,6 +491,7 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
             error_msg = f"Validation database check failed: {str(e)}"
             logger.error(error_msg, exc_info=True)
             return HealthCheckResult(
+                name=self.name,
                 status="unhealthy",
                 message=error_msg,
                 metadata={
@@ -523,6 +536,7 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
                 error_msg = f"Traffic disturbance data file not found at {self.path}"
                 logger.warning(error_msg)
                 return HealthCheckResult(
+                    name=self.name,
                     status="degraded" if not self.critical else "unhealthy",
                     message=error_msg,
                     metadata={"file_path": self.path},
@@ -546,6 +560,7 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
                         error_msg = f"Invalid disturbance data format in {self.path}: root must be a dictionary"
                         logger.error(error_msg)
                         return HealthCheckResult(
+                            name=self.name,
                             status="unhealthy",
                             message=error_msg,
                             metadata={
@@ -563,6 +578,7 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
                         error_msg = f"Missing required fields in disturbance data at {self.path}: {missing_fields}"
                         logger.error(error_msg)
                         return HealthCheckResult(
+                            name=self.name,
                             status="unhealthy",
                             message=error_msg,
                             metadata={
@@ -585,6 +601,7 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
                         warning_msg = f"Required fields exist but are empty in {self.path}: {empty_fields}"
                         logger.info(warning_msg)
                         return HealthCheckResult(
+                            name=self.name,
                             status="degraded",
                             message=warning_msg,
                             metadata={
@@ -604,6 +621,7 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
                         warning_msg = f"Disturbance data at {self.path} is stale ({file_age_minutes:.0f} minutes old, max: {self.max_age_minutes} minutes)"
                         logger.warning(warning_msg)
                         return HealthCheckResult(
+                            name=self.name,
                             status="degraded",
                             message=warning_msg,
                             metadata={
@@ -618,6 +636,7 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
                         f"Disturbance data health check passed: {self.path} is fresh ({file_age_minutes:.1f} minutes old)"
                     )
                     return HealthCheckResult(
+                        name=self.name,
                         status="healthy",
                         message="Disturbance data is available and fresh",
                         metadata={
@@ -631,9 +650,12 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
                     )
 
                 except json.JSONDecodeError as e:
-                    error_msg = f"Invalid JSON in disturbance data file {self.path}: {str(e)}"
+                    error_msg = (
+                        f"Invalid JSON in disturbance data file {self.path}: {str(e)}"
+                    )
                     logger.error(error_msg)
                     return HealthCheckResult(
+                        name=self.name,
                         status="unhealthy",
                         message=error_msg,
                         metadata={
@@ -643,9 +665,12 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
                         },
                     )
                 except Exception as e:
-                    error_msg = f"Failed to read disturbance data from {self.path}: {str(e)}"
+                    error_msg = (
+                        f"Failed to read disturbance data from {self.path}: {str(e)}"
+                    )
                     logger.error(error_msg, exc_info=True)
                     return HealthCheckResult(
+                        name=self.name,
                         status="unhealthy",
                         message=error_msg,
                         metadata={
@@ -661,6 +686,7 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
             error_msg = f"Disturbance data check failed for {self.path}: {str(e)}"
             logger.error(error_msg, exc_info=True)
             return HealthCheckResult(
+                name=self.name,
                 status="unhealthy",
                 message=error_msg,
                 metadata={
@@ -674,15 +700,21 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
 class WorkerStatusHealthCheck(HealthCheck):
     """Monitor status of road segment worker tasks."""
 
-    def __init__(self, manager, health_threshold_percent: float = 80.0):
+    def __init__(
+        self,
+        manager,
+        health_threshold_percent: float = 80.0,
+        name: str = "worker_status",
+    ):
         """
         Initialize worker status health check.
 
         Args:
             manager: Reference to IdeaHelsinkiManager instance
             health_threshold_percent: Minimum percentage of healthy workers for service health
+            name: Name of the health check
         """
-        super().__init__(critical=False, cache_ttl=5)
+        super().__init__(name=name, critical=False, cache_ttl=5)
         self.manager = manager
         self.health_threshold_percent = health_threshold_percent
 
@@ -695,6 +727,7 @@ class WorkerStatusHealthCheck(HealthCheck):
             if total_workers == 0:
                 # No workers is normal when no disturbances are active
                 return HealthCheckResult(
+                    name=self.name,
                     status="healthy",
                     message="No active workers (no disturbances to process)",
                     metadata={"total_workers": 0, "status": "idle"},
@@ -745,6 +778,7 @@ class WorkerStatusHealthCheck(HealthCheck):
                 logger.error(message)
 
             return HealthCheckResult(
+                name=self.name,
                 status=status,
                 message=message,
                 metadata={
@@ -760,6 +794,7 @@ class WorkerStatusHealthCheck(HealthCheck):
             error_msg = f"Worker status check failed: {str(e)}"
             logger.error(error_msg, exc_info=True)
             return HealthCheckResult(
+                name=self.name,
                 status="unhealthy",
                 message=error_msg,
                 metadata={
@@ -777,6 +812,7 @@ class OrchestratorHealthCheck(HealthCheck):
         manager,
         max_cycle_time_minutes: int = 90,
         deadlock_threshold_minutes: int = 180,
+        name: str = "orchestrator",
     ):
         """
         Initialize orchestrator health check.
@@ -785,8 +821,9 @@ class OrchestratorHealthCheck(HealthCheck):
             manager: Reference to IdeaHelsinkiManager instance
             max_cycle_time_minutes: Maximum expected time for a management cycle
             deadlock_threshold_minutes: Time after which orchestrator is considered deadlocked
+            name: Name of the health check
         """
-        super().__init__(critical=True, cache_ttl=10)
+        super().__init__(name=name, critical=True, cache_ttl=10)
         self.manager = manager
         self.max_cycle_time_minutes = max_cycle_time_minutes
         self.deadlock_threshold_minutes = deadlock_threshold_minutes
@@ -804,6 +841,7 @@ class OrchestratorHealthCheck(HealthCheck):
                     # First check, assume orchestrator just started
                     self.manager.last_cycle_time = current_time
                     return HealthCheckResult(
+                        name=self.name,
                         status="healthy",
                         message="Orchestrator initialized",
                         metadata={
@@ -824,6 +862,7 @@ class OrchestratorHealthCheck(HealthCheck):
                 error_msg = f"Orchestrator appears deadlocked (no activity for {minutes_since_last_cycle:.0f} minutes, threshold: {self.deadlock_threshold_minutes} minutes)"
                 logger.error(error_msg)
                 return HealthCheckResult(
+                    name=self.name,
                     status="unhealthy",
                     message=error_msg,
                     metadata={
@@ -838,6 +877,7 @@ class OrchestratorHealthCheck(HealthCheck):
                 warning_msg = f"Orchestrator cycle is slow ({minutes_since_last_cycle:.0f} minutes since last cycle, max expected: {self.max_cycle_time_minutes} minutes)"
                 logger.warning(warning_msg)
                 return HealthCheckResult(
+                    name=self.name,
                     status="degraded",
                     message=warning_msg,
                     metadata={
@@ -852,6 +892,7 @@ class OrchestratorHealthCheck(HealthCheck):
                 f"Orchestrator health check passed: {minutes_since_last_cycle:.1f} minutes since last cycle"
             )
             return HealthCheckResult(
+                name=self.name,
                 status="healthy",
                 message="Orchestrator loop is functioning normally",
                 metadata={
@@ -865,6 +906,7 @@ class OrchestratorHealthCheck(HealthCheck):
             error_msg = f"Orchestrator health check failed: {str(e)}"
             logger.error(error_msg, exc_info=True)
             return HealthCheckResult(
+                name=self.name,
                 status="unhealthy",
                 message=error_msg,
                 metadata={
