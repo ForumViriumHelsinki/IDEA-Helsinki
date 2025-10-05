@@ -2,6 +2,10 @@
 
 This file demonstrates how services can integrate the health check module
 for both synchronous and asynchronous services.
+
+WARNING: This file contains placeholder credentials (tokens, account names, etc.)
+for demonstration purposes only. Never commit actual credentials to version control.
+Always use environment variables or secure configuration management for sensitive data.
 """
 
 import asyncio
