@@ -1,4 +1,5 @@
 {
+  "shared": "0.1.0",
   "services/idea-helsinki": "0.3.4",
   "services/fcd-manager": "0.3.1",
   "services/traffic-monitor": "0.3.1"

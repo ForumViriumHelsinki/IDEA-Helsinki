@@ -5,7 +5,6 @@ Unit tests for IDEA Helsinki health checks.
 import asyncio
 import json
 import os
-import sys
 import tempfile
 import tracemalloc
 from datetime import UTC, datetime, timedelta
@@ -16,9 +15,6 @@ from idea_shared.lib.Constants.Constants import (
     DISTURBANCE_DATA_MAX_AGE_MINUTES,
     HEALTH_CHECK_FCD_DATABASE,
     HEALTH_CHECK_VALIDATION_DATABASE,
-    INFLUXDB_CONNECTION_TTL_SECONDS,
-    INFLUXDB_MAX_CONNECTIONS,
-    INFLUXDB_PING_CACHE_TTL_SECONDS,
     WORKER_HEALTH_THRESHOLD_PERCENT,
 )
 
@@ -317,14 +313,19 @@ class TestDisturbanceDataHealthCheck:
 
             try:
                 check = DisturbanceDataHealthCheck(
-                    file_path=f.name, max_age_minutes=DISTURBANCE_DATA_MAX_AGE_MINUTES, critical=False
+                    file_path=f.name,
+                    max_age_minutes=DISTURBANCE_DATA_MAX_AGE_MINUTES,
+                    critical=False,
                 )
 
                 result = await check.check()
 
                 assert result.status == "degraded"
                 assert "stale" in result.message.lower()
-                assert result.metadata["file_age_minutes"] > DISTURBANCE_DATA_MAX_AGE_MINUTES
+                assert (
+                    result.metadata["file_age_minutes"]
+                    > DISTURBANCE_DATA_MAX_AGE_MINUTES
+                )
             finally:
                 os.unlink(f.name)
 
@@ -359,7 +360,8 @@ class TestWorkerStatusHealthCheck:
         mock_manager.active_segments = {}
 
         check = WorkerStatusHealthCheck(
-            manager=mock_manager, health_threshold_percent=WORKER_HEALTH_THRESHOLD_PERCENT
+            manager=mock_manager,
+            health_threshold_percent=WORKER_HEALTH_THRESHOLD_PERCENT,
         )
 
         result = await check.check()
@@ -385,7 +387,8 @@ class TestWorkerStatusHealthCheck:
         }
 
         check = WorkerStatusHealthCheck(
-            manager=mock_manager, health_threshold_percent=WORKER_HEALTH_THRESHOLD_PERCENT
+            manager=mock_manager,
+            health_threshold_percent=WORKER_HEALTH_THRESHOLD_PERCENT,
         )
 
         result = await check.check()
@@ -415,7 +418,8 @@ class TestWorkerStatusHealthCheck:
         }
 
         check = WorkerStatusHealthCheck(
-            manager=mock_manager, health_threshold_percent=WORKER_HEALTH_THRESHOLD_PERCENT
+            manager=mock_manager,
+            health_threshold_percent=WORKER_HEALTH_THRESHOLD_PERCENT,
         )
 
         result = await check.check()
@@ -440,7 +444,8 @@ class TestWorkerStatusHealthCheck:
         }
 
         check = WorkerStatusHealthCheck(
-            manager=mock_manager, health_threshold_percent=WORKER_HEALTH_THRESHOLD_PERCENT
+            manager=mock_manager,
+            health_threshold_percent=WORKER_HEALTH_THRESHOLD_PERCENT,
         )
 
         # First check - should retrieve exception
@@ -469,7 +474,8 @@ class TestWorkerStatusHealthCheck:
         }
 
         check = WorkerStatusHealthCheck(
-            manager=mock_manager, health_threshold_percent=WORKER_HEALTH_THRESHOLD_PERCENT
+            manager=mock_manager,
+            health_threshold_percent=WORKER_HEALTH_THRESHOLD_PERCENT,
         )
 
         # First check - should add task to checked set
@@ -503,7 +509,8 @@ class TestWorkerStatusHealthCheck:
         }
 
         check = WorkerStatusHealthCheck(
-            manager=mock_manager, health_threshold_percent=WORKER_HEALTH_THRESHOLD_PERCENT
+            manager=mock_manager,
+            health_threshold_percent=WORKER_HEALTH_THRESHOLD_PERCENT,
         )
 
         # First check - should add both tasks to checked set
@@ -537,10 +544,13 @@ class TestWorkerStatusHealthCheck:
             task.exception = MagicMock(return_value=exception_obj)
             tasks.append((f"seg{i}", task))
 
-        mock_manager.active_segments = {seg_id: {"task": task} for seg_id, task in tasks}
+        mock_manager.active_segments = {
+            seg_id: {"task": task} for seg_id, task in tasks
+        }
 
         check = WorkerStatusHealthCheck(
-            manager=mock_manager, health_threshold_percent=WORKER_HEALTH_THRESHOLD_PERCENT
+            manager=mock_manager,
+            health_threshold_percent=WORKER_HEALTH_THRESHOLD_PERCENT,
         )
 
         # Get baseline memory

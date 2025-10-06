@@ -768,7 +768,9 @@ class WorkerStatusHealthCheck(HealthCheck):
                             else:
                                 # Task completed successfully (should be restarted by manager)
                                 healthy_workers += 1
-                                self._checked_tasks[task_id] = False  # False = succeeded
+                                self._checked_tasks[task_id] = (
+                                    False  # False = succeeded
+                                )
                         else:
                             # Task already checked, use stored result
                             if self._checked_tasks[task_id]:

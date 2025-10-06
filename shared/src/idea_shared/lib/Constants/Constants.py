@@ -47,8 +47,12 @@ DISTURBANCE_DATA_MAX_AGE_MINUTES = 120
 
 # Health check request and orchestrator settings
 HEALTH_CHECK_REQUEST_TIMEOUT_SECONDS = 5  # Timeout for individual health check requests
-ORCHESTRATOR_MAX_CYCLE_TIME_MINUTES = 90  # Maximum expected time for an orchestrator management cycle
-ORCHESTRATOR_DEADLOCK_THRESHOLD_MINUTES = 180  # Time after which orchestrator is considered deadlocked
+ORCHESTRATOR_MAX_CYCLE_TIME_MINUTES = (
+    90  # Maximum expected time for an orchestrator management cycle
+)
+ORCHESTRATOR_DEADLOCK_THRESHOLD_MINUTES = (
+    180  # Time after which orchestrator is considered deadlocked
+)
 FCD_DATA_FRESHNESS_HOURS = 1  # Maximum age of FCD data in hours to consider fresh
 
 # Health check names
