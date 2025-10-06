@@ -27,7 +27,12 @@ class TestHealthServer:
     """Tests for HealthServer class."""
 
     def test_server_initialization(self):
-        """Test server initialization with default values."""
+        """Test server initialization with default values.
+
+        Verifies that the HealthServer initializes with correct default configuration
+        including port 8080, host 0.0.0.0, and disabled metrics. This ensures the
+        server has sensible defaults for quick deployment.
+        """
         server = HealthServer()
         assert server.port == 8080
         assert server.host == "0.0.0.0"
@@ -36,7 +41,12 @@ class TestHealthServer:
         assert len(server._health_checks) == 0
 
     def test_server_custom_initialization(self):
-        """Test server initialization with custom values."""
+        """Test server initialization with custom values.
+
+        Verifies that the HealthServer correctly accepts and stores custom
+        configuration parameters. This allows services to customize the health
+        endpoint to their specific needs.
+        """
         server = HealthServer(
             port=9090,
             host="localhost",
@@ -49,7 +59,12 @@ class TestHealthServer:
         assert server.enable_metrics is True
 
     def test_invalid_port_validation(self):
-        """Test that invalid port numbers are rejected."""
+        """Test that invalid port numbers are rejected.
+
+        Verifies that the HealthServer validates port numbers at initialization
+        and rejects values outside the valid range (1-65535). This prevents
+        runtime errors from invalid network configurations.
+        """
         with pytest.raises(ValueError, match="Port must be between 1 and 65535"):
             HealthServer(port=0)
 
@@ -60,7 +75,12 @@ class TestHealthServer:
             HealthServer(port=-1)
 
     def test_add_health_check(self):
-        """Test adding health checks."""
+        """Test adding health checks.
+
+        Verifies that health checks can be registered with the server and are
+        stored correctly. This is essential for building up the set of checks
+        that will be executed during health endpoint requests.
+        """
         server = HealthServer()
         check = MockHealthCheck(
             "test",
@@ -71,7 +91,12 @@ class TestHealthServer:
         assert server._health_checks["test"] == check
 
     def test_remove_health_check(self):
-        """Test removing health checks."""
+        """Test removing health checks.
+
+        Verifies that health checks can be dynamically removed from the server.
+        This allows services to adjust their health monitoring based on runtime
+        conditions or configuration changes.
+        """
         server = HealthServer()
         check = MockHealthCheck(
             "test",
@@ -82,7 +107,12 @@ class TestHealthServer:
         assert "test" not in server._health_checks
 
     def test_overwrite_health_check(self):
-        """Test overwriting an existing health check."""
+        """Test overwriting an existing health check.
+
+        Verifies that registering a check with the same name as an existing check
+        replaces the old check. This allows services to update check configurations
+        without needing to explicitly remove the old check first.
+        """
         server = HealthServer()
         check1 = MockHealthCheck(
             "test",
@@ -104,7 +134,12 @@ class TestHealthEndpoints:
     """Tests for health check endpoints."""
 
     def test_liveness_endpoint(self):
-        """Test the /healthz liveness endpoint."""
+        """Test the /healthz liveness endpoint.
+
+        Verifies that the liveness endpoint always returns 200 OK, indicating
+        the server process is running. This endpoint is used by Kubernetes and
+        other orchestrators to detect if the process needs to be restarted.
+        """
         server = HealthServer()
         client = TestClient(server._app)
 
@@ -115,7 +150,12 @@ class TestHealthEndpoints:
         assert "timestamp" in data
 
     def test_readiness_endpoint_all_healthy(self):
-        """Test the /ready endpoint when all checks are healthy."""
+        """Test the /ready endpoint when all checks are healthy.
+
+        Verifies that the readiness endpoint returns 200 OK when all registered
+        health checks pass. This signals to load balancers and orchestrators that
+        the service is ready to receive traffic.
+        """
         server = HealthServer()
 
         # Add healthy checks
@@ -147,7 +187,12 @@ class TestHealthEndpoints:
         assert "timestamp" in data
 
     def test_readiness_endpoint_critical_failure(self):
-        """Test the /ready endpoint when a critical check fails."""
+        """Test the /ready endpoint when a critical check fails.
+
+        Verifies that the readiness endpoint returns 503 Service Unavailable when
+        any critical health check fails. This prevents traffic from being routed
+        to instances that cannot properly serve requests.
+        """
         server = HealthServer()
 
         # Add mixed health checks
@@ -178,7 +223,12 @@ class TestHealthEndpoints:
         assert data["checks"]["cache"] == "healthy"
 
     def test_readiness_endpoint_non_critical_failure(self):
-        """Test the /ready endpoint when only non-critical checks fail."""
+        """Test the /ready endpoint when only non-critical checks fail.
+
+        Verifies that the readiness endpoint still returns 200 OK when only
+        non-critical checks fail. This allows graceful degradation where the
+        service can still operate with reduced functionality.
+        """
         server = HealthServer()
 
         server.add_check(
@@ -208,7 +258,12 @@ class TestHealthEndpoints:
         assert data["checks"]["cache"] == "degraded"
 
     def test_metrics_endpoint_enabled(self):
-        """Test the /metrics endpoint when enabled."""
+        """Test the /metrics endpoint when enabled.
+
+        Verifies that when metrics are enabled, the /metrics endpoint returns
+        health check statistics including total check count and service name.
+        This provides observability into the health monitoring system itself.
+        """
         server = HealthServer(enable_metrics=True)
         server.add_check(
             "test",
@@ -229,7 +284,12 @@ class TestHealthEndpoints:
         assert "timestamp" in data
 
     def test_metrics_endpoint_disabled(self):
-        """Test that /metrics endpoint is not available when disabled."""
+        """Test that /metrics endpoint is not available when disabled.
+
+        Verifies that when metrics are disabled (the default), the /metrics
+        endpoint returns 404 Not Found. This allows services to opt-in to
+        metrics exposure only when needed.
+        """
         server = HealthServer(enable_metrics=False)
         client = TestClient(server._app)
 
@@ -237,7 +297,12 @@ class TestHealthEndpoints:
         assert response.status_code == 404
 
     def test_health_detail_endpoint(self):
-        """Test the /health/detail endpoint."""
+        """Test the /health/detail endpoint.
+
+        Verifies that the detail endpoint returns comprehensive information about
+        all health checks including status, messages, metadata, and criticality.
+        This endpoint is useful for debugging and detailed health monitoring.
+        """
         server = HealthServer()
 
         server.add_check(
@@ -295,7 +360,12 @@ class TestHealthServerLifecycle:
     @patch("uvicorn.Server")
     @patch("uvicorn.Config")
     def test_start_background(self, mock_config, mock_server):
-        """Test starting server in background thread."""
+        """Test starting server in background thread.
+
+        Verifies that the health server can be started in a background thread,
+        allowing it to run alongside the main application without blocking.
+        This is the primary mode of operation for embedded health endpoints.
+        """
         server = HealthServer(port=8888)
 
         # Mock the server
@@ -314,7 +384,12 @@ class TestHealthServerLifecycle:
             mock_thread_instance.start.assert_called_once()
 
     def test_stop_server(self):
-        """Test stopping the server."""
+        """Test stopping the server.
+
+        Verifies that the health server can be cleanly shut down, setting the
+        should_exit flag and waiting for the thread to terminate. This ensures
+        graceful shutdown during application termination.
+        """
         server = HealthServer()
         server._server = MagicMock()
         server._thread = MagicMock()
@@ -327,7 +402,12 @@ class TestHealthServerLifecycle:
 
     @pytest.mark.asyncio
     async def test_stop_async_server(self):
-        """Test stopping the async server."""
+        """Test stopping the async server.
+
+        Verifies that the async version of server shutdown works correctly,
+        setting the should_exit flag without blocking. This is used when the
+        server is running in async mode.
+        """
         server = HealthServer()
         server._server = MagicMock()
 
@@ -335,7 +415,12 @@ class TestHealthServerLifecycle:
         assert server._server.should_exit is True
 
     def test_context_manager(self):
-        """Test using server as a context manager."""
+        """Test using server as a context manager.
+
+        Verifies that the HealthServer supports the context manager protocol,
+        automatically starting on entry and stopping on exit. This provides a
+        clean pattern for managing server lifecycle.
+        """
         with patch.object(HealthServer, "start_background") as mock_start:
             with patch.object(HealthServer, "stop") as mock_stop:
                 with HealthServer() as server:
@@ -345,7 +430,12 @@ class TestHealthServerLifecycle:
 
     @pytest.mark.asyncio
     async def test_async_context_manager(self):
-        """Test using server as an async context manager."""
+        """Test using server as an async context manager.
+
+        Verifies that the HealthServer supports the async context manager protocol,
+        enabling use with 'async with' statements. This is useful for async
+        applications that want to manage the server lifecycle asynchronously.
+        """
         with patch.object(HealthServer, "start_async") as mock_start:
             mock_start.return_value = asyncio.sleep(0)  # Mock async coroutine
             with patch.object(HealthServer, "stop_async") as mock_stop:
@@ -361,7 +451,12 @@ class TestHealthCheckException:
     """Tests for exception handling in health checks."""
 
     def test_health_check_exception_in_readiness(self):
-        """Test that exceptions in health checks are handled properly."""
+        """Test that exceptions in health checks are handled properly.
+
+        Verifies that when a health check raises an exception, the readiness
+        endpoint catches it and returns 503 Service Unavailable. This prevents
+        health check errors from crashing the health server itself.
+        """
 
         class ExceptionHealthCheck(HealthCheck):
             async def check(self):
@@ -379,7 +474,12 @@ class TestHealthCheckException:
         assert data["checks"]["failing"] == "unhealthy"
 
     def test_health_check_exception_in_detail(self):
-        """Test exception handling in detail endpoint."""
+        """Test exception handling in detail endpoint.
+
+        Verifies that the detail endpoint captures exception information from
+        failing health checks and includes it in the response with error status.
+        This provides detailed diagnostic information for debugging.
+        """
 
         class ExceptionHealthCheck(HealthCheck):
             async def check(self):
@@ -403,7 +503,12 @@ class TestServerErrorHandling:
     @patch("uvicorn.Server")
     @patch("uvicorn.Config")
     def test_port_binding_error(self, mock_config, mock_server):
-        """Test that port binding errors are handled properly."""
+        """Test that port binding errors are handled properly.
+
+        Verifies that the server handles port binding errors gracefully without
+        crashing. This can occur when the configured port is already in use by
+        another process, and proper handling prevents application startup failures.
+        """
         server = HealthServer(port=8080)
 
         # Mock the server to raise OSError on serve
@@ -435,7 +540,12 @@ class TestServerErrorHandling:
 
     @pytest.mark.asyncio
     async def test_async_port_binding_error(self):
-        """Test async server handles port binding errors."""
+        """Test async server handles port binding errors.
+
+        Verifies that when starting the server asynchronously, port binding
+        errors are properly propagated as exceptions. This allows the calling
+        code to handle these errors appropriately.
+        """
         server = HealthServer(port=8080)
 
         with patch("uvicorn.Server") as mock_server:
@@ -452,7 +562,12 @@ class TestServerErrorHandling:
                 await server.start_async()
 
     def test_multiple_start_attempts(self):
-        """Test that multiple start attempts are handled gracefully."""
+        """Test that multiple start attempts are handled gracefully.
+
+        Verifies that calling start_background() multiple times is safe and logs
+        a warning instead of starting duplicate servers. This prevents resource
+        leaks from accidentally starting the server multiple times.
+        """
         server = HealthServer()
 
         with patch("threading.Thread") as mock_thread:
@@ -474,7 +589,13 @@ class TestConcurrentHealthChecksInServer:
     """Tests for concurrent health check execution in server context."""
 
     def test_readiness_with_slow_checks(self):
-        """Test that readiness handles slow health checks properly."""
+        """Test that readiness handles slow health checks properly.
+
+        Verifies that multiple slow health checks execute concurrently rather than
+        sequentially. This ensures the readiness endpoint completes in the time
+        of the slowest check, not the sum of all check times, which is critical
+        for maintaining fast response times.
+        """
 
         class SlowHealthCheck(HealthCheck):
             def __init__(self, name: str, delay: float, **kwargs):
@@ -509,7 +630,12 @@ class TestConcurrentHealthChecksInServer:
         assert all(status == "healthy" for status in data["checks"].values())
 
     def test_metrics_endpoint_with_multiple_checks(self):
-        """Test metrics endpoint with multiple health checks."""
+        """Test metrics endpoint with multiple health checks.
+
+        Verifies that the metrics endpoint correctly counts and reports the total
+        number of registered health checks. This ensures metrics accurately reflect
+        the monitoring coverage of the service.
+        """
         server = HealthServer(enable_metrics=True, app_name="Test Service")
 
         # Add multiple checks
