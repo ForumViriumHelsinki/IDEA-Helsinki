@@ -10,7 +10,6 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from idea_shared.lib.Constants.Constants import (
     DISTURBANCE_DATA_MAX_AGE_MINUTES,
     HEALTH_CHECK_FCD_DATABASE,
@@ -101,16 +100,25 @@ class TestFCDDatabaseHealthCheck:
     @pytest.mark.asyncio
     async def test_healthy_with_recent_data(self):
         """Test healthy status when database is accessible and has recent data."""
-        with patch("src.health_checks.InfluxDBClient") as mock_client:
-            # Setup mocks
-            mock_instance = MagicMock()
-            mock_client.return_value.__enter__.return_value = mock_instance
-            mock_instance.ping.return_value = True
+        with patch(
+            "src.health_checks.InfluxDBConnectionManager.get_instance"
+        ) as mock_get_instance:
+            # Setup connection manager mock
+            mock_conn_manager = AsyncMock()
+            mock_conn_manager.ping = AsyncMock(return_value=True)
+
+            # Mock the InfluxDB client
+            mock_client = MagicMock()
+            mock_query_api = MagicMock()
 
             # Mock query result with recent data
             mock_table = MagicMock()
-            mock_table.records = [MagicMock()]
-            mock_instance.query_api.return_value.query.return_value = [mock_table]
+            mock_table.records = [MagicMock()]  # Non-empty records
+            mock_query_api.query.return_value = [mock_table]
+            mock_client.query_api.return_value = mock_query_api
+
+            mock_conn_manager.get_client = AsyncMock(return_value=mock_client)
+            mock_get_instance.return_value = mock_conn_manager
 
             check = FCDDatabaseHealthCheck(
                 url="http://localhost:8086",
@@ -129,16 +137,25 @@ class TestFCDDatabaseHealthCheck:
     @pytest.mark.asyncio
     async def test_degraded_with_no_recent_data(self):
         """Test degraded status when database is accessible but has no recent data."""
-        with patch("src.health_checks.InfluxDBClient") as mock_client:
-            # Setup mocks
-            mock_instance = MagicMock()
-            mock_client.return_value.__enter__.return_value = mock_instance
-            mock_instance.ping.return_value = True
+        with patch(
+            "src.health_checks.InfluxDBConnectionManager.get_instance"
+        ) as mock_get_instance:
+            # Setup connection manager mock
+            mock_conn_manager = AsyncMock()
+            mock_conn_manager.ping = AsyncMock(return_value=True)
+
+            # Mock the InfluxDB client
+            mock_client = MagicMock()
+            mock_query_api = MagicMock()
 
             # Mock query result with no data
             mock_table = MagicMock()
-            mock_table.records = []
-            mock_instance.query_api.return_value.query.return_value = [mock_table]
+            mock_table.records = []  # Empty records
+            mock_query_api.query.return_value = [mock_table]
+            mock_client.query_api.return_value = mock_query_api
+
+            mock_conn_manager.get_client = AsyncMock(return_value=mock_client)
+            mock_get_instance.return_value = mock_conn_manager
 
             check = FCDDatabaseHealthCheck(
                 url="http://localhost:8086",
@@ -157,11 +174,13 @@ class TestFCDDatabaseHealthCheck:
     @pytest.mark.asyncio
     async def test_unhealthy_on_connection_failure(self):
         """Test unhealthy status when database connection fails."""
-        with patch("src.health_checks.InfluxDBClient") as mock_client:
-            # Setup mocks
-            mock_instance = MagicMock()
-            mock_client.return_value.__enter__.return_value = mock_instance
-            mock_instance.ping.return_value = False
+        with patch(
+            "src.health_checks.InfluxDBConnectionManager.get_instance"
+        ) as mock_get_instance:
+            # Setup connection manager mock that fails ping
+            mock_conn_manager = AsyncMock()
+            mock_conn_manager.ping = AsyncMock(return_value=False)
+            mock_get_instance.return_value = mock_conn_manager
 
             check = FCDDatabaseHealthCheck(
                 url="http://localhost:8086",
@@ -250,12 +269,15 @@ class TestDisturbanceDataHealthCheck:
     async def test_healthy_with_fresh_valid_data(self):
         """Test healthy status with fresh and valid JSON data."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-            # Write valid JSON with segments
+            # Write valid JSON with segments and required fields
             data = {
                 "segmentId": {
                     "seg1": {"detailedCollisions": []},
                     "seg2": {"detailedCollisions": []},
-                }
+                },
+                "trafficDisturbanceId": {
+                    "dist1": {"segments": ["seg1", "seg2"]},
+                },
             }
             json.dump(data, f)
             f.flush()
@@ -277,8 +299,14 @@ class TestDisturbanceDataHealthCheck:
     async def test_degraded_with_stale_data(self):
         """Test degraded status when data file is stale."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-            # Write valid JSON
-            json.dump({"segmentId": {}}, f)
+            # Write valid JSON with required fields
+            json.dump(
+                {
+                    "segmentId": {"seg1": {}},
+                    "trafficDisturbanceId": {"dist1": {}},
+                },
+                f,
+            )
             f.flush()
 
             # Make file appear old
@@ -343,11 +371,11 @@ class TestWorkerStatusHealthCheck:
         """Test healthy status when all workers are running."""
         mock_manager = MagicMock()
 
-        # Create mock tasks
-        task1 = AsyncMock()
-        task1.done.return_value = False
-        task2 = AsyncMock()
-        task2.done.return_value = False
+        # Create mock tasks that are not done
+        task1 = MagicMock()
+        task1.done = MagicMock(return_value=False)
+        task2 = MagicMock()
+        task2.done = MagicMock(return_value=False)
 
         mock_manager.active_segments = {
             "seg1": {"task": task1},
@@ -370,13 +398,13 @@ class TestWorkerStatusHealthCheck:
         mock_manager = MagicMock()
 
         # Create mock tasks - 2 healthy, 1 failed
-        task1 = AsyncMock()
-        task1.done.return_value = False
-        task2 = AsyncMock()
-        task2.done.return_value = False
-        task3 = AsyncMock()
-        task3.done.return_value = True
-        task3.exception.side_effect = Exception("Task failed")
+        task1 = MagicMock()
+        task1.done = MagicMock(return_value=False)
+        task2 = MagicMock()
+        task2.done = MagicMock(return_value=False)
+        task3 = MagicMock()
+        task3.done = MagicMock(return_value=True)
+        task3.exception = MagicMock(return_value=Exception("Task failed"))
 
         mock_manager.active_segments = {
             "seg1": {"task": task1},
@@ -401,8 +429,13 @@ class TestOrchestratorHealthCheck:
     @pytest.mark.asyncio
     async def test_healthy_on_first_check(self):
         """Test healthy status on first check (initialization)."""
-        mock_manager = MagicMock()
-        mock_manager.active_segments = {}
+
+        # Create a simple object instead of MagicMock to avoid auto-attribute creation
+        class SimpleManager:
+            def __init__(self):
+                self.active_segments = {}
+
+        mock_manager = SimpleManager()
 
         check = OrchestratorHealthCheck(
             manager=mock_manager,
