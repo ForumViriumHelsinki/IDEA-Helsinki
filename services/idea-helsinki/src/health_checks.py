@@ -723,7 +723,8 @@ class WorkerStatusHealthCheck(HealthCheck):
         self.manager = manager
         self.health_threshold_percent = health_threshold_percent
         # Track tasks that have been checked to prevent memory leaks
-        self._checked_tasks: set = set()
+        # Maps task_id to whether it failed (True) or succeeded (False)
+        self._checked_tasks: dict[int, bool] = {}
 
     async def check(self) -> HealthCheckResult:
         """Check status of worker tasks."""
@@ -763,14 +764,17 @@ class WorkerStatusHealthCheck(HealthCheck):
                             if exception is not None:
                                 # Task failed with an exception
                                 failed_workers += 1
+                                self._checked_tasks[task_id] = True  # True = failed
                             else:
                                 # Task completed successfully (should be restarted by manager)
                                 healthy_workers += 1
-                            # Mark task as checked so we don't retrieve exception again
-                            self._checked_tasks.add(task_id)
+                                self._checked_tasks[task_id] = False  # False = succeeded
                         else:
-                            # Task already checked, count as failed to be conservative
-                            failed_workers += 1
+                            # Task already checked, use stored result
+                            if self._checked_tasks[task_id]:
+                                failed_workers += 1
+                            else:
+                                healthy_workers += 1
                     except asyncio.CancelledError:
                         # Task was cancelled (normal during shutdown)
                         pass
@@ -782,8 +786,12 @@ class WorkerStatusHealthCheck(HealthCheck):
                     healthy_workers += 1
 
             # Clean up checked tasks that are no longer active
-            # This prevents the set from growing indefinitely
-            self._checked_tasks &= current_task_ids
+            # This prevents the dict from growing indefinitely
+            self._checked_tasks = {
+                task_id: failed
+                for task_id, failed in self._checked_tasks.items()
+                if task_id in current_task_ids
+            }
 
             health_percentage = (healthy_workers / total_workers) * 100
 

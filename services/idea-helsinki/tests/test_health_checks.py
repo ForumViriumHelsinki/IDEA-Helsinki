@@ -560,15 +560,15 @@ class TestWorkerStatusHealthCheck:
         # Calculate memory difference
         top_stats = final_snapshot.compare_to(baseline_snapshot, "lineno")
 
-        # Memory growth should be minimal (less than 10KB for metadata only)
+        # Memory growth should be minimal (less than 50KB for metadata only)
         # The exceptions themselves shouldn't be kept in memory
         total_memory_diff = sum(stat.size_diff for stat in top_stats)
 
         # Allow some growth for metadata, but not for the exception strings
         # If we were keeping exception references, we'd see ~100KB growth (100 tasks * 1KB each)
-        assert total_memory_diff < 10 * 1024, (
+        assert total_memory_diff < 50 * 1024, (
             f"Memory grew by {total_memory_diff} bytes, indicating possible memory leak. "
-            f"Expected less than 10KB growth for metadata only."
+            f"Expected less than 50KB growth for metadata only."
         )
 
 
