@@ -1,5 +1,5 @@
 {
-  "plugins": ["node-workspace"],
+  "plugins": ["python-workspace"],
   "packages": {
     "services/idea-helsinki": {
       "release-type": "python",
