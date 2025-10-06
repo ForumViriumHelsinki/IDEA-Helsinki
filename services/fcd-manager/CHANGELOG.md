@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.3.1...fcd-manager-v0.3.2) (2025-10-06)
+
+
+### Bug Fixes
+
+* release-please workspace configuration and dependency tracking ([#64](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/64)) ([fdb1f93](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/fdb1f93c9c5e3ed9edf45126c19730252d795fc2))
+
 ## [0.3.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.3.0...fcd-manager-v0.3.1) (2025-10-01)
 
 

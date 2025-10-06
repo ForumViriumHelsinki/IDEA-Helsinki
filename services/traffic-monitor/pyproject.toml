@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "traffic-monitor"
-version = "0.3.1"
+version = "0.3.2"
 description = "Traffic disturbance monitoring and spatial intersection service"
 requires-python = ">=3.12"
 authors = [
@@ -18,7 +18,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "idea-shared==0.1.0", # x-release-please-version
+    "idea-shared==0.2.0", # x-release-please-version
     "requests",
     "geopandas",
     "pandas",

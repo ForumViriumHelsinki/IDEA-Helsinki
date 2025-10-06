@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.5](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-helsinki-v0.3.4...idea-helsinki-v0.3.5) (2025-10-06)
+
+
+### Bug Fixes
+
+* prevent memory leak in WorkerStatusHealthCheck ([#62](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/62)) ([31ba4f3](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/31ba4f3b02fbbf6339b08e62a1d1728fa65278a2))
+* release-please workspace configuration and dependency tracking ([#64](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/64)) ([fdb1f93](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/fdb1f93c9c5e3ed9edf45126c19730252d795fc2))
+
 ## [0.3.4](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-helsinki-v0.3.3...idea-helsinki-v0.3.4) (2025-10-06)
 
 

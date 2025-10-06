@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "idea-helsinki"
-version = "0.3.4"
+version = "0.3.5"
 description = "IDEA Helsinki traffic validation orchestration service"
 requires-python = ">=3.12"
 authors = [
@@ -18,7 +18,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "idea-shared==0.1.0", # x-release-please-version
+    "idea-shared==0.2.0", # x-release-please-version
     "influxdb-client",
     "pandas",
     "numpy",
