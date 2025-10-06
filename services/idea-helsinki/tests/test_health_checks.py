@@ -5,7 +5,9 @@ Unit tests for IDEA Helsinki health checks.
 import asyncio
 import json
 import os
+import sys
 import tempfile
+import tracemalloc
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -421,6 +423,153 @@ class TestWorkerStatusHealthCheck:
         assert result.status == "degraded"
         assert "2/3 workers are healthy" in result.message
         assert result.metadata["health_percentage"] == pytest.approx(66.67, 0.1)
+
+    @pytest.mark.asyncio
+    async def test_exception_reference_cleanup(self):
+        """Test that exception references are properly cleaned up to prevent memory leaks."""
+        mock_manager = MagicMock()
+
+        # Create a task that has failed with an exception
+        task = MagicMock()
+        task.done = MagicMock(return_value=True)
+        exception_obj = Exception("Task failed with exception")
+        task.exception = MagicMock(return_value=exception_obj)
+
+        mock_manager.active_segments = {
+            "seg1": {"task": task},
+        }
+
+        check = WorkerStatusHealthCheck(
+            manager=mock_manager, health_threshold_percent=WORKER_HEALTH_THRESHOLD_PERCENT
+        )
+
+        # First check - should retrieve exception
+        result1 = await check.check()
+        assert result1.metadata["failed_workers"] == 1
+        assert task.exception.call_count == 1
+
+        # Second check - should not retrieve exception again (already checked)
+        result2 = await check.check()
+        assert result2.metadata["failed_workers"] == 1
+        # Exception should only be called once, not twice
+        assert task.exception.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_checked_tasks_cleanup_when_no_workers(self):
+        """Test that checked tasks set is cleared when there are no workers."""
+        mock_manager = MagicMock()
+
+        # First, create a failed task
+        task = MagicMock()
+        task.done = MagicMock(return_value=True)
+        task.exception = MagicMock(return_value=Exception("Task failed"))
+
+        mock_manager.active_segments = {
+            "seg1": {"task": task},
+        }
+
+        check = WorkerStatusHealthCheck(
+            manager=mock_manager, health_threshold_percent=WORKER_HEALTH_THRESHOLD_PERCENT
+        )
+
+        # First check - should add task to checked set
+        await check.check()
+        assert len(check._checked_tasks) == 1
+
+        # Now remove all workers
+        mock_manager.active_segments = {}
+
+        # Second check - checked tasks should be cleared
+        await check.check()
+        assert len(check._checked_tasks) == 0
+
+    @pytest.mark.asyncio
+    async def test_checked_tasks_cleanup_when_task_removed(self):
+        """Test that checked tasks are removed when tasks are no longer active."""
+        mock_manager = MagicMock()
+
+        # Create two failed tasks
+        task1 = MagicMock()
+        task1.done = MagicMock(return_value=True)
+        task1.exception = MagicMock(return_value=Exception("Task 1 failed"))
+
+        task2 = MagicMock()
+        task2.done = MagicMock(return_value=True)
+        task2.exception = MagicMock(return_value=Exception("Task 2 failed"))
+
+        mock_manager.active_segments = {
+            "seg1": {"task": task1},
+            "seg2": {"task": task2},
+        }
+
+        check = WorkerStatusHealthCheck(
+            manager=mock_manager, health_threshold_percent=WORKER_HEALTH_THRESHOLD_PERCENT
+        )
+
+        # First check - should add both tasks to checked set
+        await check.check()
+        assert len(check._checked_tasks) == 2
+
+        # Remove one task
+        mock_manager.active_segments = {
+            "seg2": {"task": task2},
+        }
+
+        # Second check - should remove task1 from checked set
+        await check.check()
+        assert len(check._checked_tasks) == 1
+
+    @pytest.mark.asyncio
+    async def test_memory_leak_prevention(self):
+        """Test that repeated health checks don't cause memory growth from exception references."""
+        # Start memory tracking
+        tracemalloc.start()
+
+        mock_manager = MagicMock()
+
+        # Create multiple tasks with exceptions
+        tasks = []
+        for i in range(100):
+            task = MagicMock()
+            task.done = MagicMock(return_value=True)
+            # Create exception with some data to make memory impact measurable
+            exception_obj = Exception(f"Task {i} failed with data: " + "x" * 1000)
+            task.exception = MagicMock(return_value=exception_obj)
+            tasks.append((f"seg{i}", task))
+
+        mock_manager.active_segments = {seg_id: {"task": task} for seg_id, task in tasks}
+
+        check = WorkerStatusHealthCheck(
+            manager=mock_manager, health_threshold_percent=WORKER_HEALTH_THRESHOLD_PERCENT
+        )
+
+        # Get baseline memory
+        await check.check()
+        baseline_snapshot = tracemalloc.take_snapshot()
+
+        # Run multiple health checks
+        for _ in range(10):
+            await check.check()
+
+        # Get final memory
+        final_snapshot = tracemalloc.take_snapshot()
+
+        # Stop tracking
+        tracemalloc.stop()
+
+        # Calculate memory difference
+        top_stats = final_snapshot.compare_to(baseline_snapshot, "lineno")
+
+        # Memory growth should be minimal (less than 10KB for metadata only)
+        # The exceptions themselves shouldn't be kept in memory
+        total_memory_diff = sum(stat.size_diff for stat in top_stats)
+
+        # Allow some growth for metadata, but not for the exception strings
+        # If we were keeping exception references, we'd see ~100KB growth (100 tasks * 1KB each)
+        assert total_memory_diff < 10 * 1024, (
+            f"Memory grew by {total_memory_diff} bytes, indicating possible memory leak. "
+            f"Expected less than 10KB growth for metadata only."
+        )
 
 
 class TestOrchestratorHealthCheck:
