@@ -56,6 +56,12 @@ class FCDInfluxDBManager:
             if self.client and self.client.ping():
                 self.logger.info("InfluxDB connection is active.")
                 return True
+            if not self.client:
+                self.logger.error("InfluxDB client is not initialized.")
+            else:
+                self.logger.error(
+                    f"InfluxDB ping failed. Check URL ({self.client.url}), token, and org ({self.org})."
+                )
             return False
         except Exception as e:
             self.logger.error(f"InfluxDB connection check failed. {e}")
