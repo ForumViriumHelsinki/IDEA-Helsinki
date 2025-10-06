@@ -16,12 +16,18 @@ from idea_shared.health.server import HealthServer
 # ------------------ CONSTANTS -------------------------#
 # ------------------------------------------------------#
 from idea_shared.lib.Constants.Constants import (
+    DISTURBANCE_DATA_MAX_AGE_MINUTES,
+    FCD_DATA_FRESHNESS_HOURS,
+    HEALTH_CHECK_PORT,
+    ORCHESTRATOR_DEADLOCK_THRESHOLD_MINUTES,
+    ORCHESTRATOR_MAX_CYCLE_TIME_MINUTES,
     PROFILE_END_LEAD_TIME_HOURS,
     PROFILE_TIME_FRAME_WEEKS,
     TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION,
     TRAFFIC_DISTURBANCE_UPDATE_FREQUENCY,
     VALIDATION_MAX_AGE_DAYS,
     VALIDATION_UPDATE_FREQUENCY,
+    WORKER_HEALTH_THRESHOLD_PERCENT,
 )
 from idea_shared.lib.Constants.PrivateConstants import (
     INFLUX_DB_FCD_BUCKET,
@@ -43,15 +49,6 @@ from health_checks import (
 
 # for testing, based on intersected segments.
 # target_fcd_segments = ["1195756141337706497","1195756141314637825"]
-
-# Health check settings
-HEALTH_CHECK_PORT = 8080
-HEALTH_CHECK_TIMEOUT_SECONDS = 5
-WORKER_HEALTH_THRESHOLD_PERCENT = 80
-DISTURBANCE_DATA_MAX_AGE_MINUTES = 120
-ORCHESTRATOR_MAX_CYCLE_TIME_MINUTES = 90
-ORCHESTRATOR_DEADLOCK_THRESHOLD_MINUTES = 180
-FCD_DATA_FRESHNESS_HOURS = 1
 
 logger = Logger(__name__)
 health_server = None

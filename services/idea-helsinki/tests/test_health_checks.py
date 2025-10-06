@@ -11,8 +11,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from idea_shared.lib.Constants.Constants import (
+    DISTURBANCE_DATA_MAX_AGE_MINUTES,
     HEALTH_CHECK_FCD_DATABASE,
     HEALTH_CHECK_VALIDATION_DATABASE,
+    INFLUXDB_CONNECTION_TTL_SECONDS,
+    INFLUXDB_MAX_CONNECTIONS,
+    INFLUXDB_PING_CACHE_TTL_SECONDS,
+    WORKER_HEALTH_THRESHOLD_PERCENT,
 )
 
 from src.health_checks import (
@@ -279,7 +284,7 @@ class TestDisturbanceDataHealthCheck:
 
             try:
                 check = DisturbanceDataHealthCheck(
-                    file_path=f.name, max_age_minutes=120
+                    file_path=f.name, max_age_minutes=DISTURBANCE_DATA_MAX_AGE_MINUTES
                 )
 
                 result = await check.check()
@@ -310,14 +315,14 @@ class TestDisturbanceDataHealthCheck:
 
             try:
                 check = DisturbanceDataHealthCheck(
-                    file_path=f.name, max_age_minutes=120, critical=False
+                    file_path=f.name, max_age_minutes=DISTURBANCE_DATA_MAX_AGE_MINUTES, critical=False
                 )
 
                 result = await check.check()
 
                 assert result.status == "degraded"
                 assert "stale" in result.message.lower()
-                assert result.metadata["file_age_minutes"] > 120
+                assert result.metadata["file_age_minutes"] > DISTURBANCE_DATA_MAX_AGE_MINUTES
             finally:
                 os.unlink(f.name)
 
@@ -331,7 +336,7 @@ class TestDisturbanceDataHealthCheck:
 
             try:
                 check = DisturbanceDataHealthCheck(
-                    file_path=f.name, max_age_minutes=120
+                    file_path=f.name, max_age_minutes=DISTURBANCE_DATA_MAX_AGE_MINUTES
                 )
 
                 result = await check.check()
@@ -352,7 +357,7 @@ class TestWorkerStatusHealthCheck:
         mock_manager.active_segments = {}
 
         check = WorkerStatusHealthCheck(
-            manager=mock_manager, health_threshold_percent=80.0
+            manager=mock_manager, health_threshold_percent=WORKER_HEALTH_THRESHOLD_PERCENT
         )
 
         result = await check.check()
@@ -378,7 +383,7 @@ class TestWorkerStatusHealthCheck:
         }
 
         check = WorkerStatusHealthCheck(
-            manager=mock_manager, health_threshold_percent=80.0
+            manager=mock_manager, health_threshold_percent=WORKER_HEALTH_THRESHOLD_PERCENT
         )
 
         result = await check.check()
@@ -408,7 +413,7 @@ class TestWorkerStatusHealthCheck:
         }
 
         check = WorkerStatusHealthCheck(
-            manager=mock_manager, health_threshold_percent=80.0
+            manager=mock_manager, health_threshold_percent=WORKER_HEALTH_THRESHOLD_PERCENT
         )
 
         result = await check.check()
@@ -554,7 +559,8 @@ class TestInfluxDBConnectionManager:
         """Test that connection limit is enforced."""
         # Store original max connections
         original_max = InfluxDBConnectionManager.MAX_CONNECTIONS
-        InfluxDBConnectionManager.MAX_CONNECTIONS = 3
+        test_limit = 3
+        InfluxDBConnectionManager.MAX_CONNECTIONS = test_limit
 
         try:
             url = "http://localhost:8086"
@@ -569,7 +575,7 @@ class TestInfluxDBConnectionManager:
                 managers.append(manager)
 
             # Should have exactly MAX_CONNECTIONS instances
-            assert len(InfluxDBConnectionManager._instances) <= 3
+            assert len(InfluxDBConnectionManager._instances) <= test_limit
 
         finally:
             # Restore and clean up

@@ -36,6 +36,21 @@ HEALTH_CHECK_PORT = 8080
 HEALTH_CHECK_TIMEOUT_SECONDS = 10
 HEALTH_CHECK_CACHE_TTL_SECONDS = 5
 
+# InfluxDB connection pool settings
+INFLUXDB_MAX_CONNECTIONS = 10
+INFLUXDB_CONNECTION_TTL_SECONDS = 3600
+INFLUXDB_PING_CACHE_TTL_SECONDS = 5
+
+# Worker and orchestrator health thresholds
+WORKER_HEALTH_THRESHOLD_PERCENT = 80
+DISTURBANCE_DATA_MAX_AGE_MINUTES = 120
+
+# Health check request and orchestrator settings
+HEALTH_CHECK_REQUEST_TIMEOUT_SECONDS = 5  # Timeout for individual health check requests
+ORCHESTRATOR_MAX_CYCLE_TIME_MINUTES = 90  # Maximum expected time for an orchestrator management cycle
+ORCHESTRATOR_DEADLOCK_THRESHOLD_MINUTES = 180  # Time after which orchestrator is considered deadlocked
+FCD_DATA_FRESHNESS_HOURS = 1  # Maximum age of FCD data in hours to consider fresh
+
 # Health check names
 HEALTH_CHECK_FCD_DATABASE = "fcd_database"
 HEALTH_CHECK_VALIDATION_DATABASE = "validation_database"
