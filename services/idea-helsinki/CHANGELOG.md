@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.4](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-helsinki-v0.3.3...idea-helsinki-v0.3.4) (2025-10-06)
+
+
+### Bug Fixes
+
+* add missing name parameter to all HealthCheckResult instances ([#59](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/59)) ([0653b03](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/0653b03da774afe03f2a2f5888e102cc0b0f4341))
+* externalize health check configuration constants ([#55](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/55)) ([8b19327](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/8b19327b040d9038ad507904d546cf4e27f415cd))
+
 ## [0.3.3](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-helsinki-v0.3.2...idea-helsinki-v0.3.3) (2025-10-03)
 
 
