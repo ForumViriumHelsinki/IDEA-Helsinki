@@ -708,7 +708,7 @@ class WorkerStatusHealthCheck(HealthCheck):
     def __init__(
         self,
         manager,
-        health_threshold_percent: float = WORKER_HEALTH_THRESHOLD_PERCENT
+        health_threshold_percent: float = WORKER_HEALTH_THRESHOLD_PERCENT,
         name: str = "worker_status",
     ):
         """
@@ -722,6 +722,9 @@ class WorkerStatusHealthCheck(HealthCheck):
         super().__init__(name=name, critical=False, cache_ttl=5)
         self.manager = manager
         self.health_threshold_percent = health_threshold_percent
+        # Track tasks that have been checked to prevent memory leaks
+        # Maps task_id to whether it failed (True) or succeeded (False)
+        self._checked_tasks: dict[int, bool] = {}
 
     async def check(self) -> HealthCheckResult:
         """Check status of worker tasks."""
@@ -731,6 +734,8 @@ class WorkerStatusHealthCheck(HealthCheck):
 
             if total_workers == 0:
                 # No workers is normal when no disturbances are active
+                # Clear checked tasks set when no workers
+                self._checked_tasks.clear()
                 return HealthCheckResult(
                     name=self.name,
                     status="healthy",
@@ -741,21 +746,35 @@ class WorkerStatusHealthCheck(HealthCheck):
             # Check health of each worker
             healthy_workers = 0
             failed_workers = 0
+            current_task_ids = set()
 
             for _segment_id, segment_info in self.manager.active_segments.items():
                 task = segment_info["task"]
+                task_id = id(task)
+                current_task_ids.add(task_id)
 
                 if task.done():
                     # Task completed or failed
                     try:
                         # Check if task raised an exception
-                        exception = task.exception()
-                        if exception is not None:
-                            # Task failed with an exception
-                            failed_workers += 1
+                        # Only retrieve exception once to prevent memory leak
+                        if task_id not in self._checked_tasks:
+                            exception = task.exception()
+                            # Immediately discard the reference by not storing it
+                            if exception is not None:
+                                # Task failed with an exception
+                                failed_workers += 1
+                                self._checked_tasks[task_id] = True  # True = failed
+                            else:
+                                # Task completed successfully (should be restarted by manager)
+                                healthy_workers += 1
+                                self._checked_tasks[task_id] = False  # False = succeeded
                         else:
-                            # Task completed successfully (should be restarted by manager)
-                            healthy_workers += 1
+                            # Task already checked, use stored result
+                            if self._checked_tasks[task_id]:
+                                failed_workers += 1
+                            else:
+                                healthy_workers += 1
                     except asyncio.CancelledError:
                         # Task was cancelled (normal during shutdown)
                         pass
@@ -765,6 +784,14 @@ class WorkerStatusHealthCheck(HealthCheck):
                 else:
                     # Task is still running
                     healthy_workers += 1
+
+            # Clean up checked tasks that are no longer active
+            # This prevents the dict from growing indefinitely
+            self._checked_tasks = {
+                task_id: failed
+                for task_id, failed in self._checked_tasks.items()
+                if task_id in current_task_ids
+            }
 
             health_percentage = (healthy_workers / total_workers) * 100
 
