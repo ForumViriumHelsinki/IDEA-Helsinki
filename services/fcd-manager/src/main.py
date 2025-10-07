@@ -1,11 +1,13 @@
 # ------------------------------------------------------#
 # ---------------- GENERAL IMPORTS ---------------------#
 # ------------------------------------------------------#
+import os
 import signal
 import sys
 from datetime import UTC, datetime, timedelta
 
 import idea_shared.lib.FcdUtils as FcdUtils
+import sentry_sdk
 
 # ------------------------------------------------------#
 # ------------- PROJECT MODULE IMPORTS -----------------#
@@ -561,5 +563,18 @@ def _process_and_update_blob_list(
 
 
 if __name__ == "__main__":
+    # Initialize Sentry if DSN is provided
+    sentry_dsn = os.getenv("SENTRY_DSN")
+    if sentry_dsn:
+        sentry_sdk.init(
+            dsn=sentry_dsn,
+            traces_sample_rate=1.0,
+            profiles_sample_rate=1.0,
+            environment=os.getenv("ENVIRONMENT", "production"),
+        )
+        logger.info("Sentry initialized for error tracking")
+    else:
+        logger.info("SENTRY_DSN not set, running without Sentry error tracking")
+
     logger.info("Starting program!.")
     main()
