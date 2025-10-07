@@ -4,9 +4,18 @@
       "release-type": "python",
       "component": "idea-shared",
       "extra-files": [
-        "services/fcd-manager/pyproject.toml",
-        "services/idea-helsinki/pyproject.toml",
-        "services/traffic-monitor/pyproject.toml"
+        {
+          "type": "generic",
+          "path": "services/fcd-manager/pyproject.toml"
+        },
+        {
+          "type": "generic",
+          "path": "services/idea-helsinki/pyproject.toml"
+        },
+        {
+          "type": "generic",
+          "path": "services/traffic-monitor/pyproject.toml"
+        }
       ]
     },
     "services/idea-helsinki": {
