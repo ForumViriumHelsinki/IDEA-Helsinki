@@ -5,6 +5,15 @@ Repository for the IDEA Helsinki application developed for the TFDS-project.
 
 ## Local Development Setup
 
+### Prerequisites
+
+Before setting up the local development environment, ensure you have the following tools installed:
+
+- [gcloud CLI](https://cloud.google.com/sdk/docs/install) - Google Cloud command-line interface
+- [Skaffold](https://skaffold.dev/docs/install/) - Kubernetes deployment automation
+- [dotenvx](https://dotenvx.com/docs/install) (optional but recommended) - Environment variable management
+- `envsubst` - Template substitution tool (usually pre-installed on macOS/Linux via gettext)
+
 ### Environment Configuration
 
 The application uses environment variables for configuration, which are fetched from Google Secret Manager for consistency with production.
