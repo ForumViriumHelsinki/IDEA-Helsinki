@@ -1,6 +1,7 @@
 # ------------------------------------------------------#
 # ------------------ CONSTANTS -------------------------#
 # ------------------------------------------------------#
+import os
 
 # IDEA CLASS DEFAULTS
 PROFILE_TIME_FRAME_WEEKS = 26
@@ -11,7 +12,10 @@ VALIDATION_MAX_AGE_DAYS = 7  # If the validation process is interrupted (system 
 # TRAFFIC DISTURBANCE PROVIDER DEFAULTS
 TRAFFIC_DISTURBANCE_UPDATE_FREQUENCY = 60  # In minutes
 ## File I/O
-TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION = "data/traffic_disturbance_data.json"
+DATA_DIR = os.getenv("DATA_DIR", "data")
+TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION = os.path.join(
+    DATA_DIR, "traffic_disturbance_data.json"
+)
 # What disturbances to monitor
 TRAFFIC_DISTURBANCES_TO_MONITOR = ["Kaivuilmoitus_alue", "Aluevuokraus_alue"]
 
@@ -22,10 +26,14 @@ FCD_UPDATE_FREQUENCY = 5  # In minutes
 MAX_FCD_DATA_BASE_UPDATE_DOWNTIME = 2  # In days
 
 # FCD segment id and geometry info = segment ids and their location
-FCD_MAP_DATA_FILE_LOCATION = "data/segments_mapping.json"
+FCD_MAP_DATA_FILE_LOCATION = os.path.join(DATA_DIR, "segments_mapping.json")
 FCD_MAP_UPDATE_FREQUENCY = 30  # in minutes
-MASTER_SEGMENT_HISTORY_FILE_LOCATION = "data/master_segment_history.json"
-ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION = "data/archived_segment_history.json"
+MASTER_SEGMENT_HISTORY_FILE_LOCATION = os.path.join(
+    DATA_DIR, "master_segment_history.json"
+)
+ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION = os.path.join(
+    DATA_DIR, "archived_segment_history.json"
+)
 
 # FCD HISTORY DEFAULTS
 ## Start date for the FCD history, or the defined start date for it. format YYYY-MM-DD
