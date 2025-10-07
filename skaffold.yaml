@@ -25,6 +25,7 @@ manifests:
   rawYaml:
     - k8s/namespace.yaml
     - k8s/secrets.yaml
+    - k8s/influxdb-deployment.yaml
     - k8s/idea-helsinki-deployment.yaml
     - k8s/fcd-manager-deployment.yaml
     - k8s/traffic-monitor-deployment.yaml
@@ -32,16 +33,7 @@ deploy:
   kubeContext: orbstack
   kubectl:
     defaultNamespace: idea-helsinki
-profiles:
-  - name: with-services
-    manifests:
-      rawYaml:
-        - k8s/namespace.yaml
-        - k8s/secrets.yaml
-        - k8s/influxdb-deployment.yaml
-        - k8s/idea-helsinki-deployment.yaml
-        - k8s/fcd-manager-deployment.yaml
-        - k8s/traffic-monitor-deployment.yaml
-    deploy:
-      kubectl:
-        defaultNamespace: idea-helsinki
+    hooks:
+      before:
+        - host:
+            command: ["sh", "-c", "envsubst < k8s/secrets.yaml.tmpl > k8s/secrets.yaml"]
