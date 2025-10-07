@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.2.0...idea-shared-v0.2.1) (2025-10-07)
+
+
+### Bug Fixes
+
+* configure DATA_DIR for GCS bucket file storage ([#69](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/69)) ([7eb00bd](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/7eb00bd0cda060772343ffd506d5be1c8e7f8adc))
+
 ## [0.2.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.1.0...idea-shared-v0.2.0) (2025-10-06)
 
 
