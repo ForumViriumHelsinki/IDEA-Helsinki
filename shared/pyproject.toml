@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "idea-shared"
-version = "0.1.0"
+version = "0.2.2"
 description = "Shared code for IDEA Helsinki services"
 requires-python = ">=3.12"
 authors = [

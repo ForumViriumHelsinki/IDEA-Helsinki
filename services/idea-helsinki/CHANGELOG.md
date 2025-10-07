@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.3.7](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-helsinki-v0.3.6...idea-helsinki-v0.3.7) (2025-10-07)
+
+
+### Bug Fixes
+
+* trigger service releases for idea-shared 0.2.1 ([#76](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/76)) ([296b85c](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/296b85c507e6861ceac6cd000df50f263425965d))
+
+## [0.3.6](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-helsinki-v0.3.5...idea-helsinki-v0.3.6) (2025-10-07)
+
+
+### Bug Fixes
+
+* resolve syntax error in WorkerStatusHealthCheck initialization ([#67](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/67)) ([8a61820](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/8a61820353311f9e97693f86a933bbabcc3fdddb)), closes [#66](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/66)
+
+## [0.3.5](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-helsinki-v0.3.4...idea-helsinki-v0.3.5) (2025-10-06)
+
+
+### Bug Fixes
+
+* prevent memory leak in WorkerStatusHealthCheck ([#62](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/62)) ([31ba4f3](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/31ba4f3b02fbbf6339b08e62a1d1728fa65278a2))
+* release-please workspace configuration and dependency tracking ([#64](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/64)) ([fdb1f93](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/fdb1f93c9c5e3ed9edf45126c19730252d795fc2))
+
 ## [0.3.4](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-helsinki-v0.3.3...idea-helsinki-v0.3.4) (2025-10-06)
 
 

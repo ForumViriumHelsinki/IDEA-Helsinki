@@ -29,6 +29,7 @@ jobs:
         cd services/${{ matrix.service }}
         uv venv
         . .venv/bin/activate
+        uv pip install -e ../../shared
         uv pip install -e .[dev]
 
     - name: Run ruff check

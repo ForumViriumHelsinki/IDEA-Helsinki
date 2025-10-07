@@ -1,6 +1,23 @@
 {
-  "plugins": ["python-workspace"],
   "packages": {
+    "shared": {
+      "release-type": "python",
+      "component": "idea-shared",
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "services/fcd-manager/pyproject.toml"
+        },
+        {
+          "type": "generic",
+          "path": "services/idea-helsinki/pyproject.toml"
+        },
+        {
+          "type": "generic",
+          "path": "services/traffic-monitor/pyproject.toml"
+        }
+      ]
+    },
     "services/idea-helsinki": {
       "release-type": "python",
       "component": "idea-helsinki"
