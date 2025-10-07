@@ -18,7 +18,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "idea-shared==0.2.0", # x-release-please-version
+    "idea-shared==0.2.1", # x-release-please-version
     "influxdb-client",
     "pandas",
     "numpy",
