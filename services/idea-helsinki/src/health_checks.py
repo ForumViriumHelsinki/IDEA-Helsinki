@@ -708,7 +708,7 @@ class WorkerStatusHealthCheck(HealthCheck):
     def __init__(
         self,
         manager,
-        health_threshold_percent: float = WORKER_HEALTH_THRESHOLD_PERCENT,
+        health_threshold_percent: float | None = None,
         name: str = "worker_status",
     ):
         """
@@ -721,7 +721,11 @@ class WorkerStatusHealthCheck(HealthCheck):
         """
         super().__init__(name=name, critical=False, cache_ttl=5)
         self.manager = manager
-        self.health_threshold_percent = health_threshold_percent
+        self.health_threshold_percent = (
+            health_threshold_percent
+            if health_threshold_percent is not None
+            else WORKER_HEALTH_THRESHOLD_PERCENT
+        )
         # Track tasks that have been checked to prevent memory leaks
         # Maps task_id to whether it failed (True) or succeeded (False)
         self._checked_tasks: dict[int, bool] = {}
