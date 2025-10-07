@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.2.2...idea-shared-v0.2.3) (2025-10-07)
+
+
+### Bug Fixes
+
+* resolve InfluxDB connection failures ([#63](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/63)) ([bf76a48](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/bf76a48b2bb2dce54c164331d61e5d4de6cc1305))
+
 ## [0.2.2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.2.1...idea-shared-v0.2.2) (2025-10-07)
 
 
