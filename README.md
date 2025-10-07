@@ -3,11 +3,41 @@ Repository for the IDEA Helsinki application developed for the TFDS-project.
 
 **ADD: Backsotry = "why-when-where", Project stakeholders, credits for the IDEA algorithm etc.**
 
-## General configuration info
+## Local Development Setup
 
-In it's current form, most of the configuration is done through the **constants** files:
-- [Constants](/lib/Constants/Constants.py)
-- [PrivateConstants](/lib/Constants/PrivateConstantExample.py)
+### Environment Configuration
+
+The application uses environment variables for configuration, which are fetched from Google Secret Manager for consistency with production.
+
+1. **Copy the environment template:**
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Authenticate with Google Cloud:**
+   ```bash
+   gcloud auth application-default login
+   gcloud config set project fvh-project-containers-etc
+   ```
+
+3. **Run with Skaffold (recommended):**
+   ```bash
+   dotenvx run -- skaffold dev
+   ```
+
+   Or source the environment manually:
+   ```bash
+   source .env
+   skaffold dev
+   ```
+
+### Configuration Files
+
+Configuration is split between:
+- **Environment variables** (via `.env`) - Secrets and environment-specific settings
+- **Constants files** - Application logic constants
+  - [Constants](shared/src/idea_shared/lib/Constants/Constants.py)
+  - [PrivateConstants](shared/src/idea_shared/lib/Constants/PrivateConstants.py)
 
 ## Program process schematic
 
