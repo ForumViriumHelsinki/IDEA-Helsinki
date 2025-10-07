@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.6](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-helsinki-v0.3.5...idea-helsinki-v0.3.6) (2025-10-07)
+
+
+### Bug Fixes
+
+* resolve syntax error in WorkerStatusHealthCheck initialization ([#67](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/67)) ([8a61820](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/8a61820353311f9e97693f86a933bbabcc3fdddb)), closes [#66](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/66)
+
 ## [0.3.5](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-helsinki-v0.3.4...idea-helsinki-v0.3.5) (2025-10-06)
 
 

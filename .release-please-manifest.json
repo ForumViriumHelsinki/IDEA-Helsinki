@@ -1,6 +1,6 @@
 {
   "shared": "0.2.0",
-  "services/idea-helsinki": "0.3.5",
+  "services/idea-helsinki": "0.3.6",
   "services/fcd-manager": "0.3.2",
   "services/traffic-monitor": "0.3.2"
 }
