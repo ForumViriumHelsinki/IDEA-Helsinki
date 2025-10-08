@@ -18,7 +18,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "idea-shared==0.2.1", # x-release-please-version
+    "idea-shared",  # Installed from local ./shared directory in Docker
     "influxdb-client",
     "pandas",
     "numpy",
