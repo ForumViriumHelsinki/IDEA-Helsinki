@@ -20,7 +20,7 @@
     },
     "services/idea-helsinki": {
       "release-type": "python",
-      "component": "idea-helsinki"
+      "component": "orchestrator"
     },
     "services/fcd-manager": {
       "release-type": "python",

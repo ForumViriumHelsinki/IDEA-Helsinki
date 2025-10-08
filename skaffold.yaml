@@ -9,7 +9,7 @@ build:
     useBuildkit: true
     concurrency: 0
   artifacts:
-    - image: idea-helsinki
+    - image: orchestrator
       context: .
       docker:
         dockerfile: services/idea-helsinki/Dockerfile
