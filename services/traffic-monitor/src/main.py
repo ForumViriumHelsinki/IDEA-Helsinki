@@ -6,13 +6,12 @@ import signal
 import sys
 from datetime import UTC, datetime, timedelta
 
-import sentry_sdk
-
 # ------------------------------------------------------#
 # ------------- PROJECT MODULE IMPORTS -----------------#
 # ------------------------------------------------------#
 import idea_shared.lib.DisturbanceValidator as DisturbanceValidator
 import pause
+import sentry_sdk
 
 # ------------------------------------------------------#
 # -------------- PROJECT CLASS IMPORTS -----------------#

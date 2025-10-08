@@ -6,14 +6,13 @@ import signal
 import sys
 from datetime import UTC, datetime, timedelta
 
-import idea_shared.lib.FcdUtils as FcdUtils
-import sentry_sdk
-
 # ------------------------------------------------------#
 # ------------- PROJECT MODULE IMPORTS -----------------#
 # ------------------------------------------------------#
+import idea_shared.lib.FcdUtils as FcdUtils
 import idea_shared.lib.TomTomFcdAggregator as TomTomFcdAggregator
 import pause
+import sentry_sdk
 
 # ------------------------------------------------------#
 # -------------- PROJECT CLASS IMPORTS -----------------#
