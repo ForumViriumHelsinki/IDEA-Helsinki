@@ -1,0 +1,44 @@
+name: Cascade Shared Module Releases
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  trigger-service-releases:
+    if: github.event.pull_request.merged == true && contains(github.event.pull_request.title, 'idea-shared')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check if shared module was updated
+        id: check-shared
+        run: |
+          # Check if the merged PR updated the shared module version
+          if grep -q '"shared":' .release-please-manifest.json; then
+            echo "shared_updated=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Trigger service releases
+        if: steps.check-shared.outputs.shared_updated == 'true'
+        run: |
+          # Create a trigger file in each service to force release-please to notice changes
+          for service in services/*; do
+            echo "# Automated trigger for shared module update $(date -u +%Y%m%d-%H%M%S)" > "$service/.release-trigger"
+            git add "$service/.release-trigger"
+          done
+
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Commit the changes
+          git commit -m "chore: cascade shared module release to services
+
+          Trigger service releases due to idea-shared update.
+          This ensures all services are rebuilt with the latest shared module."
+
+          git push
