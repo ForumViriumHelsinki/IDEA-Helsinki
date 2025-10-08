@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.4.0...fcd-manager-v0.4.1) (2025-10-08)
+
+
+### Bug Fixes
+
+* remove version pinning for idea-shared in services ([#85](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/85)) ([b2ab907](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/b2ab9072f719a807d5c143857b069b0c42733352))
+
 ## [0.4.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.3.3...fcd-manager-v0.4.0) (2025-10-08)
 
 
