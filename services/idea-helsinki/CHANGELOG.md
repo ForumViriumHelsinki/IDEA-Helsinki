@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-helsinki-v0.3.7...idea-helsinki-v0.4.0) (2025-10-08)
+
+
+### Features
+
+* configure Sentry for all IDEA-Helsinki services ([#80](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/80)) ([ec99d37](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/ec99d37366625d15e9419c0190978b9e4f32907a)), closes [#79](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/79)
+
 ## [0.3.7](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-helsinki-v0.3.6...idea-helsinki-v0.3.7) (2025-10-07)
 
 
