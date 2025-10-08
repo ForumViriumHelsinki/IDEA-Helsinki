@@ -2,8 +2,11 @@
 # ---------------- GENERAL IMPORTS ---------------------#
 # ------------------------------------------------------#
 import asyncio
+import os
 import signal
 import sys
+
+import sentry_sdk
 
 # ------------------------------------------------------#
 # -------------- PROJECT CLASS IMPORTS -----------------#
@@ -198,6 +201,19 @@ async def main():
 
 
 if __name__ == "__main__":
+    # Initialize Sentry if DSN is provided
+    sentry_dsn = os.getenv("SENTRY_DSN")
+    if sentry_dsn:
+        sentry_sdk.init(
+            dsn=sentry_dsn,
+            traces_sample_rate=1.0,
+            profiles_sample_rate=1.0,
+            environment=os.getenv("ENVIRONMENT", "production"),
+        )
+        logger.info("Sentry initialized for error tracking")
+    else:
+        logger.info("SENTRY_DSN not set, running without Sentry error tracking")
+
     logger.info("###########################################")
     logger.info("## Starting IDEA Helsinki Service Runner ##")
     logger.info("###########################################")

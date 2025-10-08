@@ -24,6 +24,7 @@ dependencies = [
     "numpy",
     "azure-storage-blob",
     "requests",
+    "sentry-sdk",
 ]
 
 [project.optional-dependencies]
