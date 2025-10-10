@@ -7,8 +7,11 @@ on:
 
 jobs:
   trigger-service-releases:
-    if: github.event.pull_request.merged == true && contains(github.event.pull_request.title, 'idea-shared')
+    if: github.event.pull_request.merged == true && contains(github.event.pull_request.body, 'idea-shared')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -24,21 +27,38 @@ jobs:
 
       - name: Trigger service releases
         if: steps.check-shared.outputs.shared_updated == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Create a new branch for the cascade
+          BRANCH_NAME="fix/cascade-shared-release-$(date -u +%Y%m%d-%H%M%S)"
+          git checkout -b "$BRANCH_NAME"
+
           # Create a trigger file in each service to force release-please to notice changes
           for service in services/*; do
             echo "# Automated trigger for shared module update $(date -u +%Y%m%d-%H%M%S)" > "$service/.release-trigger"
             git add "$service/.release-trigger"
           done
 
-          # Configure git
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Commit the changes using fix: to trigger release-please
+          git commit -m "fix(services): update for idea-shared module changes
 
-          # Commit the changes
-          git commit -m "chore: cascade shared module release to services
+          Trigger service releases to ensure all services are rebuilt with the latest shared module version."
 
-          Trigger service releases due to idea-shared update.
-          This ensures all services are rebuilt with the latest shared module."
+          # Push the branch
+          git push -u origin "$BRANCH_NAME"
 
-          git push
+          # Create a pull request
+          gh pr create \
+            --title "fix(services): update for idea-shared module changes" \
+            --body "Automated PR to trigger service releases after idea-shared update.
+
+          This PR adds trigger files to force release-please to create new service releases that will use the latest shared module version.
+
+          **Note**: Uses \`fix:\` commit type (not \`chore:\`) to ensure release-please triggers patch releases for all services." \
+            --base main \
+            --head "$BRANCH_NAME"
