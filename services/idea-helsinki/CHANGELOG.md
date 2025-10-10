@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-helsinki-v0.4.1...idea-helsinki-v0.4.2) (2025-10-10)
+
+
+### Bug Fixes
+
+* **services:** update for idea-shared module changes ([#94](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/94)) ([1ac1981](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/1ac1981d648068b1aba14478024d07cf06756509))
+
 ## [0.4.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-helsinki-v0.4.0...idea-helsinki-v0.4.1) (2025-10-08)
 
 
