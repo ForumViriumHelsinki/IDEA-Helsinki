@@ -17,19 +17,24 @@ class FCDInfluxDBManager:
     This class is specifically designed to work with the TFDS data models.
     """
 
-    def __init__(self, url: str, token: str, org: str, bucket: str):
+    def __init__(
+        self, url: str, token: str, org: str, bucket: str, timeout: int = 300000
+    ):
         self.client = None  # Initialize client to None
         try:
-            # Initialize the connection to the InfluxDB client with a retry strategy.
+            # Initialize the connection to the InfluxDB client with a retry strategy and timeout.
+            # Timeout is in milliseconds (default: 300000ms = 5 minutes)
             retries = Retry(total=5, backoff_factor=1, status_forcelist=[502, 503, 504])
-            self.client = InfluxDBClient(url=url, token=token, org=org, retries=retries)
+            self.client = InfluxDBClient(
+                url=url, token=token, org=org, retries=retries, timeout=timeout
+            )
             self.write_api = self.client.write_api(write_options=SYNCHRONOUS)
             self.query_api = self.client.query_api()
             self.org = org
             self.bucket = bucket
             self.logger = Logger(__name__)
             self.logger.info(
-                f"FCDInfluxDBManager initialized for bucket '{self.bucket}'."
+                f"FCDInfluxDBManager initialized - URL: {url}, Org: {self.org}, Bucket: {self.bucket}, Timeout: {timeout}ms"
             )
         except (ApiException, ConnectionError) as e:
             print(f"Failed to connect to InfluxDB: {e}")
@@ -67,16 +72,38 @@ class FCDInfluxDBManager:
             self.logger.error(f"InfluxDB connection check failed. {e}")
             return False
 
-    def write_dataframe(self, df: pd.DataFrame, segment_id: str, measurement_name: str):
+    def _write_batch(self, points: list, batch_number: int):
         """
-        Writes a pandas DataFrame to InfluxDB.
+        Write a batch of points with logging.
+
+        Args:
+            points: List of Point objects to write
+            batch_number: Sequential batch number for logging
+        """
+        self.logger.info(f"Writing batch {batch_number} ({len(points)} points)...")
+        self.write_api.write(bucket=self.bucket, org=self.org, record=points)
+        self.logger.info(
+            f"Successfully wrote batch {batch_number} - URL: {self.client.url}, "
+            f"Org: {self.org}, Bucket: {self.bucket}"
+        )
+
+    def write_dataframe(
+        self,
+        df: pd.DataFrame,
+        segment_id: str,
+        measurement_name: str,
+        batch_size: int = 5000,
+    ):
+        """
+        Writes a pandas DataFrame to InfluxDB using incremental batching.
 
         The DataFrame must contain a 'time' column for the timestamp used in the IfluxDB.
 
         Args:
-            df : The DataFrame to write. Must include a 'time' column.
-            segment_id : The identifier for the segment, used as a tag.
-            measurement_name : The name of the measurement to write to, example = "idea_validation".
+            df: The DataFrame to write. Must include a 'time' column.
+            segment_id: The identifier for the segment, used as a tag.
+            measurement_name: The name of the measurement to write to, example = "idea_validation".
+            batch_size: Number of rows per batch (default: 5000, per InfluxDB best practices)
         """
         if df.empty:
             self.logger.warning("DataFrame is empty. Nothing to write.")
@@ -100,32 +127,67 @@ class FCDInfluxDBManager:
 
         # Add the segment_id as a column to be used as a tag
         df_copy["segmentId"] = segment_id
-        try:
-            self.write_api.write(
-                bucket=self.bucket,
-                record=df_copy,
-                data_frame_measurement_name=measurement_name,
-                data_frame_tag_columns=["segmentId"],
-                data_frame_timestamp_column="time",
-            )
-            self.logger.info(
-                f"Successfully wrote {len(df_copy)} rows to measurement '{measurement_name}' for segmentId '{segment_id}'."
-            )
-        except Exception as e:
-            self.logger.error(f"Writing DataFrame to InfluxDB failed. {e}")
-            raise
 
-    def write_fcd_model(self, fcd_data: dict):
+        total_rows = len(df_copy)
+        num_batches = (total_rows + batch_size - 1) // batch_size  # Ceiling division
+
+        if num_batches > 1:
+            self.logger.info(
+                f"Writing {total_rows} rows in {num_batches} batches for segmentId '{segment_id}'"
+            )
+
+        # Write DataFrame in batches
+        for batch_num in range(num_batches):
+            start_idx = batch_num * batch_size
+            end_idx = min(start_idx + batch_size, total_rows)
+            df_batch = df_copy.iloc[start_idx:end_idx]
+
+            try:
+                self.write_api.write(
+                    bucket=self.bucket,
+                    record=df_batch,
+                    data_frame_measurement_name=measurement_name,
+                    data_frame_tag_columns=["segmentId"],
+                    data_frame_timestamp_column="time",
+                )
+                if num_batches > 1:
+                    self.logger.info(
+                        f"Successfully wrote batch {batch_num + 1}/{num_batches} "
+                        f"({len(df_batch)} rows) for segmentId '{segment_id}'"
+                    )
+            except Exception as e:
+                self.logger.error(
+                    f"Writing DataFrame batch {batch_num + 1}/{num_batches} to InfluxDB failed. {e}"
+                )
+                raise
+
+        # Final summary log
+        self.logger.info(
+            f"Completed: {total_rows} rows written to measurement '{measurement_name}' "
+            f"for segmentId '{segment_id}' - URL: {self.client.url}, Org: {self.org}, Bucket: {self.bucket}"
+        )
+
+    def write_fcd_model(self, fcd_data: dict, batch_size: int = 5000):
         """
-        Writes the TFDS FCD data model to InfluxDB.
+        Writes the TFDS FCD data model to InfluxDB using incremental batching.
 
         Args:
-            fcd_data : Dictionary of FCD segment data.
+            fcd_data: Dictionary of FCD segment data.
+            batch_size: Number of points per batch (default: 5000, per InfluxDB best practices)
         """
-        points = []
         segments = fcd_data.get("segmentId", {})
-        for segment_id, segment_details in segments.items():
+        total_segments = len(segments)
+        self.logger.info(
+            f"Processing {total_segments} segments for InfluxDB write (batch size: {batch_size})"
+        )
+
+        current_batch = []
+        total_points_written = 0
+        batch_number = 0
+
+        for idx, (segment_id, segment_details) in enumerate(segments.items(), 1):
             observations = segment_details.get("detailedSegment", {}).get("date", {})
+
             for timestamp_str, observation_data in observations.items():
                 properties = observation_data.get("properties", {})
                 if not properties:
@@ -147,19 +209,45 @@ class FCDInfluxDBManager:
                 for key, value in properties.items():
                     if isinstance(value, int | float | str | bool):
                         point.field(key, value)
-                points.append(point)
+                current_batch.append(point)
 
-        if not points:
+                # Write batch when it reaches the specified size
+                if len(current_batch) >= batch_size:
+                    batch_number += 1
+                    try:
+                        self._write_batch(current_batch, batch_number)
+                        total_points_written += len(current_batch)
+                        current_batch = []  # Free memory
+                    except Exception as e:
+                        self.logger.error(
+                            f"Writing batch {batch_number} to InfluxDB failed. {e}"
+                        )
+                        raise
+
+            # Log progress every 10 segments
+            if idx % 10 == 0:
+                self.logger.info(
+                    f"Processed {idx}/{total_segments} segments ({total_points_written} points written)"
+                )
+
+        # Write remaining points
+        if current_batch:
+            batch_number += 1
+            try:
+                self._write_batch(current_batch, batch_number)
+                total_points_written += len(current_batch)
+            except Exception as e:
+                self.logger.error(
+                    f"Writing final batch {batch_number} to InfluxDB failed. {e}"
+                )
+                raise
+
+        if total_points_written == 0:
             self.logger.info("No points to write.")
-            return
-        try:
-            self.write_api.write(bucket=self.bucket, org=self.org, record=points)
+        else:
             self.logger.info(
-                f"Successfully wrote {len(points)} points to bucket '{self.bucket}'."
+                f"Completed: {total_points_written} points written in {batch_number} batches"
             )
-        except Exception as e:
-            self.logger.error(f"Writing to InfluxDB failed. {e}")
-            raise
 
     def get_last_update_timestamp(self) -> datetime | None:
         """
