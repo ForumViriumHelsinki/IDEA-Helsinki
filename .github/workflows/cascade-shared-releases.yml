@@ -35,7 +35,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           # Create a new branch for the cascade
-          BRANCH_NAME="chore/cascade-shared-release-$(date -u +%Y%m%d-%H%M%S)"
+          BRANCH_NAME="fix/cascade-shared-release-$(date -u +%Y%m%d-%H%M%S)"
           git checkout -b "$BRANCH_NAME"
 
           # Create a trigger file in each service to force release-please to notice changes
@@ -44,22 +44,21 @@ jobs:
             git add "$service/.release-trigger"
           done
 
-          # Commit the changes
-          git commit -m "chore: cascade shared module release to services
+          # Commit the changes using fix: to trigger release-please
+          git commit -m "fix(services): update for idea-shared module changes
 
-          Trigger service releases due to idea-shared update.
-          This ensures all services are rebuilt with the latest shared module."
+          Trigger service releases to ensure all services are rebuilt with the latest shared module version."
 
           # Push the branch
           git push -u origin "$BRANCH_NAME"
 
           # Create a pull request
           gh pr create \
-            --title "chore: cascade shared module release to services" \
+            --title "fix(services): update for idea-shared module changes" \
             --body "Automated PR to trigger service releases after idea-shared update.
 
           This PR adds trigger files to force release-please to create new service releases that will use the latest shared module version.
 
-          **Note**: This PR can be merged immediately as it only adds trigger files." \
+          **Note**: Uses \`fix:\` commit type (not \`chore:\`) to ensure release-please triggers patch releases for all services." \
             --base main \
             --head "$BRANCH_NAME"
