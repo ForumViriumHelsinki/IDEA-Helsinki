@@ -7,7 +7,7 @@ on:
 
 jobs:
   trigger-service-releases:
-    if: github.event.pull_request.merged == true && contains(github.event.pull_request.title, 'idea-shared')
+    if: github.event.pull_request.merged == true && contains(github.event.pull_request.body, 'idea-shared')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
