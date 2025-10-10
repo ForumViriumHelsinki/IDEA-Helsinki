@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.2.3...idea-shared-v0.3.0) (2025-10-10)
+
+
+### Features
+
+* InfluxDB batching improvements and K8s secrets templating ([#87](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/87)) ([2ae130b](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/2ae130b9d62623c9b27f6da634679ab845144812))
+
 ## [0.2.3](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.2.2...idea-shared-v0.2.3) (2025-10-07)
 
 
