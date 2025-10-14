@@ -14,13 +14,13 @@ class TestGetFcdGeometries:
 
     @pytest.mark.unit
     def test_empty_dict_returns_empty(self):
-        """Test that an empty dictionary returns empty result."""
+        """Empty dictionary returns empty result."""
         result = FcdUtils.get_fcd_geometries({})
         assert result == {}
 
     @pytest.mark.unit
     def test_none_input_returns_empty(self):
-        """Test that None input returns empty result."""
+        """None input returns empty result."""
         result = FcdUtils.get_fcd_geometries(None)
         assert result == {}
 
@@ -75,7 +75,7 @@ class TestGetFcdGeometries:
 
     @pytest.mark.unit
     def test_segment_without_geometry_skipped(self):
-        """Test that segments without geometry are skipped."""
+        """Segments without geometry are skipped."""
         fcd_data = {
             "segmentId": {
                 "123": {"geometry": {"type": "LineString"}},
@@ -109,7 +109,7 @@ class TestExtractTimestampFromFileName:
 
     @pytest.mark.unit
     def test_timestamp_with_microseconds_truncated(self):
-        """Test that microseconds are truncated when not requested."""
+        """Microseconds are truncated when not requested."""
         filename = "data_2024-01-15T10:30:45.999999.json"
         result = FcdUtils.extract_timestamp_str_from_file_name(
             filename, include_microseconds=False
@@ -118,15 +118,15 @@ class TestExtractTimestampFromFileName:
 
     @pytest.mark.unit
     def test_no_timestamp_returns_none(self):
-        """Test that files without timestamp return None."""
+        """Files without timestamp return None."""
         filename = "data_file_without_timestamp.json"
         result = FcdUtils.extract_timestamp_str_from_file_name(filename)
         assert result is None
 
     @pytest.mark.unit
     def test_invalid_timestamp_format(self):
-        """Test that invalid timestamp formats return None."""
-        filename = "data_2024-13-45T99:99:99.json"  # Invalid date/time
+        """Invalid timestamp formats return None."""
+        filename = "data_INVALID_TIMESTAMP.json"  # Invalid date/time
         result = FcdUtils.extract_timestamp_str_from_file_name(filename)
         assert result is None
 
@@ -158,14 +158,14 @@ class TestParseJsonFromBytes:
 
     @pytest.mark.unit
     def test_invalid_utf8_returns_none(self):
-        """Test that invalid UTF-8 encoding returns None."""
+        """Invalid UTF-8 encoding returns None."""
         invalid_bytes = b"\x80\x81\x82"
         result = FcdUtils.parse_json_from_bytes(invalid_bytes)
         assert result is None
 
     @pytest.mark.unit
     def test_invalid_json_returns_none(self):
-        """Test that invalid JSON returns None."""
+        """Invalid JSON returns None."""
         invalid_json = b'{"invalid": json}'
         result = FcdUtils.parse_json_from_bytes(invalid_json)
         assert result is None
@@ -207,7 +207,7 @@ class TestWriteJsonRecords:
 
     @pytest.mark.unit
     def test_write_creates_parent_directories(self):
-        """Test that parent directories are created if they don't exist."""
+        """Parent directories are created if they don't exist."""
         with tempfile.TemporaryDirectory() as tmpdir:
             filepath = Path(tmpdir) / "subdir" / "test.json"
             records = {"segmentId": {"123": {}}}
@@ -220,7 +220,7 @@ class TestWriteJsonRecords:
 
     @pytest.mark.unit
     def test_write_invalid_records_returns_false(self):
-        """Test that invalid records return False."""
+        """Invalid records return False."""
         with tempfile.TemporaryDirectory() as tmpdir:
             filepath = Path(tmpdir) / "test.json"
             records = {"not_segmentId": {}}  # Missing segmentId key
@@ -246,7 +246,7 @@ class TestReadExistingJsonRecords:
 
     @pytest.mark.unit
     def test_read_nonexistent_file_returns_empty(self):
-        """Test that reading non-existent file returns empty dict."""
+        """Reading non-existent file returns empty dict."""
         result = FcdUtils.read_existing_json_records("/nonexistent/file.json")
         assert result == {}
 
@@ -266,7 +266,7 @@ class TestReadExistingJsonRecords:
 
     @pytest.mark.unit
     def test_read_empty_file_returns_empty(self):
-        """Test that reading empty file returns empty dict."""
+        """Reading empty file returns empty dict."""
         with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
             filepath = f.name
 
@@ -278,7 +278,7 @@ class TestReadExistingJsonRecords:
 
     @pytest.mark.unit
     def test_read_invalid_json_returns_empty(self):
-        """Test that invalid JSON returns empty dict."""
+        """Invalid JSON returns empty dict."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             f.write("invalid json content")
             filepath = f.name

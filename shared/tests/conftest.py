@@ -22,7 +22,7 @@ def mock_azure_blob_client():
     mock_client = MagicMock()
     mock_blob = MagicMock()
     mock_blob.name = "test_blob.json"
-    mock_blob.last_modified = datetime.now(UTC)
+    mock_blob.last_modified = datetime(2024, 1, 15, 12, 0, 0, tzinfo=UTC)
     mock_client.list_blobs.return_value = [mock_blob]
     mock_client.get_blob_client.return_value = mock_blob
     return mock_client

@@ -12,7 +12,7 @@ class TestValidateDisturbanceDates:
 
     @pytest.mark.unit
     def test_empty_features_returns_none(self):
-        """Test that empty features list returns None."""
+        """Empty features list returns None."""
         disturbance_data = {"features": []}
         validation_date = datetime(2024, 1, 1, tzinfo=UTC)
 
@@ -24,7 +24,7 @@ class TestValidateDisturbanceDates:
 
     @pytest.mark.unit
     def test_missing_features_key_returns_none(self):
-        """Test that missing features key returns None."""
+        """Missing features key returns None."""
         disturbance_data = {"other_key": "value"}
         validation_date = datetime(2024, 1, 1, tzinfo=UTC)
 
@@ -36,7 +36,7 @@ class TestValidateDisturbanceDates:
 
     @pytest.mark.unit
     def test_features_not_list_returns_none(self):
-        """Test that non-list features returns None."""
+        """Non-list features returns None."""
         disturbance_data = {"features": "not a list"}
         validation_date = datetime(2024, 1, 1, tzinfo=UTC)
 
@@ -100,7 +100,7 @@ class TestValidateDisturbanceDates:
 
     @pytest.mark.unit
     def test_invalid_old_disturbance(self, freeze_time):
-        """Test that disturbances before validation date are filtered out."""
+        """Disturbances before validation date are filtered out."""
         with freeze_time("2024-02-15"):
             validation_date = datetime(2024, 2, 1, tzinfo=UTC)
             disturbance_data = {
@@ -159,7 +159,7 @@ class TestValidateDisturbanceDates:
 
     @pytest.mark.unit
     def test_malformed_date_skipped(self):
-        """Test that disturbances with malformed dates are skipped."""
+        """Disturbances with malformed dates are skipped."""
         validation_date = datetime(2024, 1, 1, tzinfo=UTC)
         disturbance_data = {
             "features": [
@@ -180,7 +180,7 @@ class TestValidateDisturbanceDates:
 
     @pytest.mark.unit
     def test_missing_date_field_skipped(self):
-        """Test that disturbances without date field are skipped."""
+        """Disturbances without date field are skipped."""
         validation_date = datetime(2024, 1, 1, tzinfo=UTC)
         disturbance_data = {
             "features": [{"properties": {"name": "No date"}}]  # Missing tyo_alkaa
@@ -194,7 +194,7 @@ class TestValidateDisturbanceDates:
 
     @pytest.mark.unit
     def test_non_dict_feature_skipped(self):
-        """Test that non-dictionary features are skipped."""
+        """Non-dictionary features are skipped."""
         validation_date = datetime(2024, 1, 1, tzinfo=UTC)
         disturbance_data = {"features": ["not a dict", 123, None]}
 
@@ -206,7 +206,7 @@ class TestValidateDisturbanceDates:
 
     @pytest.mark.unit
     def test_metadata_fields_updated(self, freeze_time):
-        """Test that metadata fields are correctly updated."""
+        """Metadata fields are correctly updated."""
         with freeze_time("2024-02-15T12:00:00Z"):
             validation_date = datetime(2024, 1, 1, tzinfo=UTC)
             disturbance_data = {

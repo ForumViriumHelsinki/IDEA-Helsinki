@@ -1,13 +1,8 @@
 """Pytest fixtures for FCD Manager service tests."""
 
-import sys
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-
-# Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 
 @pytest.fixture
