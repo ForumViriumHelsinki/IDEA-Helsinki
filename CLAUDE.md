@@ -153,6 +153,44 @@ pytest -k test_pattern  # Tests matching pattern
 pytest path/to/test_file.py::test_name  # Run specific test
 ```
 
+#### Parallel Testing
+```bash
+# Run tests in parallel using multiple CPU cores (speeds up test execution)
+pytest -n auto          # Auto-detect number of CPUs
+pytest -n 4             # Use 4 parallel workers
+
+# Parallel with coverage
+pytest -n auto --cov --cov-report=xml --cov-report=term-missing
+
+# Parallel testing with specific markers
+pytest -n auto -m unit  # Run only unit tests in parallel
+```
+
+#### Advanced Pytest Options
+```bash
+# Verbose output with detailed test information
+pytest -v               # Verbose mode
+pytest -vv              # Extra verbose (shows full diff on failures)
+
+# Stop on first failure (useful during TDD)
+pytest -x               # Stop after first failure
+pytest --maxfail=3      # Stop after 3 failures
+
+# Run only tests that failed in the last run
+pytest --lf             # Last failed
+pytest --ff             # Failed first (run failures first, then rest)
+
+# Show local variables in tracebacks
+pytest -l               # Show locals in tracebacks
+
+# Disable output capture (see print statements immediately)
+pytest -s               # No capture (useful for debugging)
+
+# Run with pytest warnings
+pytest -W error         # Turn warnings into errors
+pytest -W ignore        # Ignore warnings
+```
+
 ### Test-Driven Development Workflow
 
 We follow **RED-GREEN-REFACTOR**:
