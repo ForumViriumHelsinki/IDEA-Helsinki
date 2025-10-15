@@ -238,9 +238,18 @@ class TestExternalAPIHealthCheck:
         monitoring of dependencies like the Helsinki WFS service and Azure APIs.
         """
         with patch("aiohttp.ClientSession") as mock_session:
+            # Create async context manager mock for response
             mock_response = AsyncMock()
             mock_response.status = 200
-            mock_session.return_value.__aenter__.return_value.request.return_value.__aenter__.return_value = mock_response
+            mock_response.__aenter__.return_value = mock_response
+            mock_response.__aexit__.return_value = None
+
+            # Create async context manager mock for session
+            mock_session_instance = AsyncMock()
+            # Make request() a regular mock (not async) that returns the response context manager
+            mock_session_instance.request = lambda *args, **kwargs: mock_response
+            mock_session.return_value.__aenter__.return_value = mock_session_instance
+            mock_session.return_value.__aexit__.return_value = None
 
             check = ExternalAPIHealthCheck(
                 name="api_check", url="https://api.example.com/health"
@@ -260,9 +269,18 @@ class TestExternalAPIHealthCheck:
         and includes both actual and expected status codes in metadata for debugging.
         """
         with patch("aiohttp.ClientSession") as mock_session:
+            # Create async context manager mock for response
             mock_response = AsyncMock()
             mock_response.status = 500
-            mock_session.return_value.__aenter__.return_value.request.return_value.__aenter__.return_value = mock_response
+            mock_response.__aenter__.return_value = mock_response
+            mock_response.__aexit__.return_value = None
+
+            # Create async context manager mock for session
+            mock_session_instance = AsyncMock()
+            # Make request() a regular mock (not async) that returns the response context manager
+            mock_session_instance.request = lambda *args, **kwargs: mock_response
+            mock_session.return_value.__aenter__.return_value = mock_session_instance
+            mock_session.return_value.__aexit__.return_value = None
 
             check = ExternalAPIHealthCheck(
                 name="api_check",
@@ -285,9 +303,16 @@ class TestExternalAPIHealthCheck:
         the health check system and are properly reported as unhealthy status.
         """
         with patch("aiohttp.ClientSession") as mock_session:
-            mock_session.return_value.__aenter__.return_value.request.side_effect = (
-                aiohttp.ClientError("Connection failed")
-            )
+            # Create async context manager mock for session
+            mock_session_instance = AsyncMock()
+
+            # Make request() raise an exception
+            def raise_error(*args, **kwargs):
+                raise aiohttp.ClientError("Connection failed")
+
+            mock_session_instance.request = raise_error
+            mock_session.return_value.__aenter__.return_value = mock_session_instance
+            mock_session.return_value.__aexit__.return_value = None
 
             check = ExternalAPIHealthCheck(
                 name="api_check", url="https://api.example.com/health"
@@ -314,10 +339,16 @@ class TestExternalAPIHealthCheck:
         )
 
         with patch("aiohttp.ClientSession") as mock_session:
-            # Simulate failures
-            mock_session.return_value.__aenter__.return_value.request.side_effect = (
-                aiohttp.ClientError("Connection failed")
-            )
+            # Create async context manager mock for session with failure
+            mock_session_instance = AsyncMock()
+
+            # Make request() raise an exception
+            def raise_error(*args, **kwargs):
+                raise aiohttp.ClientError("Connection failed")
+
+            mock_session_instance.request = raise_error
+            mock_session.return_value.__aenter__.return_value = mock_session_instance
+            mock_session.return_value.__aexit__.return_value = None
 
             # First failure
             result1 = await check.check()
@@ -351,11 +382,19 @@ class TestExternalAPIHealthCheck:
         )
 
         with patch("aiohttp.ClientSession") as mock_session:
+            # Create async context manager mocks
             mock_response = AsyncMock()
+            mock_response.__aenter__.return_value = mock_response
+            mock_response.__aexit__.return_value = None
+
+            mock_session_instance = AsyncMock()
+            # Make request() a regular mock that returns the response context manager
+            mock_session_instance.request = lambda *args, **kwargs: mock_response
+            mock_session.return_value.__aenter__.return_value = mock_session_instance
+            mock_session.return_value.__aexit__.return_value = None
 
             # First failure
             mock_response.status = 500
-            mock_session.return_value.__aenter__.return_value.request.return_value.__aenter__.return_value = mock_response
             _result1 = await check.check()
             assert check._failure_count == 1
 
@@ -374,11 +413,24 @@ class TestExternalAPIHealthCheck:
         for APIs that require authentication tokens or specific request methods.
         """
         with patch("aiohttp.ClientSession") as mock_session:
+            # Create async context manager mock for response
             mock_response = AsyncMock()
             mock_response.status = 200
-            mock_request = AsyncMock(return_value=mock_response)
-            mock_session.return_value.__aenter__.return_value.request = mock_request
-            mock_request.return_value.__aenter__.return_value = mock_response
+            mock_response.__aenter__.return_value = mock_response
+            mock_response.__aexit__.return_value = None
+
+            # Track request calls
+            request_calls = []
+
+            def track_request(*args, **kwargs):
+                request_calls.append((args, kwargs))
+                return mock_response
+
+            # Create async context manager mock for session
+            mock_session_instance = AsyncMock()
+            mock_session_instance.request = track_request
+            mock_session.return_value.__aenter__.return_value = mock_session_instance
+            mock_session.return_value.__aexit__.return_value = None
 
             check = ExternalAPIHealthCheck(
                 name="api_check",
@@ -388,11 +440,12 @@ class TestExternalAPIHealthCheck:
             )
             _result = await check.check()
 
-            mock_request.assert_called_once()
-            call_args = mock_request.call_args
-            assert call_args[0][0] == "POST"
-            assert call_args[0][1] == "https://api.example.com/health"
-            assert call_args[1]["headers"] == {"Authorization": "Bearer token"}
+            # Verify request was called correctly
+            assert len(request_calls) == 1
+            call_args, call_kwargs = request_calls[0]
+            assert call_args[0] == "POST"
+            assert call_args[1] == "https://api.example.com/health"
+            assert call_kwargs["headers"] == {"Authorization": "Bearer token"}
 
     @pytest.mark.asyncio
     async def test_circuit_breaker_half_open_state(self):
@@ -411,11 +464,19 @@ class TestExternalAPIHealthCheck:
         )
 
         with patch("aiohttp.ClientSession") as mock_session:
+            # Create async context manager mocks
             mock_response = AsyncMock()
+            mock_response.__aenter__.return_value = mock_response
+            mock_response.__aexit__.return_value = None
+
+            mock_session_instance = AsyncMock()
+            # Make request() a regular mock that returns the response context manager
+            mock_session_instance.request = lambda *args, **kwargs: mock_response
+            mock_session.return_value.__aenter__.return_value = mock_session_instance
+            mock_session.return_value.__aexit__.return_value = None
 
             # Cause circuit to open
             mock_response.status = 500
-            mock_session.return_value.__aenter__.return_value.request.return_value.__aenter__.return_value = mock_response
 
             # Two failures to open circuit
             await check.check()
@@ -447,10 +508,18 @@ class TestExternalAPIHealthCheck:
         )
 
         with patch("aiohttp.ClientSession") as mock_session:
+            # Create async context manager mock for session with failure
+            mock_session_instance = AsyncMock()
+
+            # Make request() raise an exception
+            def raise_error(*args, **kwargs):
+                raise aiohttp.ClientError("Connection failed")
+
+            mock_session_instance.request = raise_error
+            mock_session.return_value.__aenter__.return_value = mock_session_instance
+            mock_session.return_value.__aexit__.return_value = None
+
             # Open the circuit
-            mock_session.return_value.__aenter__.return_value.request.side_effect = (
-                aiohttp.ClientError("Connection failed")
-            )
             await check.check()
             await check.check()
             assert check._circuit_state == CircuitBreakerState.OPEN

@@ -114,3 +114,118 @@ The system tracks segment geometry changes using SHA-256 hashing to detect when 
 
 ### Validation Requirements
 Traffic disturbances can only be validated if there's at least 6 months of FCD history available for affected segments, ensuring sufficient baseline data for impact analysis.
+
+## Testing
+
+### Running Tests Locally
+
+#### Shared Library Tests
+```bash
+cd shared
+uv venv
+. .venv/bin/activate
+uv pip install -e .[dev]
+pytest
+```
+
+#### Service Tests
+```bash
+cd services/{service-name}  # idea-helsinki, fcd-manager, or traffic-monitor
+uv venv
+. .venv/bin/activate
+uv pip install -e ../../shared
+uv pip install -e .[dev]
+pytest
+```
+
+#### Run with Coverage
+```bash
+# In shared directory
+pytest --cov --cov-report=html
+# Open htmlcov/index.html to view coverage report
+```
+
+#### Run Specific Test Types
+```bash
+pytest -m unit          # Only unit tests (fast, no external dependencies)
+pytest -m integration   # Only integration tests (may require services)
+pytest -k test_pattern  # Tests matching pattern
+pytest path/to/test_file.py::test_name  # Run specific test
+```
+
+#### Parallel Testing
+```bash
+# Run tests in parallel using multiple CPU cores (speeds up test execution)
+pytest -n auto          # Auto-detect number of CPUs
+pytest -n 4             # Use 4 parallel workers
+
+# Parallel with coverage
+pytest -n auto --cov --cov-report=xml --cov-report=term-missing
+
+# Parallel testing with specific markers
+pytest -n auto -m unit  # Run only unit tests in parallel
+```
+
+#### Advanced Pytest Options
+```bash
+# Verbose output with detailed test information
+pytest -v               # Verbose mode
+pytest -vv              # Extra verbose (shows full diff on failures)
+
+# Stop on first failure (useful during TDD)
+pytest -x               # Stop after first failure
+pytest --maxfail=3      # Stop after 3 failures
+
+# Run only tests that failed in the last run
+pytest --lf             # Last failed
+pytest --ff             # Failed first (run failures first, then rest)
+
+# Show local variables in tracebacks
+pytest -l               # Show locals in tracebacks
+
+# Disable output capture (see print statements immediately)
+pytest -s               # No capture (useful for debugging)
+
+# Run with pytest warnings
+pytest -W error         # Turn warnings into errors
+pytest -W ignore        # Ignore warnings
+```
+
+### Test-Driven Development Workflow
+
+We follow **RED-GREEN-REFACTOR**:
+
+1. **RED**: Write a failing test first
+   ```bash
+   pytest path/to/test_file.py::test_name  # Should fail
+   ```
+
+2. **GREEN**: Write minimal code to pass
+   ```bash
+   pytest path/to/test_file.py::test_name  # Should pass
+   ```
+
+3. **REFACTOR**: Improve code while keeping tests green
+   ```bash
+   pytest  # All tests should still pass
+   ```
+
+### Before Committing
+```bash
+# Run tests
+pytest
+
+# Run linting
+ruff check
+ruff format
+
+# Commit with descriptive message
+git add .
+git commit -m "feat: implement feature X with tests"
+```
+
+### CI/CD
+- Tests run automatically on push and PR via GitHub Actions
+- All tests must pass before merging
+- Coverage reports are generated and tracked via Codecov
+- Matrix testing across all three services ensures compatibility

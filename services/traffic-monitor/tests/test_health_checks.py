@@ -8,14 +8,15 @@ from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from services.traffic_monitor.src.health_checks import (
+
+from src.health_checks import (
     DetectorHealthCheck,
     FCDMappingHealthCheck,
     OutputFileHealthCheck,
     UpdateFreshnessHealthCheck,
     WFSAPIHealthCheck,
 )
-from services.traffic_monitor.src.service_state import ServiceState
+from src.service_state import ServiceState
 
 
 class TestWFSAPIHealthCheck:
