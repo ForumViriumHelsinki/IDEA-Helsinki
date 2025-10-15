@@ -35,16 +35,6 @@ jobs:
           . .venv/bin/activate
           pytest --cov=idea_shared --cov-report=xml --cov-report=term-missing
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        if: github.event_name == 'push'
-        with:
-          file: ./shared/coverage.xml
-          flags: shared
-          name: shared-coverage
-          fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
-
   test-services:
     name: Test ${{ matrix.service }}
     runs-on: ubuntu-latest
@@ -77,13 +67,3 @@ jobs:
           cd services/${{ matrix.service }}
           . .venv/bin/activate
           pytest -v --tb=short --cov --cov-report=xml --cov-report=term-missing
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        if: github.event_name == 'push'
-        with:
-          file: ./services/${{ matrix.service }}/coverage.xml
-          flags: ${{ matrix.service }}
-          name: ${{ matrix.service }}-coverage
-          fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
