@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "idea-helsinki"
-version = "0.4.2"
+version = "0.5.0"
 description = "IDEA Helsinki traffic validation orchestration service"
 requires-python = ">=3.12"
 authors = [
