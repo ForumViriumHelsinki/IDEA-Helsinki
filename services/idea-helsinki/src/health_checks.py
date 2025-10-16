@@ -249,10 +249,10 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
                     |> limit(n: 1)
                 """
 
-                # Also query for the most recent data point (regardless of timestamp)
+                # Also query for the most recent data point (bounded lookback for performance)
                 latest_query = f"""
                 from(bucket: "{self.bucket}")
-                    |> range(start: 0)
+                    |> range(start: -7d)
                     |> filter(fn: (r) => r["_measurement"] == "fcd_segment")
                     |> last()
                     |> limit(n: 1)
@@ -297,7 +297,7 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
                                     latest_record = table.records[0]
                                     break
 
-                            if latest_record:
+                            if latest_record and hasattr(latest_record, 'get_time'):
                                 latest_data_time = latest_record.get_time()
                                 now = datetime.now(UTC)
                                 data_age_hours = (

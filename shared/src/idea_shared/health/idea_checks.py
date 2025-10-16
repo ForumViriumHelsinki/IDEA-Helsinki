@@ -301,10 +301,10 @@ class FCDDataFreshnessHealthCheck(DatabaseHealthCheck):
                       |> limit(n: 1)
                     """
 
-                    # Also query for the most recent data point overall (regardless of time)
+                    # Also query for the most recent data point (bounded lookback for performance)
                     latest_query = f"""
                     from(bucket: "{self.bucket}")
-                      |> range(start: 0)
+                      |> range(start: -7d)
                       |> filter(fn: (r) => r["_measurement"] == "{self.measurement}")
                       |> last()
                       |> limit(n: 1)
