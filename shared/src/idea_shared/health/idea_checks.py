@@ -292,8 +292,8 @@ class FCDDataFreshnessHealthCheck(DatabaseHealthCheck):
                 try:
                     query_api = client.query_api()
 
-                    # Query for the most recent data point
-                    query = f"""
+                    # Query for the most recent data point in the last max_age_minutes
+                    recent_query = f"""
                     from(bucket: "{self.bucket}")
                       |> range(start: -{self.max_age_minutes}m)
                       |> filter(fn: (r) => r["_measurement"] == "{self.measurement}")
@@ -301,35 +301,92 @@ class FCDDataFreshnessHealthCheck(DatabaseHealthCheck):
                       |> limit(n: 1)
                     """
 
-                    result = query_api.query(org=self.org, query=query)
+                    # Also query for the most recent data point overall (regardless of time)
+                    latest_query = f"""
+                    from(bucket: "{self.bucket}")
+                      |> range(start: 0)
+                      |> filter(fn: (r) => r["_measurement"] == "{self.measurement}")
+                      |> last()
+                      |> limit(n: 1)
+                    """
 
-                    if result and len(result) > 0 and len(result[0].records) > 0:
-                        last_record_time = result[0].records[0].get_time()
+                    recent_result = query_api.query(org=self.org, query=recent_query)
+
+                    if (
+                        recent_result
+                        and len(recent_result) > 0
+                        and len(recent_result[0].records) > 0
+                    ):
+                        last_record_time = recent_result[0].records[0].get_time()
                         age_minutes = (
                             datetime.now(UTC) - last_record_time
                         ).total_seconds() / 60
-                        return True, age_minutes
+                        return True, age_minutes, None  # Real-time mode
                     else:
-                        return False, None
+                        # No recent data - check if we're in backfill mode
+                        latest_result = query_api.query(
+                            org=self.org, query=latest_query
+                        )
+
+                        if (
+                            latest_result
+                            and len(latest_result) > 0
+                            and len(latest_result[0].records) > 0
+                        ):
+                            latest_record_time = latest_result[0].records[0].get_time()
+                            age_minutes = (
+                                datetime.now(UTC) - latest_record_time
+                            ).total_seconds() / 60
+
+                            # If data is significantly old, we're in backfill mode
+                            if age_minutes > self.max_age_minutes:
+                                return (
+                                    True,
+                                    age_minutes,
+                                    latest_record_time,
+                                )  # Backfill mode with timestamp
+
+                        return False, None, None
                 finally:
                     client.close()
 
-            has_recent_data, age_minutes = await loop.run_in_executor(
-                None, check_freshness
-            )
+            (
+                has_recent_data,
+                age_minutes,
+                backfill_timestamp,
+            ) = await loop.run_in_executor(None, check_freshness)
 
             if has_recent_data:
-                return HealthCheckResult(
-                    name=self.name,
-                    status="healthy",
-                    message=f"FCD data is fresh (age: {age_minutes:.1f} minutes)",
-                    metadata={
-                        "bucket": self.bucket,
-                        "measurement": self.measurement,
-                        "data_age_minutes": age_minutes,
-                        "max_age_minutes": self.max_age_minutes,
-                    },
-                )
+                if backfill_timestamp:
+                    # Backfill mode - data exists but is historical
+                    backfill_msg = f"FCD data is healthy (backfilling from {backfill_timestamp.strftime('%Y-%m-%d %H:%M')})"
+                    return HealthCheckResult(
+                        name=self.name,
+                        status="healthy",
+                        message=backfill_msg,
+                        metadata={
+                            "bucket": self.bucket,
+                            "measurement": self.measurement,
+                            "mode": "backfill",
+                            "latest_data_timestamp": backfill_timestamp.isoformat(),
+                            "data_age_minutes": round(age_minutes, 2),
+                            "backfill_progress": f"Processing data from {backfill_timestamp.strftime('%Y-%m-%d')}",
+                        },
+                    )
+                else:
+                    # Real-time mode - recent data exists
+                    return HealthCheckResult(
+                        name=self.name,
+                        status="healthy",
+                        message=f"FCD data is fresh (age: {age_minutes:.1f} minutes)",
+                        metadata={
+                            "bucket": self.bucket,
+                            "measurement": self.measurement,
+                            "mode": "real_time",
+                            "data_age_minutes": age_minutes,
+                            "max_age_minutes": self.max_age_minutes,
+                        },
+                    )
             else:
                 return HealthCheckResult(
                     name=self.name,
