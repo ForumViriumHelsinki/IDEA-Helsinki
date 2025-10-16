@@ -575,7 +575,7 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
                         )
 
                     # Validate critical fields exist and have content
-                    required_fields = ["segmentId", "trafficDisturbanceId"]
+                    required_fields = ["segmentId"]
                     missing_fields = [
                         field for field in required_fields if field not in data
                     ]
