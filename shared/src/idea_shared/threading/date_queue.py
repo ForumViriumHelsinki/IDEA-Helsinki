@@ -118,3 +118,27 @@ class DateRangeQueue:
         """
         with self._lock:
             return list(self._dead_letter_ranges)
+
+    def is_empty(self) -> bool:
+        """
+        Check if the queue is empty.
+
+        Returns:
+            True if queue has no more ranges to process
+        """
+        return self._queue.empty()
+
+    def get_stats(self) -> dict:
+        """
+        Get queue statistics.
+
+        Returns:
+            Dictionary with queue statistics
+        """
+        with self._lock:
+            return {
+                "total_ranges": self._total_ranges,
+                "completed_ranges": self._completed_ranges,
+                "queue_size": self._queue.qsize(),
+                "dead_letter_count": len(self._dead_letter_ranges),
+            }
