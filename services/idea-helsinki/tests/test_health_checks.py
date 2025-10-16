@@ -267,14 +267,11 @@ class TestDisturbanceDataHealthCheck:
     async def test_healthy_with_fresh_valid_data(self):
         """Test healthy status with fresh and valid JSON data."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-            # Write valid JSON with segments and required fields
+            # Write valid JSON with segments (matching actual data structure)
             data = {
                 "segmentId": {
                     "seg1": {"detailedCollisions": []},
                     "seg2": {"detailedCollisions": []},
-                },
-                "trafficDisturbanceId": {
-                    "dist1": {"segments": ["seg1", "seg2"]},
                 },
             }
             json.dump(data, f)
@@ -301,7 +298,6 @@ class TestDisturbanceDataHealthCheck:
             json.dump(
                 {
                     "segmentId": {"seg1": {}},
-                    "trafficDisturbanceId": {"dist1": {}},
                 },
                 f,
             )
