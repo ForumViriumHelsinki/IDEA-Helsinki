@@ -15,6 +15,8 @@ class DateRange:
     start: datetime
     end: datetime
     worker_id: int = 0  # For tracking which worker processes it
+    retry_count: int = 0  # Number of times this range has been retried
+    last_error: str | None = None  # Last error message if retried
 
 
 class DateRangeQueue:
@@ -25,6 +27,7 @@ class DateRangeQueue:
         self._queue = Queue()
         self._total_ranges = 0
         self._completed_ranges = 0
+        self._dead_letter_ranges = []  # Failed ranges that exceeded max retries
         self._lock = threading.Lock()
 
     def populate(self, start_date: datetime, end_date: datetime, chunk_days: int = 7):
@@ -83,3 +86,35 @@ class DateRangeQueue:
         """Check if all ranges have been processed."""
         with self._lock:
             return self._completed_ranges >= self._total_ranges
+
+    def requeue_failed(self, date_range: DateRange, error: str):
+        """
+        Requeue a failed date range for retry.
+
+        Args:
+            date_range: The date range that failed
+            error: Error message to record
+        """
+        date_range.retry_count += 1
+        date_range.last_error = error
+        self._queue.put(date_range)
+
+    def move_to_dead_letter(self, date_range: DateRange):
+        """
+        Move a permanently failed date range to the dead-letter queue.
+
+        Args:
+            date_range: The date range that permanently failed
+        """
+        with self._lock:
+            self._dead_letter_ranges.append(date_range)
+
+    def get_dead_letter_ranges(self) -> list[DateRange]:
+        """
+        Get all date ranges in the dead-letter queue.
+
+        Returns:
+            List of permanently failed date ranges
+        """
+        with self._lock:
+            return list(self._dead_letter_ranges)

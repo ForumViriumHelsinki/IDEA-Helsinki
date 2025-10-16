@@ -205,3 +205,129 @@ class TestDateRangeQueue:
         range1 = queue.get_next_range()
         assert range1.start == start
         assert range1.end == end
+
+
+class TestDateRangeRetry:
+    """Tests for DateRange retry functionality."""
+
+    def test_date_range_with_retry_defaults(self):
+        """Test DateRange initializes with retry defaults."""
+        start = datetime(2025, 1, 1, tzinfo=UTC)
+        end = datetime(2025, 1, 7, tzinfo=UTC)
+
+        date_range = DateRange(start=start, end=end)
+
+        assert date_range.retry_count == 0
+        assert date_range.last_error is None
+
+    def test_date_range_with_retry_values(self):
+        """Test DateRange with explicit retry values."""
+        start = datetime(2025, 1, 1, tzinfo=UTC)
+        end = datetime(2025, 1, 7, tzinfo=UTC)
+
+        date_range = DateRange(
+            start=start, end=end, retry_count=2, last_error="Test error"
+        )
+
+        assert date_range.retry_count == 2
+        assert date_range.last_error == "Test error"
+
+    def test_requeue_failed_increments_retry(self):
+        """Test that requeue_failed increments retry count."""
+        queue = DateRangeQueue()
+        start = datetime(2025, 1, 1, tzinfo=UTC)
+        end = datetime(2025, 1, 7, tzinfo=UTC)
+
+        queue.populate(start, end, chunk_days=7)
+
+        # Get a range
+        date_range = queue.get_next_range()
+        assert date_range.retry_count == 0
+
+        # Requeue as failed
+        queue.requeue_failed(date_range, "Test error message")
+
+        # Get it again
+        requeued_range = queue.get_next_range()
+        assert requeued_range is not None
+        assert requeued_range.retry_count == 1
+        assert requeued_range.last_error == "Test error message"
+
+    def test_requeue_failed_multiple_times(self):
+        """Test requeuing the same range multiple times."""
+        queue = DateRangeQueue()
+        start = datetime(2025, 1, 1, tzinfo=UTC)
+        end = datetime(2025, 1, 7, tzinfo=UTC)
+
+        queue.populate(start, end, chunk_days=7)
+
+        date_range = queue.get_next_range()
+
+        # Requeue 3 times
+        for i in range(1, 4):
+            queue.requeue_failed(date_range, f"Error {i}")
+            date_range = queue.get_next_range()
+            assert date_range.retry_count == i
+            assert date_range.last_error == f"Error {i}"
+
+    def test_move_to_dead_letter(self):
+        """Test moving a failed range to dead-letter queue."""
+        queue = DateRangeQueue()
+        start = datetime(2025, 1, 1, tzinfo=UTC)
+        end = datetime(2025, 1, 7, tzinfo=UTC)
+
+        queue.populate(start, end, chunk_days=7)
+
+        date_range = queue.get_next_range()
+        date_range.retry_count = 3
+        date_range.last_error = "Final error"
+
+        # Move to dead-letter
+        queue.move_to_dead_letter(date_range)
+
+        # Should be in dead-letter queue
+        dead_letter_ranges = queue.get_dead_letter_ranges()
+        assert len(dead_letter_ranges) == 1
+        assert dead_letter_ranges[0].start == start
+        assert dead_letter_ranges[0].retry_count == 3
+
+    def test_get_dead_letter_ranges_empty(self):
+        """Test get_dead_letter_ranges when empty."""
+        queue = DateRangeQueue()
+
+        dead_letter_ranges = queue.get_dead_letter_ranges()
+        assert dead_letter_ranges == []
+
+    def test_multiple_dead_letter_ranges(self):
+        """Test multiple ranges in dead-letter queue."""
+        queue = DateRangeQueue()
+        start = datetime(2025, 1, 1, tzinfo=UTC)
+        end = datetime(2025, 1, 14, tzinfo=UTC)
+
+        queue.populate(start, end, chunk_days=7)
+
+        # Move both ranges to dead-letter
+        range1 = queue.get_next_range()
+        range2 = queue.get_next_range()
+
+        queue.move_to_dead_letter(range1)
+        queue.move_to_dead_letter(range2)
+
+        dead_letter_ranges = queue.get_dead_letter_ranges()
+        assert len(dead_letter_ranges) == 2
+
+    def test_requeue_does_not_affect_total_ranges(self):
+        """Test that requeue doesn't change total_ranges count."""
+        queue = DateRangeQueue()
+        start = datetime(2025, 1, 1, tzinfo=UTC)
+        end = datetime(2025, 1, 7, tzinfo=UTC)
+
+        queue.populate(start, end, chunk_days=7)
+
+        assert queue.get_progress() == (0, 1)
+
+        date_range = queue.get_next_range()
+        queue.requeue_failed(date_range, "Error")
+
+        # Total should still be 1
+        assert queue.get_progress() == (0, 1)
