@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.4.0...idea-shared-v0.5.0) (2025-10-17)
+
+
+### Features
+
+* add backfill mode detection to health checks ([#107](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/107)) ([6de35df](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/6de35df21db131c578ee331304ac5980950d9713))
+
 ## [0.4.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.3.0...idea-shared-v0.4.0) (2025-10-15)
 
 
