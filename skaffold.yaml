@@ -12,7 +12,7 @@ build:
     - image: orchestrator
       context: .
       docker:
-        dockerfile: services/idea-helsinki/Dockerfile
+        dockerfile: services/orchestrator/Dockerfile
     - image: fcd-manager
       context: .
       docker:

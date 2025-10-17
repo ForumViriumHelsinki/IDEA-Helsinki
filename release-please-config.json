@@ -10,7 +10,7 @@
         },
         {
           "type": "generic",
-          "path": "services/idea-helsinki/pyproject.toml"
+          "path": "services/orchestrator/pyproject.toml"
         },
         {
           "type": "generic",
@@ -18,7 +18,7 @@
         }
       ]
     },
-    "services/idea-helsinki": {
+    "services/orchestrator": {
       "release-type": "python",
       "component": "orchestrator"
     },
