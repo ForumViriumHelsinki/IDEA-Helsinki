@@ -163,6 +163,7 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
         org: str,
         bucket: str,
         data_freshness_hours: int = 1,
+        backfill_lookback_days: int = 7,
         name: str | None = None,
         cache_ttl: int | None = None,
     ):
@@ -175,6 +176,7 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
             org: InfluxDB organization
             bucket: InfluxDB bucket name
             data_freshness_hours: Maximum age of data in hours to consider fresh
+            backfill_lookback_days: Number of days to look back for backfill mode detection (default: 7)
             name: Name of the health check (defaults to HEALTH_CHECK_FCD_DATABASE constant)
             cache_ttl: Cache time-to-live in seconds
 
@@ -204,6 +206,7 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
         self.org = org
         self.bucket = bucket
         self.data_freshness_hours = data_freshness_hours
+        self.backfill_lookback_days = backfill_lookback_days
         self._cache_ttl = cache_ttl
 
     async def check(self) -> HealthCheckResult:
@@ -241,16 +244,28 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
                 # Calculate time range for better error messages
                 time_range = _format_time_range(self.data_freshness_hours)
 
-                query = f"""
+                # First, check for recent data (normal operation mode)
+                recent_query = f"""
                 from(bucket: "{self.bucket}")
                     |> range(start: -{self.data_freshness_hours}h)
                     |> filter(fn: (r) => r["_measurement"] == "fcd_segment")
                     |> limit(n: 1)
                 """
 
+                # Also query for the most recent data point (bounded lookback for performance)
+                latest_query = f"""
+                from(bucket: "{self.bucket}")
+                    |> range(start: -{self.backfill_lookback_days}d)
+                    |> filter(fn: (r) => r["_measurement"] == "fcd_segment")
+                    |> last()
+                    |> limit(n: 1)
+                """
+
                 try:
-                    tables = query_api.query(query=query, org=self.org)
-                    has_recent_data = any(len(table.records) > 0 for table in tables)
+                    recent_tables = query_api.query(query=recent_query, org=self.org)
+                    has_recent_data = any(
+                        len(table.records) > 0 for table in recent_tables
+                    )
 
                     if has_recent_data:
                         logger.debug(
@@ -265,9 +280,50 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
                                 "has_recent_data": True,
                                 "data_freshness_hours": self.data_freshness_hours,
                                 "query_time_range": time_range,
+                                "mode": "real_time",
                             },
                         )
                     else:
+                        # No recent data - check if we're in backfill mode
+                        latest_tables = query_api.query(
+                            query=latest_query, org=self.org
+                        )
+                        has_any_data = any(
+                            len(table.records) > 0 for table in latest_tables
+                        )
+
+                        if has_any_data:
+                            # Get the timestamp of the latest data
+                            latest_record = None
+                            for table in latest_tables:
+                                if len(table.records) > 0:
+                                    latest_record = table.records[0]
+                                    break
+
+                            if latest_record and hasattr(latest_record, 'get_time'):
+                                latest_data_time = latest_record.get_time()
+                                now = datetime.now(UTC)
+                                data_age_hours = (
+                                    now - latest_data_time
+                                ).total_seconds() / 3600
+
+                                # If latest data is significantly old (>1 hour), we're in backfill mode
+                                if data_age_hours > self.data_freshness_hours:
+                                    backfill_msg = f"FCD database is healthy (backfilling from {latest_data_time.strftime('%Y-%m-%d %H:%M')})"
+                                    logger.info(backfill_msg)
+                                    return HealthCheckResult(
+                                        name=self.name,
+                                        status="healthy",
+                                        message=backfill_msg,
+                                        metadata={
+                                            "bucket": self.bucket,
+                                            "mode": "backfill",
+                                            "latest_data_timestamp": latest_data_time.isoformat(),
+                                            "data_age_hours": round(data_age_hours, 2),
+                                            "backfill_progress": f"Processing data from {latest_data_time.strftime('%Y-%m-%d')}",
+                                        },
+                                    )
+
                         warning_msg = f"FCD database accessible but no data in last {self.data_freshness_hours} hours (queried from {time_range['start']} to {time_range['end']})"
                         logger.warning(warning_msg)
                         return HealthCheckResult(

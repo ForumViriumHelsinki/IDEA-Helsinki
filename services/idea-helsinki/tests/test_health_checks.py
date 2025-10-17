@@ -170,6 +170,242 @@ class TestFCDDatabaseHealthCheck:
             assert result.metadata["has_recent_data"] is False
 
     @pytest.mark.asyncio
+    async def test_healthy_with_backfill_mode(self):
+        """Test healthy status when in backfill mode with historical data."""
+        with patch(
+            "src.health_checks.InfluxDBConnectionManager.get_instance"
+        ) as mock_get_instance:
+            # Setup connection manager mock
+            mock_conn_manager = AsyncMock()
+            mock_conn_manager.ping = AsyncMock(return_value=True)
+
+            # Mock the InfluxDB client
+            mock_client = MagicMock()
+            mock_query_api = MagicMock()
+
+            # Mock recent query returning empty (no recent data)
+            mock_empty_table = MagicMock()
+            mock_empty_table.records = []
+
+            # Mock latest query returning old data (backfill mode)
+            mock_old_table = MagicMock()
+            mock_old_record = MagicMock()
+            # Data from 5 hours ago (older than 1 hour threshold)
+            old_timestamp = datetime.now(UTC) - timedelta(hours=5)
+            mock_old_record.get_time = MagicMock(return_value=old_timestamp)
+            mock_old_table.records = [mock_old_record]
+
+            # First call returns empty (recent query), second returns old data (latest query)
+            mock_query_api.query.side_effect = [
+                [mock_empty_table],  # recent_query
+                [mock_old_table],     # latest_query
+            ]
+            mock_client.query_api.return_value = mock_query_api
+
+            mock_conn_manager.get_client = AsyncMock(return_value=mock_client)
+            mock_get_instance.return_value = mock_conn_manager
+
+            check = FCDDatabaseHealthCheck(
+                url="http://localhost:8086",
+                token="test_token",
+                org="test_org",
+                bucket="test_bucket",
+                data_freshness_hours=1,
+            )
+
+            result = await check.check()
+
+            assert result.status == "healthy"
+            assert "backfilling" in result.message.lower()
+            assert result.metadata["mode"] == "backfill"
+            assert "latest_data_timestamp" in result.metadata
+            assert "backfill_progress" in result.metadata
+            assert result.metadata["data_age_hours"] > 1
+
+    @pytest.mark.asyncio
+    async def test_backfill_mode_with_null_record(self):
+        """Test backfill detection handles None records gracefully."""
+        with patch(
+            "src.health_checks.InfluxDBConnectionManager.get_instance"
+        ) as mock_get_instance:
+            # Setup connection manager mock
+            mock_conn_manager = AsyncMock()
+            mock_conn_manager.ping = AsyncMock(return_value=True)
+
+            # Mock the InfluxDB client
+            mock_client = MagicMock()
+            mock_query_api = MagicMock()
+
+            # Mock recent query returning empty
+            mock_empty_table = MagicMock()
+            mock_empty_table.records = []
+
+            # Mock latest query returning table but with None-like record
+            mock_latest_table = MagicMock()
+            mock_latest_table.records = []  # Empty records despite has_any_data being True
+
+            mock_query_api.query.side_effect = [
+                [mock_empty_table],   # recent_query
+                [mock_latest_table],  # latest_query with empty records
+            ]
+            mock_client.query_api.return_value = mock_query_api
+
+            mock_conn_manager.get_client = AsyncMock(return_value=mock_client)
+            mock_get_instance.return_value = mock_conn_manager
+
+            check = FCDDatabaseHealthCheck(
+                url="http://localhost:8086",
+                token="test_token",
+                org="test_org",
+                bucket="test_bucket",
+                data_freshness_hours=1,
+            )
+
+            result = await check.check()
+
+            # Should fall through to degraded status
+            assert result.status == "degraded"
+            assert "no data" in result.message.lower()
+
+    @pytest.mark.asyncio
+    async def test_backfill_mode_at_threshold(self):
+        """Test edge case: data exactly at the freshness threshold."""
+        with patch(
+            "src.health_checks.InfluxDBConnectionManager.get_instance"
+        ) as mock_get_instance:
+            # Setup connection manager mock
+            mock_conn_manager = AsyncMock()
+            mock_conn_manager.ping = AsyncMock(return_value=True)
+
+            # Mock the InfluxDB client
+            mock_client = MagicMock()
+            mock_query_api = MagicMock()
+
+            # Mock recent query returning empty
+            mock_empty_table = MagicMock()
+            mock_empty_table.records = []
+
+            # Mock latest query with data exactly at threshold (1 hour old)
+            mock_threshold_table = MagicMock()
+            mock_threshold_record = MagicMock()
+            threshold_timestamp = datetime.now(UTC) - timedelta(hours=1, minutes=1)
+            mock_threshold_record.get_time = MagicMock(return_value=threshold_timestamp)
+            mock_threshold_table.records = [mock_threshold_record]
+
+            mock_query_api.query.side_effect = [
+                [mock_empty_table],      # recent_query
+                [mock_threshold_table],  # latest_query
+            ]
+            mock_client.query_api.return_value = mock_query_api
+
+            mock_conn_manager.get_client = AsyncMock(return_value=mock_client)
+            mock_get_instance.return_value = mock_conn_manager
+
+            check = FCDDatabaseHealthCheck(
+                url="http://localhost:8086",
+                token="test_token",
+                org="test_org",
+                bucket="test_bucket",
+                data_freshness_hours=1,
+            )
+
+            result = await check.check()
+
+            # Should be in backfill mode since data_age_hours > self.data_freshness_hours
+            assert result.status == "healthy"
+            assert result.metadata["mode"] == "backfill"
+
+    @pytest.mark.asyncio
+    async def test_backfill_mode_query_failure(self):
+        """Test that query failures during backfill detection are handled."""
+        with patch(
+            "src.health_checks.InfluxDBConnectionManager.get_instance"
+        ) as mock_get_instance:
+            # Setup connection manager mock
+            mock_conn_manager = AsyncMock()
+            mock_conn_manager.ping = AsyncMock(return_value=True)
+
+            # Mock the InfluxDB client
+            mock_client = MagicMock()
+            mock_query_api = MagicMock()
+
+            # First query succeeds (empty), second query fails
+            from influxdb_client.client.exceptions import InfluxDBError
+            mock_query_api.query.side_effect = [
+                [],  # Empty result for recent_query
+                InfluxDBError(message="Query timeout"),
+            ]
+            mock_client.query_api.return_value = mock_query_api
+
+            mock_conn_manager.get_client = AsyncMock(return_value=mock_client)
+            mock_get_instance.return_value = mock_conn_manager
+
+            check = FCDDatabaseHealthCheck(
+                url="http://localhost:8086",
+                token="test_token",
+                org="test_org",
+                bucket="test_bucket",
+                data_freshness_hours=1,
+            )
+
+            result = await check.check()
+
+            # Should return unhealthy status with error details
+            assert result.status == "unhealthy"
+            assert "InfluxDBError" in result.metadata["error_type"]
+
+    @pytest.mark.asyncio
+    async def test_backfill_progress_metadata(self):
+        """Test that backfill progress metadata is correctly populated."""
+        with patch(
+            "src.health_checks.InfluxDBConnectionManager.get_instance"
+        ) as mock_get_instance:
+            # Setup connection manager mock
+            mock_conn_manager = AsyncMock()
+            mock_conn_manager.ping = AsyncMock(return_value=True)
+
+            # Mock the InfluxDB client
+            mock_client = MagicMock()
+            mock_query_api = MagicMock()
+
+            # Mock recent query returning empty
+            mock_empty_table = MagicMock()
+            mock_empty_table.records = []
+
+            # Mock latest query with specific timestamp for metadata verification
+            mock_old_table = MagicMock()
+            mock_old_record = MagicMock()
+            specific_timestamp = datetime(2025, 10, 10, 14, 30, 0, tzinfo=UTC)
+            mock_old_record.get_time = MagicMock(return_value=specific_timestamp)
+            mock_old_table.records = [mock_old_record]
+
+            mock_query_api.query.side_effect = [
+                [mock_empty_table],
+                [mock_old_table],
+            ]
+            mock_client.query_api.return_value = mock_query_api
+
+            mock_conn_manager.get_client = AsyncMock(return_value=mock_client)
+            mock_get_instance.return_value = mock_conn_manager
+
+            check = FCDDatabaseHealthCheck(
+                url="http://localhost:8086",
+                token="test_token",
+                org="test_org",
+                bucket="test_bucket",
+                data_freshness_hours=1,
+            )
+
+            result = await check.check()
+
+            assert result.status == "healthy"
+            assert result.metadata["mode"] == "backfill"
+            assert result.metadata["latest_data_timestamp"] == specific_timestamp.isoformat()
+            assert "2025-10-10" in result.metadata["backfill_progress"]
+            assert "data_age_hours" in result.metadata
+            assert isinstance(result.metadata["data_age_hours"], (int, float))
+
+    @pytest.mark.asyncio
     async def test_unhealthy_on_connection_failure(self):
         """Test unhealthy status when database connection fails."""
         with patch(
