@@ -250,6 +250,7 @@ class FCDDataFreshnessHealthCheck(DatabaseHealthCheck):
         org: str,
         bucket: str,
         max_age_minutes: int = 30,
+        backfill_lookback_days: int = 7,
         measurement: str = "fcd_data",
         timeout: float = 10.0,
         critical: bool = False,
@@ -264,6 +265,7 @@ class FCDDataFreshnessHealthCheck(DatabaseHealthCheck):
             org: Organization name
             bucket: Bucket name to check
             max_age_minutes: Maximum age of data in minutes before considered stale
+            backfill_lookback_days: Number of days to look back for backfill mode detection (default: 7)
             measurement: Measurement name to check
             timeout: Timeout in seconds for the check
             critical: Whether this check is critical for readiness
@@ -275,6 +277,7 @@ class FCDDataFreshnessHealthCheck(DatabaseHealthCheck):
         self.org = org
         self.bucket = bucket
         self.max_age_minutes = max_age_minutes
+        self.backfill_lookback_days = backfill_lookback_days
         self.measurement = measurement
 
     async def check(self) -> HealthCheckResult:
@@ -304,7 +307,7 @@ class FCDDataFreshnessHealthCheck(DatabaseHealthCheck):
                     # Also query for the most recent data point (bounded lookback for performance)
                     latest_query = f"""
                     from(bucket: "{self.bucket}")
-                      |> range(start: -7d)
+                      |> range(start: -{self.backfill_lookback_days}d)
                       |> filter(fn: (r) => r["_measurement"] == "{self.measurement}")
                       |> last()
                       |> limit(n: 1)

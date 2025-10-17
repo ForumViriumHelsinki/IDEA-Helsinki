@@ -163,6 +163,7 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
         org: str,
         bucket: str,
         data_freshness_hours: int = 1,
+        backfill_lookback_days: int = 7,
         name: str | None = None,
         cache_ttl: int | None = None,
     ):
@@ -175,6 +176,7 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
             org: InfluxDB organization
             bucket: InfluxDB bucket name
             data_freshness_hours: Maximum age of data in hours to consider fresh
+            backfill_lookback_days: Number of days to look back for backfill mode detection (default: 7)
             name: Name of the health check (defaults to HEALTH_CHECK_FCD_DATABASE constant)
             cache_ttl: Cache time-to-live in seconds
 
@@ -204,6 +206,7 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
         self.org = org
         self.bucket = bucket
         self.data_freshness_hours = data_freshness_hours
+        self.backfill_lookback_days = backfill_lookback_days
         self._cache_ttl = cache_ttl
 
     async def check(self) -> HealthCheckResult:
@@ -252,7 +255,7 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
                 # Also query for the most recent data point (bounded lookback for performance)
                 latest_query = f"""
                 from(bucket: "{self.bucket}")
-                    |> range(start: -7d)
+                    |> range(start: -{self.backfill_lookback_days}d)
                     |> filter(fn: (r) => r["_measurement"] == "fcd_segment")
                     |> last()
                     |> limit(n: 1)

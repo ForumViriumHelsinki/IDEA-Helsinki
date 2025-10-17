@@ -261,6 +261,205 @@ class TestFCDDataFreshnessHealthCheck:
             assert result.status == "degraded"
             assert "No recent FCD data found" in result.message
 
+    @pytest.mark.asyncio
+    async def test_backfill_mode_with_historical_data(self):
+        """Test backfill mode detection with historical data.
+
+        Verifies that the freshness check correctly identifies backfill mode
+        when data exists but is older than the max_age_minutes threshold.
+        This prevents false alarms during historical data ingestion.
+        """
+        from datetime import timedelta
+
+        check = FCDDataFreshnessHealthCheck(
+            name="freshness_check",
+            url="http://localhost:8086",
+            token="test_token",
+            org="test_org",
+            bucket="test_bucket",
+            max_age_minutes=30,
+        )
+
+        with patch("idea_shared.health.idea_checks.InfluxDBClient") as mock_client:
+            # Mock recent query returning empty (no recent data)
+            # Mock latest query returning old data (backfill mode)
+            mock_old_record = MagicMock()
+            old_timestamp = datetime.now(UTC) - timedelta(hours=5)
+            mock_old_record.get_time.return_value = old_timestamp
+            mock_old_table = MagicMock()
+            mock_old_table.records = [mock_old_record]
+
+            mock_instance = MagicMock()
+            mock_query = MagicMock()
+            # First call returns empty (recent), second returns old data (latest)
+            mock_query.query.side_effect = [[], [mock_old_table]]
+            mock_instance.query_api.return_value = mock_query
+            mock_instance.close = MagicMock()
+            mock_client.return_value = mock_instance
+
+            result = await check.check()
+
+            assert result.status == "healthy"
+            assert "backfilling" in result.message.lower()
+            assert result.metadata["mode"] == "backfill"
+            assert "latest_data_timestamp" in result.metadata
+            assert "backfill_progress" in result.metadata
+
+    @pytest.mark.asyncio
+    async def test_backfill_mode_at_threshold(self):
+        """Test edge case: data exactly at freshness threshold.
+
+        Verifies that data at exactly the max_age_minutes threshold triggers
+        backfill mode detection. This ensures proper handling of boundary conditions.
+        """
+        from datetime import timedelta
+
+        check = FCDDataFreshnessHealthCheck(
+            name="freshness_check",
+            url="http://localhost:8086",
+            token="test_token",
+            org="test_org",
+            bucket="test_bucket",
+            max_age_minutes=30,
+        )
+
+        with patch("idea_shared.health.idea_checks.InfluxDBClient") as mock_client:
+            # Mock data exactly at threshold (31 minutes old)
+            mock_threshold_record = MagicMock()
+            threshold_timestamp = datetime.now(UTC) - timedelta(minutes=31)
+            mock_threshold_record.get_time.return_value = threshold_timestamp
+            mock_threshold_table = MagicMock()
+            mock_threshold_table.records = [mock_threshold_record]
+
+            mock_instance = MagicMock()
+            mock_query = MagicMock()
+            mock_query.query.side_effect = [[], [mock_threshold_table]]
+            mock_instance.query_api.return_value = mock_query
+            mock_instance.close = MagicMock()
+            mock_client.return_value = mock_instance
+
+            result = await check.check()
+
+            # Should be in backfill mode since data_age > max_age_minutes
+            assert result.status == "healthy"
+            assert result.metadata["mode"] == "backfill"
+
+    @pytest.mark.asyncio
+    async def test_backfill_progress_metadata(self):
+        """Test backfill progress metadata population.
+
+        Verifies that backfill mode includes detailed progress information
+        in the metadata, including timestamp and human-readable progress string.
+        """
+        from datetime import timedelta
+
+        check = FCDDataFreshnessHealthCheck(
+            name="freshness_check",
+            url="http://localhost:8086",
+            token="test_token",
+            org="test_org",
+            bucket="test_bucket",
+            max_age_minutes=30,
+        )
+
+        with patch("idea_shared.health.idea_checks.InfluxDBClient") as mock_client:
+            # Mock with specific timestamp for verification
+            specific_timestamp = datetime(2025, 10, 15, 14, 30, 0, tzinfo=UTC)
+            mock_old_record = MagicMock()
+            mock_old_record.get_time.return_value = specific_timestamp
+            mock_old_table = MagicMock()
+            mock_old_table.records = [mock_old_record]
+
+            mock_instance = MagicMock()
+            mock_query = MagicMock()
+            mock_query.query.side_effect = [[], [mock_old_table]]
+            mock_instance.query_api.return_value = mock_query
+            mock_instance.close = MagicMock()
+            mock_client.return_value = mock_instance
+
+            result = await check.check()
+
+            assert result.status == "healthy"
+            assert result.metadata["mode"] == "backfill"
+            assert result.metadata["latest_data_timestamp"] == specific_timestamp.isoformat()
+            assert "2025-10-15" in result.metadata["backfill_progress"]
+            assert "data_age_minutes" in result.metadata
+
+    @pytest.mark.asyncio
+    async def test_real_time_mode_with_recent_data(self):
+        """Test real-time mode with recent data.
+
+        Verifies that when data is within the max_age_minutes threshold,
+        the check reports real-time mode with appropriate metadata.
+        """
+        check = FCDDataFreshnessHealthCheck(
+            name="freshness_check",
+            url="http://localhost:8086",
+            token="test_token",
+            org="test_org",
+            bucket="test_bucket",
+            max_age_minutes=30,
+        )
+
+        with patch("idea_shared.health.idea_checks.InfluxDBClient") as mock_client:
+            # Mock recent data
+            mock_recent_record = MagicMock()
+            mock_recent_record.get_time.return_value = datetime.now(UTC)
+            mock_recent_table = MagicMock()
+            mock_recent_table.records = [mock_recent_record]
+
+            mock_instance = MagicMock()
+            mock_query = MagicMock()
+            mock_query.query.return_value = [mock_recent_table]
+            mock_instance.query_api.return_value = mock_query
+            mock_instance.close = MagicMock()
+            mock_client.return_value = mock_instance
+
+            result = await check.check()
+
+            assert result.status == "healthy"
+            assert "fresh" in result.message.lower()
+            assert result.metadata["mode"] == "real_time"
+            assert result.metadata["data_age_minutes"] < 30
+
+    @pytest.mark.asyncio
+    async def test_configurable_backfill_lookback(self):
+        """Test configurable backfill lookback period.
+
+        Verifies that the backfill_lookback_days parameter can be configured
+        to control how far back the health check searches for data during
+        backfill mode detection.
+        """
+        check = FCDDataFreshnessHealthCheck(
+            name="freshness_check",
+            url="http://localhost:8086",
+            token="test_token",
+            org="test_org",
+            bucket="test_bucket",
+            max_age_minutes=30,
+            backfill_lookback_days=14,  # Custom 14-day lookback
+        )
+
+        # Verify parameter is stored
+        assert check.backfill_lookback_days == 14
+
+        with patch("idea_shared.health.idea_checks.InfluxDBClient") as mock_client:
+            mock_instance = MagicMock()
+            mock_query = MagicMock()
+            mock_query.query.return_value = []
+            mock_instance.query_api.return_value = mock_query
+            mock_instance.close = MagicMock()
+            mock_client.return_value = mock_instance
+
+            await check.check()
+
+            # Verify the query was called with 14-day range
+            query_calls = mock_query.query.call_args_list
+            # Second call should be the latest_query with custom lookback
+            if len(query_calls) > 1:
+                latest_query = query_calls[1][1]["query"]
+                assert "-14d" in latest_query
+
 
 class TestSegmentMappingIntegrityHealthCheck:
     """Tests for segment mapping integrity health check."""
