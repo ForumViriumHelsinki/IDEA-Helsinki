@@ -13,6 +13,15 @@ from idea_shared.threading.date_queue import DateRangeQueue
 from idea_shared.threading.write_queue import InfluxDBWriteQueue
 
 
+def mock_processing_function(azure_manager, start_date, end_date, batch_size=50):
+    """
+    Mock processing function that yields empty batches.
+    This simulates the streaming processing interface.
+    """
+    # Yield a single batch with empty data
+    yield {}
+
+
 class TestThreadCoordinatorInitialization:
     """Tests for ThreadCoordinator initialization."""
 
@@ -27,6 +36,7 @@ class TestThreadCoordinatorInitialization:
             azure_manager=azure_manager,
             influx_config=influx_config,
             logger=logger,
+            processing_function=mock_processing_function,
         )
 
         assert coordinator.num_backfill_workers == 4
@@ -41,6 +51,7 @@ class TestThreadCoordinatorInitialization:
             azure_manager=MagicMock(),
             influx_config={},
             logger=MagicMock(),
+            processing_function=mock_processing_function,
         )
 
         assert isinstance(coordinator.date_queue, DateRangeQueue)
@@ -53,6 +64,7 @@ class TestThreadCoordinatorInitialization:
             azure_manager=MagicMock(),
             influx_config={},
             logger=MagicMock(),
+            processing_function=mock_processing_function,
             max_write_queue_size=50,
         )
 
@@ -70,6 +82,7 @@ class TestThreadCoordinatorBackfill:
             azure_manager=MagicMock(),
             influx_config={},
             logger=MagicMock(),
+            processing_function=mock_processing_function,
         )
 
         start_date = datetime(2025, 1, 1, tzinfo=UTC)
@@ -88,6 +101,7 @@ class TestThreadCoordinatorBackfill:
             azure_manager=MagicMock(),
             influx_config={},
             logger=MagicMock(),
+            processing_function=mock_processing_function,
         )
 
         start_date = datetime(2025, 1, 1, tzinfo=UTC)
@@ -106,6 +120,7 @@ class TestThreadCoordinatorBackfill:
             azure_manager=MagicMock(),
             influx_config={},
             logger=MagicMock(),
+            processing_function=mock_processing_function,
         )
 
         coordinator.start_backfill(
@@ -126,6 +141,7 @@ class TestThreadCoordinatorBackfill:
             azure_manager=azure_manager,
             influx_config={},
             logger=MagicMock(),
+            processing_function=mock_processing_function,
         )
 
         coordinator.start_backfill(
@@ -149,6 +165,7 @@ class TestThreadCoordinatorBackfill:
             azure_manager=azure_manager,
             influx_config={},
             logger=MagicMock(),
+            processing_function=mock_processing_function,
         )
 
         coordinator.start_backfill(
@@ -173,6 +190,7 @@ class TestThreadCoordinatorShutdown:
             azure_manager=MagicMock(),
             influx_config={},
             logger=MagicMock(),
+            processing_function=mock_processing_function,
         )
 
         coordinator.shutdown()
@@ -190,6 +208,7 @@ class TestThreadCoordinatorShutdown:
             azure_manager=azure_manager,
             influx_config={},
             logger=MagicMock(),
+            processing_function=mock_processing_function,
         )
 
         coordinator.start_backfill(
@@ -219,6 +238,7 @@ class TestThreadCoordinatorShutdown:
             azure_manager=azure_manager,
             influx_config={},
             logger=MagicMock(),
+            processing_function=mock_processing_function,
         )
 
         coordinator.start_backfill(
@@ -237,23 +257,23 @@ class TestThreadCoordinatorRetryLogic:
 
     def test_failed_chunk_is_retried(self):
         """Test that failed chunks are automatically retried."""
-        # Mock Azure manager that fails once, then succeeds
+        # Mock Azure manager
         azure_manager = MagicMock()
         call_count = {"count": 0}
 
-        def mock_get_data(*args, **kwargs):
+        # Processing function that fails once, then succeeds
+        def failing_processing_function(azure_mgr, start_date, end_date, batch_size=50):
             call_count["count"] += 1
             if call_count["count"] == 1:
                 raise Exception("Simulated failure")
-            return {}
-
-        azure_manager.get_fcd_data_for_date_range.side_effect = mock_get_data
+            yield {}  # Success
 
         coordinator = ThreadCoordinator(
             num_backfill_workers=1,
             azure_manager=azure_manager,
             influx_config={},
             logger=MagicMock(),
+            processing_function=failing_processing_function,
             max_retries=3,
             retry_delay=1,  # Short delay for testing
         )
@@ -272,17 +292,22 @@ class TestThreadCoordinatorRetryLogic:
 
     def test_permanently_failed_chunks_moved_to_dead_letter(self):
         """Test that chunks exceeding max retries go to dead-letter queue."""
-        # Mock that always fails
+        # Mock Azure manager
         azure_manager = MagicMock()
-        azure_manager.get_fcd_data_for_date_range.side_effect = Exception(
-            "Permanent failure"
-        )
+
+        # Processing function that always fails
+        def always_failing_processing_function(
+            azure_mgr, start_date, end_date, batch_size=50
+        ):
+            raise Exception("Permanent failure")
+            yield  # Never reached
 
         coordinator = ThreadCoordinator(
             num_backfill_workers=1,
             azure_manager=azure_manager,
             influx_config={},
             logger=MagicMock(),
+            processing_function=always_failing_processing_function,
             max_retries=2,
             retry_delay=1,  # Short delay for testing
         )
@@ -311,6 +336,7 @@ class TestThreadCoordinatorProgressTracking:
             azure_manager=MagicMock(),
             influx_config={},
             logger=MagicMock(),
+            processing_function=mock_processing_function,
         )
 
         stats = coordinator.get_progress_stats()
@@ -330,6 +356,7 @@ class TestThreadCoordinatorProgressTracking:
             azure_manager=azure_manager,
             influx_config={},
             logger=MagicMock(),
+            processing_function=mock_processing_function,
         )
 
         coordinator.start_backfill(
@@ -356,6 +383,7 @@ class TestThreadCoordinatorInfluxDBWriter:
             azure_manager=MagicMock(),
             influx_config={},
             logger=MagicMock(),
+            processing_function=mock_processing_function,
         )
 
         # Inject mock client
@@ -387,6 +415,7 @@ class TestThreadCoordinatorInfluxDBWriter:
             azure_manager=MagicMock(),
             influx_config={},
             logger=MagicMock(),
+            processing_function=mock_processing_function,
         )
 
         coordinator._influx_client = influx_client

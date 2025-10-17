@@ -29,6 +29,7 @@ class ThreadCoordinator:
         azure_manager,
         influx_config: dict,
         logger: logging.Logger,
+        processing_function,
         max_write_queue_size: int = FCD_WRITE_QUEUE_MAX_SIZE,
         max_retries: int = FCD_MAX_CHUNK_RETRIES,
         retry_delay: int = FCD_RETRY_DELAY_SECONDS,
@@ -41,6 +42,8 @@ class ThreadCoordinator:
             azure_manager: Azure blob storage manager
             influx_config: InfluxDB configuration
             logger: Logger instance
+            processing_function: Function to process date ranges (generator that yields batches)
+                                Signature: (azure_manager, start_date, end_date, batch_size) -> Generator[dict, None, None]
             max_write_queue_size: Maximum write queue size
             max_retries: Maximum retries for failed chunks
             retry_delay: Base delay for exponential backoff (seconds)
@@ -49,6 +52,7 @@ class ThreadCoordinator:
         self.azure_manager = azure_manager
         self.influx_config = influx_config
         self.logger = logger
+        self.processing_function = processing_function
         self.max_retries = max_retries
         self.retry_delay = retry_delay
 
@@ -137,17 +141,23 @@ class ThreadCoordinator:
                     f"Worker {worker_id} processing {date_range.start} to {date_range.end}"
                 )
 
-                # Process date range (fetch from Azure)
-                fcd_data = self.azure_manager.get_fcd_data_for_date_range(
-                    date_range.start, date_range.end
-                )
+                # Process date range using streaming (yields batches)
+                batch_count = 0
+                for batch_data in self.processing_function(
+                    self.azure_manager, date_range.start, date_range.end
+                ):
+                    # Submit batch to write queue (with retry on Queue.Full)
+                    self._submit_write_with_retry(batch_data, worker_id)
+                    batch_count += 1
+                    self.logger.debug(
+                        f"Worker {worker_id} submitted batch {batch_count} from date range"
+                    )
 
-                # Submit to write queue (with retry on Queue.Full)
-                self._submit_write_with_retry(fcd_data, worker_id)
-
-                # Mark as completed
+                # Mark date range as completed
                 self.date_queue.mark_completed()
-                self.logger.debug(f"Worker {worker_id} completed date range")
+                self.logger.debug(
+                    f"Worker {worker_id} completed date range ({batch_count} batches)"
+                )
 
             except Exception as e:
                 self.logger.error(
