@@ -9,8 +9,8 @@ WORKDIR /app
 COPY shared/ ./shared/
 
 # Copy service package and dependencies
-COPY services/idea-helsinki/pyproject.toml .
-COPY services/idea-helsinki/src/ ./src/
+COPY services/orchestrator/pyproject.toml .
+COPY services/orchestrator/src/ ./src/
 
 # Create virtual environment and install dependencies
 RUN uv venv .venv && \
