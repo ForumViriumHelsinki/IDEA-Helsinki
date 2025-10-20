@@ -5,6 +5,7 @@ for easy access to feature flags throughout the application.
 """
 
 import logging
+import threading
 from typing import Any
 
 from openfeature import api
@@ -204,6 +205,7 @@ class FeatureFlagManager:
 
 # Global singleton instance
 _global_manager: FeatureFlagManager | None = None
+_init_lock = threading.Lock()
 
 
 def initialize_feature_flags(
@@ -212,6 +214,7 @@ def initialize_feature_flags(
     """Initialize the global feature flag manager.
 
     This should be called once at application startup.
+    Thread-safe: Multiple concurrent calls will block until initialization completes.
 
     Args:
         provider: OpenFeature provider for flag resolution
@@ -219,9 +222,22 @@ def initialize_feature_flags(
 
     Returns:
         Initialized FeatureFlagManager instance
+
+    Note:
+        In async applications, ensure this is called during synchronous
+        initialization (e.g., before starting the event loop) to avoid
+        race conditions.
     """
     global _global_manager
-    _global_manager = FeatureFlagManager(provider, domain)
+
+    # Use double-checked locking pattern for performance
+    if _global_manager is None:
+        with _init_lock:
+            # Check again inside lock to prevent race condition
+            if _global_manager is None:
+                _global_manager = FeatureFlagManager(provider, domain)
+                logger.info("Global feature flag manager initialized")
+
     return _global_manager
 
 

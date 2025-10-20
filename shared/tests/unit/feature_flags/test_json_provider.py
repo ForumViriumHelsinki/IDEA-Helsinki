@@ -293,3 +293,42 @@ class TestJsonFileProvider:
             assert result.value is True
         finally:
             Path(filepath).unlink()
+
+    @pytest.mark.unit
+    def test_invalid_json_root_not_dict(self):
+        """Provider handles invalid JSON where root is not a dict."""
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            # Write JSON array instead of object
+            json.dump(["invalid", "root", "type"], f)
+            filepath = f.name
+
+        try:
+            provider = JsonFileProvider(filepath)
+            # Should fall back to default value
+            result = provider.resolve_boolean_details("test_flag", default_value=True)
+            assert result.value is True
+            assert result.reason.value == "DEFAULT"
+        finally:
+            Path(filepath).unlink()
+
+    @pytest.mark.unit
+    def test_invalid_json_flags_not_dict(self):
+        """Provider handles invalid JSON where 'flags' is not a dict."""
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            # Write flags as array instead of object
+            data = {"flags": ["invalid", "flags", "type"]}
+            json.dump(data, f)
+            filepath = f.name
+
+        try:
+            provider = JsonFileProvider(filepath)
+            # Should fall back to default value
+            result = provider.resolve_boolean_details("test_flag", default_value=False)
+            assert result.value is False
+            assert result.reason.value == "DEFAULT"
+        finally:
+            Path(filepath).unlink()

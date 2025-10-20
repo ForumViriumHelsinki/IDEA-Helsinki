@@ -56,7 +56,24 @@ class JsonFileProvider(AbstractProvider):
         try:
             with open(self._file_path) as f:
                 data = json.load(f)
-                self._flags = data.get("flags", {})
+
+                # Validate JSON structure
+                if not isinstance(data, dict):
+                    logger.error(
+                        f"Invalid feature flags file structure: root must be an object, "
+                        f"got {type(data).__name__}. Using default values."
+                    )
+                    return
+
+                flags = data.get("flags", {})
+                if not isinstance(flags, dict):
+                    logger.error(
+                        f"Invalid feature flags file structure: 'flags' must be an object, "
+                        f"got {type(flags).__name__}. Using default values."
+                    )
+                    return
+
+                self._flags = flags
                 logger.info(
                     f"Loaded {len(self._flags)} feature flags from {self._file_path}"
                 )

@@ -2,6 +2,16 @@
 
 OpenFeature-based feature flag system for controlling features and configuration across IDEA Helsinki services.
 
+## Requirements
+
+- **Python**: 3.12 or higher
+- **Dependencies**: OpenFeature SDK 0.6.0+ (automatically installed with `idea-shared`)
+
+The feature flag system uses Python 3.12+ features including:
+- Modern type annotations (`dict[str, Any]`, `int | None`)
+- Enhanced pattern matching capabilities
+- Improved error messages
+
 ## Overview
 
 This module provides a vendor-neutral feature flag implementation using the [OpenFeature](https://openfeature.dev/) standard. It supports multiple providers (JSON files, environment variables) and can be easily extended to support cloud-based flag services.
@@ -338,6 +348,226 @@ Popular OpenFeature providers:
 - **LaunchDarkly** - Enterprise feature management
 - **Split** - Feature experimentation platform
 - **ConfigCat** - Simple feature flag service
+
+## Migration Guide
+
+### Integrating into Existing Services
+
+This guide helps you add feature flags to existing IDEA Helsinki services (orchestrator, fcd-manager, traffic-monitor).
+
+#### Step 1: Install Dependencies
+
+Dependencies are already included in `idea-shared`. If you're using `uv`:
+
+```bash
+cd services/your-service
+uv pip install -e ../../shared
+```
+
+#### Step 2: Create Feature Flag Configuration
+
+Copy the example configuration:
+
+```bash
+# From repository root
+cp data/feature_flags.example.json data/feature_flags.json
+```
+
+Edit `data/feature_flags.json` to enable/disable features for your needs.
+
+#### Step 3: Initialize at Service Startup
+
+Add initialization code to your service's main entry point (usually `main.py` or equivalent):
+
+```python
+import logging
+from idea_shared.feature_flags import initialize_feature_flags
+from idea_shared.feature_flags.providers import JsonFileProvider
+
+logger = logging.getLogger(__name__)
+
+def main():
+    # Initialize feature flags early in startup
+    try:
+        provider = JsonFileProvider("data/feature_flags.json")
+        initialize_feature_flags(provider)
+        logger.info("Feature flags initialized")
+    except Exception as e:
+        logger.warning(f"Failed to initialize feature flags: {e}")
+        logger.warning("Continuing with default flag values")
+
+    # Rest of your service initialization
+    ...
+```
+
+#### Step 4: Replace Hardcoded Configuration
+
+Find places in your code where configuration is hardcoded or loaded from Constants:
+
+**Before:**
+```python
+from lib.Constants.Constants import FCD_UPDATE_FREQUENCY
+
+# Hardcoded configuration
+update_interval = FCD_UPDATE_FREQUENCY  # Always 5 minutes
+enable_caching = False  # Always disabled
+```
+
+**After:**
+```python
+from idea_shared.feature_flags import get_feature_flags, FeatureFlag
+from lib.Constants.Constants import FCD_UPDATE_FREQUENCY
+
+flags = get_feature_flags()
+
+# Configuration from feature flags with fallback
+update_interval = flags.get_int(
+    FeatureFlag.FCD_UPDATE_INTERVAL_OVERRIDE,
+    default=FCD_UPDATE_FREQUENCY
+)
+enable_caching = flags.is_enabled(FeatureFlag.ENABLE_SEGMENT_CACHING)
+```
+
+#### Step 5: Toggle Experimental Features
+
+Use flags to safely enable experimental features:
+
+**Before:**
+```python
+def process_segment(segment):
+    return standard_algorithm(segment)
+```
+
+**After:**
+```python
+from idea_shared.feature_flags import get_feature_flags, FeatureFlag
+
+def process_segment(segment):
+    flags = get_feature_flags()
+
+    if flags.is_enabled(FeatureFlag.ENABLE_EXPERIMENTAL_VALIDATION):
+        return experimental_algorithm(segment)
+    else:
+        return standard_algorithm(segment)
+```
+
+#### Step 6: Production Deployment with Environment Variables
+
+For Kubernetes/Docker deployments, switch to environment variables:
+
+**Update Dockerfile:**
+```dockerfile
+FROM python:3.12-slim
+
+# Copy and install dependencies
+COPY shared/ /app/shared/
+RUN pip install -e /app/shared
+
+# No need to copy feature_flags.json - use environment variables
+COPY services/your-service /app/
+
+CMD ["python", "-m", "your_service.main"]
+```
+
+**Update main.py for production:**
+```python
+import os
+from idea_shared.feature_flags import initialize_feature_flags
+from idea_shared.feature_flags.providers import (
+    JsonFileProvider,
+    EnvironmentVariableProvider
+)
+
+def main():
+    # Use environment variables in production, JSON in development
+    if os.getenv("ENVIRONMENT") == "production":
+        provider = EnvironmentVariableProvider()
+    else:
+        provider = JsonFileProvider("data/feature_flags.json")
+
+    initialize_feature_flags(provider)
+    ...
+```
+
+**Update Kubernetes ConfigMap:**
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: feature-flags
+data:
+  FEATURE_FLAG_ENABLE_PARALLEL_PROCESSING: "true"
+  FEATURE_FLAG_ENABLE_SEGMENT_CACHING: "true"
+  FEATURE_FLAG_FCD_UPDATE_INTERVAL_OVERRIDE: "10"
+```
+
+#### Step 7: Testing
+
+Write tests that verify behavior with different flag values:
+
+```python
+import pytest
+from idea_shared.feature_flags import initialize_feature_flags
+from idea_shared.feature_flags.providers import JsonFileProvider
+
+def test_with_experimental_feature_enabled():
+    """Test behavior with experimental feature enabled."""
+    import tempfile
+    import json
+
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.json') as f:
+        json.dump({
+            "flags": {
+                "enable_experimental_validation": {"enabled": True}
+            }
+        }, f)
+        f.flush()
+
+        provider = JsonFileProvider(f.name)
+        initialize_feature_flags(provider)
+
+        # Test your code with feature enabled
+        result = process_segment(test_segment)
+        assert result.uses_experimental_algorithm
+```
+
+### Common Integration Patterns
+
+#### Pattern 1: Gradual Rollout
+
+```python
+# Enable feature for testing, disable for production initially
+flags = get_feature_flags()
+
+if flags.is_enabled(FeatureFlag.ENABLE_BATCH_PROCESSING):
+    use_batch_processor()
+else:
+    use_single_processor()
+```
+
+#### Pattern 2: Performance Optimization
+
+```python
+# Cache only if enabled
+flags = get_feature_flags()
+
+if flags.is_enabled(FeatureFlag.ENABLE_SEGMENT_CACHING):
+    segment = cache.get_or_fetch(segment_id)
+else:
+    segment = fetch_segment(segment_id)
+```
+
+#### Pattern 3: Configuration Override
+
+```python
+# Override constants without code changes
+flags = get_feature_flags()
+
+update_interval = flags.get_int(
+    FeatureFlag.FCD_UPDATE_INTERVAL_OVERRIDE,
+    default=Constants.FCD_UPDATE_FREQUENCY
+)
+```
 
 ## Troubleshooting
 

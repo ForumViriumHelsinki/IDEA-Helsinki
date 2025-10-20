@@ -261,3 +261,54 @@ class TestGlobalManager:
             assert result == {}
         finally:
             Path(filepath).unlink()
+
+    @pytest.mark.unit
+    def test_thread_safe_initialization(self):
+        """Global manager initialization is thread-safe."""
+        import threading
+        from idea_shared.feature_flags.manager import (
+            _global_manager,
+            initialize_feature_flags,
+        )
+
+        # Reset global state
+        import idea_shared.feature_flags.manager as manager_module
+
+        manager_module._global_manager = None
+
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            json.dump({"flags": {}}, f)
+            filepath = f.name
+
+        try:
+            provider = JsonFileProvider(filepath)
+            results = []
+
+            def init_in_thread():
+                """Initialize manager in a thread."""
+                manager = initialize_feature_flags(provider)
+                results.append(manager)
+
+            # Create multiple threads that all try to initialize
+            threads = [threading.Thread(target=init_in_thread) for _ in range(10)]
+
+            # Start all threads simultaneously
+            for thread in threads:
+                thread.start()
+
+            # Wait for all to complete
+            for thread in threads:
+                thread.join()
+
+            # All threads should get the same manager instance
+            assert len(results) == 10
+            first_manager = results[0]
+            for manager in results:
+                assert manager is first_manager, "All threads should get same instance"
+
+        finally:
+            Path(filepath).unlink()
+            # Clean up global state
+            manager_module._global_manager = None

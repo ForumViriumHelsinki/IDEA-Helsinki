@@ -93,7 +93,7 @@ python helsinki_traffic_disturbance_monitor.py
 - Traffic disturbance update: 60 minutes
 
 ### Feature Flags Configuration
-- `data/feature_flags.json` - Feature flag configuration (use `feature_flags.example.json` as template)
+- `data/feature_flags.json` - Feature flag configuration (use `data/feature_flags.example.json` as template)
 - Supports toggling experimental features, performance optimizations, and configuration overrides
 - Can use JSON files (development) or environment variables (production)
 - See `shared/src/idea_shared/feature_flags/README.md` for detailed documentation

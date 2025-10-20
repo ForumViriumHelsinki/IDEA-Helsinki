@@ -75,3 +75,34 @@ class TestFlagDefaults:
             default = FlagDefaults.get_default(flag)
             # Default can be any type including None
             assert default is not None or default is None
+
+    @pytest.mark.unit
+    def test_get_default_converts_snake_case_to_upper(self):
+        """get_default correctly converts snake_case to UPPER_SNAKE_CASE."""
+        # Test with different flag types to ensure conversion works
+        test_cases = [
+            (FeatureFlag.ENABLE_EXPERIMENTAL_VALIDATION, False),
+            (FeatureFlag.ENABLE_PARALLEL_PROCESSING, True),
+            (FeatureFlag.ENABLE_SEGMENT_CACHING, False),
+            (FeatureFlag.ENABLE_ENHANCED_LOGGING, False),
+            (FeatureFlag.FCD_UPDATE_INTERVAL_OVERRIDE, None),
+        ]
+
+        for flag, expected_value in test_cases:
+            actual = FlagDefaults.get_default(flag)
+            assert actual == expected_value, (
+                f"Expected {flag.value} to have default {expected_value}, "
+                f"got {actual}"
+            )
+
+    @pytest.mark.unit
+    def test_get_default_raises_for_unknown_flag(self):
+        """get_default raises AttributeError for undefined flags."""
+        # Create a flag enum value that doesn't have a corresponding default
+        class FakeFlag(str):
+            value = "nonexistent_flag"
+
+        fake_flag = FakeFlag()
+
+        with pytest.raises(AttributeError):
+            FlagDefaults.get_default(fake_flag)
