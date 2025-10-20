@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-helsinki-v0.6.0...idea-helsinki-v0.7.0) (2025-10-20)
+
+
+### Features
+
+* adjust Sentry SDK sample rate to 0.1 for quota management ([#112](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/112)) ([840072d](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/840072dfb60c1bc55b623b2a466b060fceda0155)), closes [#111](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/111)
+
 ## [0.6.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-helsinki-v0.5.0...idea-helsinki-v0.6.0) (2025-10-17)
 
 
