@@ -2,11 +2,26 @@
 
 from datetime import UTC, datetime
 
-from influxdb_client import InfluxDBClient
+from influxdb_client.client.query_api import QueryApi
+
+
+def _get_latest_record_time(tables) -> datetime | None:
+    """Extract timestamp from first valid record in tables.
+
+    Args:
+        tables: List of InfluxDB table results
+
+    Returns:
+        Timestamp of the first valid record, or None if no valid records found
+    """
+    for table in tables:
+        if len(table.records) > 0 and hasattr(table.records[0], "get_time"):
+            return table.records[0].get_time()
+    return None
 
 
 def check_backfill_mode(
-    query_api,
+    query_api: QueryApi,
     org: str,
     bucket: str,
     measurement: str,
@@ -40,7 +55,16 @@ def check_backfill_mode(
         Real-time mode: (True, 5.2, None) - data is 5.2 minutes old, within threshold
         Backfill mode: (True, 1440.0, datetime(...)) - data is 24 hours old, beyond threshold
         No data: (False, None, None) - no data found in lookback window
+
+    Raises:
+        ValueError: If bucket or measurement names contain invalid characters
     """
+    # Validate bucket and measurement names to prevent query injection
+    if not bucket.replace("_", "").replace("-", "").isalnum():
+        raise ValueError(f"Invalid bucket name: {bucket}")
+    if not measurement.replace("_", "").replace("-", "").isalnum():
+        raise ValueError(f"Invalid measurement name: {measurement}")
+
     # Query for recent data (normal operation mode)
     recent_query = f"""
     from(bucket: "{bucket}")
@@ -61,34 +85,24 @@ def check_backfill_mode(
 
     # Check for recent data first
     recent_tables = query_api.query(query=recent_query, org=org)
-    has_recent_data = any(len(table.records) > 0 for table in recent_tables)
+    last_record_time = _get_latest_record_time(recent_tables)
 
-    if has_recent_data:
-        # Found recent data - extract timestamp and calculate age
-        for table in recent_tables:
-            if len(table.records) > 0:
-                last_record_time = table.records[0].get_time()
-                age_minutes = (datetime.now(UTC) - last_record_time).total_seconds() / 60
-                return True, age_minutes, None  # Real-time mode
+    if last_record_time is not None:
+        # Found recent data - calculate age and return real-time mode
+        age_minutes = (datetime.now(UTC) - last_record_time).total_seconds() / 60
+        return True, age_minutes, None  # Real-time mode
 
     # No recent data - check if we're in backfill mode
     latest_tables = query_api.query(query=latest_query, org=org)
-    has_any_data = any(len(table.records) > 0 for table in latest_tables)
+    latest_data_time = _get_latest_record_time(latest_tables)
 
-    if has_any_data:
-        # Get the timestamp of the latest data
-        for table in latest_tables:
-            if len(table.records) > 0:
-                latest_record = table.records[0]
-                if hasattr(latest_record, "get_time"):
-                    latest_data_time = latest_record.get_time()
-                    age_minutes = (
-                        datetime.now(UTC) - latest_data_time
-                    ).total_seconds() / 60
+    if latest_data_time is not None:
+        # Calculate age of the latest data
+        age_minutes = (datetime.now(UTC) - latest_data_time).total_seconds() / 60
 
-                    # If data is significantly old, we're in backfill mode
-                    if age_minutes > freshness_threshold_minutes:
-                        return True, age_minutes, latest_data_time  # Backfill mode
+        # If data is significantly old, we're in backfill mode
+        if age_minutes > freshness_threshold_minutes:
+            return True, age_minutes, latest_data_time  # Backfill mode
 
     # No data found in lookback window
     return False, None, None

@@ -21,6 +21,7 @@ from .models import (
     ReadinessResponse,
 )
 from .server import HealthServer
+from .utils import check_backfill_mode
 
 __all__ = [
     "HealthServer",
@@ -38,4 +39,5 @@ __all__ = [
     "InfluxDBHealthCheck",
     "SegmentMappingIntegrityHealthCheck",
     "WFSServiceHealthCheck",
+    "check_backfill_mode",
 ]
