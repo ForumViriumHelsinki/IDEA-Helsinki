@@ -300,6 +300,7 @@ if __name__ == "__main__":
     if sentry_dsn:
         sentry_sdk.init(
             dsn=sentry_dsn,
+            sample_rate=0.1,
             traces_sample_rate=1.0,
             profiles_sample_rate=1.0,
             environment=os.getenv("ENVIRONMENT", "production"),
