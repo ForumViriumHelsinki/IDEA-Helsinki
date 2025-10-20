@@ -15,6 +15,7 @@ from .checks import (
     HealthCheck,
 )
 from .models import HealthCheckResult
+from .utils import check_backfill_mode
 
 
 class AzureBlobStorageHealthCheck(HealthCheck):
@@ -294,62 +295,14 @@ class FCDDataFreshnessHealthCheck(DatabaseHealthCheck):
                 client = InfluxDBClient(url=self.url, token=self.token, org=self.org)
                 try:
                     query_api = client.query_api()
-
-                    # Query for the most recent data point in the last max_age_minutes
-                    recent_query = f"""
-                    from(bucket: "{self.bucket}")
-                      |> range(start: -{self.max_age_minutes}m)
-                      |> filter(fn: (r) => r["_measurement"] == "{self.measurement}")
-                      |> last()
-                      |> limit(n: 1)
-                    """
-
-                    # Also query for the most recent data point (bounded lookback for performance)
-                    latest_query = f"""
-                    from(bucket: "{self.bucket}")
-                      |> range(start: -{self.backfill_lookback_days}d)
-                      |> filter(fn: (r) => r["_measurement"] == "{self.measurement}")
-                      |> last()
-                      |> limit(n: 1)
-                    """
-
-                    recent_result = query_api.query(org=self.org, query=recent_query)
-
-                    if (
-                        recent_result
-                        and len(recent_result) > 0
-                        and len(recent_result[0].records) > 0
-                    ):
-                        last_record_time = recent_result[0].records[0].get_time()
-                        age_minutes = (
-                            datetime.now(UTC) - last_record_time
-                        ).total_seconds() / 60
-                        return True, age_minutes, None  # Real-time mode
-                    else:
-                        # No recent data - check if we're in backfill mode
-                        latest_result = query_api.query(
-                            org=self.org, query=latest_query
-                        )
-
-                        if (
-                            latest_result
-                            and len(latest_result) > 0
-                            and len(latest_result[0].records) > 0
-                        ):
-                            latest_record_time = latest_result[0].records[0].get_time()
-                            age_minutes = (
-                                datetime.now(UTC) - latest_record_time
-                            ).total_seconds() / 60
-
-                            # If data is significantly old, we're in backfill mode
-                            if age_minutes > self.max_age_minutes:
-                                return (
-                                    True,
-                                    age_minutes,
-                                    latest_record_time,
-                                )  # Backfill mode with timestamp
-
-                        return False, None, None
+                    return check_backfill_mode(
+                        query_api=query_api,
+                        org=self.org,
+                        bucket=self.bucket,
+                        measurement=self.measurement,
+                        freshness_threshold_minutes=self.max_age_minutes,
+                        backfill_lookback_days=self.backfill_lookback_days,
+                    )
                 finally:
                     client.close()
 
