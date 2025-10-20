@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
       - name: idea-helsinki
-        image: idea-helsinki
+        image: orchestrator
         ports:
         - containerPort: 8080
         envFrom:

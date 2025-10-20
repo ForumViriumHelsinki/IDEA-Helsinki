@@ -130,7 +130,7 @@ pytest
 
 #### Service Tests
 ```bash
-cd services/{service-name}  # idea-helsinki, fcd-manager, or traffic-monitor
+cd services/{service-name}  # orchestrator, fcd-manager, or traffic-monitor
 uv venv
 . .venv/bin/activate
 uv pip install -e ../../shared

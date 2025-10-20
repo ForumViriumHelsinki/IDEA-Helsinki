@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [idea-helsinki, fcd-manager, traffic-monitor]
+        service: [orchestrator, fcd-manager, traffic-monitor]
 
     steps:
     - uses: actions/checkout@v4
