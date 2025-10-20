@@ -92,6 +92,12 @@ python helsinki_traffic_disturbance_monitor.py
 - FCD update frequency: 5 minutes
 - Traffic disturbance update: 60 minutes
 
+### Feature Flags Configuration
+- `data/feature_flags.json` - Feature flag configuration (use `feature_flags.example.json` as template)
+- Supports toggling experimental features, performance optimizations, and configuration overrides
+- Can use JSON files (development) or environment variables (production)
+- See `shared/src/idea_shared/feature_flags/README.md` for detailed documentation
+
 ## Data Storage Locations
 
 ### Local Files
@@ -229,3 +235,70 @@ git commit -m "feat: implement feature X with tests"
 - All tests must pass before merging
 - Coverage reports are generated and tracked via Codecov
 - Matrix testing across all three services ensures compatibility
+
+## Feature Flags
+
+IDEA-Helsinki supports feature flags for toggling functionality and configuration without code changes. This is useful for:
+- Developing and testing new features safely
+- Gradual rollouts of improvements
+- Performance optimization experiments
+- Environment-specific behavior
+
+### Quick Start
+
+**Initialize at service startup:**
+```python
+from idea_shared.feature_flags import initialize_feature_flags
+from idea_shared.feature_flags.providers import JsonFileProvider
+
+# Development: Use JSON file
+provider = JsonFileProvider("data/feature_flags.json")
+initialize_feature_flags(provider)
+
+# Production: Use environment variables
+from idea_shared.feature_flags.providers import EnvironmentVariableProvider
+provider = EnvironmentVariableProvider()
+initialize_feature_flags(provider)
+```
+
+**Use throughout application:**
+```python
+from idea_shared.feature_flags import get_feature_flags, FeatureFlag
+
+flags = get_feature_flags()
+
+if flags.is_enabled(FeatureFlag.ENABLE_EXPERIMENTAL_VALIDATION):
+    # Use experimental algorithm
+    pass
+```
+
+### Configuration
+
+**JSON file** (`data/feature_flags.json`):
+```json
+{
+  "flags": {
+    "enable_caching": {
+      "enabled": true,
+      "description": "Enable in-memory caching"
+    }
+  }
+}
+```
+
+**Environment variables:**
+```bash
+FEATURE_FLAG_ENABLE_CACHING=true
+FEATURE_FLAG_MAX_CONNECTIONS=100
+```
+
+### Available Flags
+
+- `ENABLE_EXPERIMENTAL_VALIDATION` - Toggle experimental validation algorithms
+- `ENABLE_PARALLEL_PROCESSING` - Process segments in parallel (default: true)
+- `ENABLE_SEGMENT_CACHING` - Cache FCD segment geometries in memory
+- `ENABLE_ENHANCED_LOGGING` - Detailed debug logging
+- `FCD_UPDATE_INTERVAL_OVERRIDE` - Override FCD update frequency (minutes)
+- `DISTURBANCE_UPDATE_INTERVAL_OVERRIDE` - Override disturbance update frequency
+
+See `shared/src/idea_shared/feature_flags/README.md` for comprehensive documentation and examples.
