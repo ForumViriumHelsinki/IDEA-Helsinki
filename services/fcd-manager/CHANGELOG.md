@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.6.0...fcd-manager-v0.6.1) (2025-10-20)
+
+
+### Bug Fixes
+
+* add pytest asyncio_mode configuration to prevent test hangs ([#120](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/120)) ([260b1bf](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/260b1bf038705ddb496eea8ee96160b98e48c1e0)), closes [#119](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/119)
+
 ## [0.6.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.5.0...fcd-manager-v0.6.0) (2025-10-20)
 
 

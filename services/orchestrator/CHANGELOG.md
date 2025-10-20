@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.8.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/orchestrator-v0.7.0...orchestrator-v0.8.0) (2025-10-20)
+
+
+### Features
+
+* rename container image to orchestrator ([#83](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/83)) ([230e15f](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/230e15ff14c22b8b85f4f475024b534ce75e5bb7))
+
+
+### Bug Fixes
+
+* add pytest asyncio_mode configuration to prevent test hangs ([#120](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/120)) ([260b1bf](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/260b1bf038705ddb496eea8ee96160b98e48c1e0)), closes [#119](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/119)
+* trigger service releases for idea-shared 0.2.1 ([#76](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/76)) ([296b85c](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/296b85c507e6861ceac6cd000df50f263425965d))
+
 ## [0.7.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-helsinki-v0.6.0...idea-helsinki-v0.7.0) (2025-10-20)
 
 
