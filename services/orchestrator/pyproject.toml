@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "idea-helsinki"
+name = "orchestrator"
 version = "0.7.0"
 description = "IDEA Helsinki traffic validation orchestration service"
 requires-python = ">=3.12"
@@ -38,7 +38,7 @@ dev = [
 ]
 
 [project.scripts]
-idea-helsinki = "main:main"
+orchestrator = "main:main"
 
 
 [tool.hatch.build.targets.wheel]
