@@ -40,9 +40,12 @@ ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION = os.path.join(
 FCD_HISTORY_START_DATE = "2024-12-05"
 
 # FCD MULTI-THREADING CONFIGURATION
-## Enable/disable multi-threaded processing for FCD Manager
+## DEPRECATED: Use feature flag FCD_ENABLE_MULTITHREADING instead (see feature_flags/flags.py)
+## This constant is kept for backward compatibility but is no longer used by the FCD Manager
+## To enable multi-threading, set the feature flag in data/feature_flags.json or use
+## the environment variable FEATURE_FLAG_FCD_ENABLE_MULTITHREADING=true
 FCD_ENABLE_MULTITHREADING = (
-    os.getenv("FCD_ENABLE_MULTITHREADING", "true").lower() == "true"
+    os.getenv("FCD_ENABLE_MULTITHREADING", "false").lower() == "true"
 )
 
 ## Number of parallel backfill worker threads for historical data processing

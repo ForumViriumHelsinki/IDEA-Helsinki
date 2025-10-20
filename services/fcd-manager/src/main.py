@@ -36,9 +36,9 @@ from idea_shared.health.server import HealthServer
 # ------------------------------------------------------#
 from idea_shared.lib.Constants.Constants import (
     ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION,
+    DATA_DIR,
     FCD_BACKFILL_CHUNK_DAYS,
     FCD_BACKFILL_WORKER_COUNT,
-    FCD_ENABLE_MULTITHREADING,
     FCD_HISTORY_START_DATE,
     FCD_MAP_DATA_FILE_LOCATION,
     FCD_MAPPING_MAX_AGE_MINUTES,
@@ -77,6 +77,19 @@ from health_checks import (
     ProcessingPipelineHealthCheck,
     SegmentMappingFreshnessHealthCheck,
     UpdateCycleHealthCheck,
+)
+
+# ------------------------------------------------------#
+# ------------- FEATURE FLAGS IMPORTS ------------------#
+# ------------------------------------------------------#
+from idea_shared.feature_flags import (
+    FeatureFlag,
+    get_feature_flags,
+    initialize_feature_flags,
+)
+from idea_shared.feature_flags.providers import (
+    EnvironmentVariableProvider,
+    JsonFileProvider,
 )
 
 logger = Logger(__name__)
@@ -302,7 +315,7 @@ def main():
     """
     Initializes and runs the continuous FCD synchronization service.
 
-    The service can operate in two modes based on FCD_ENABLE_MULTITHREADING:
+    The service can operate in two modes based on the FCD_ENABLE_MULTITHREADING feature flag:
 
     Single-threaded mode (FCD_ENABLE_MULTITHREADING=False):
     1. Initial "catch-up" sync on startup, which processes all historical
@@ -316,6 +329,26 @@ def main():
     2. TODO: Continuous update cycle (to be implemented in future iteration).
     """
     global health_server, update_cycle_check, pipeline_check
+
+    # Initialize feature flags early in startup
+    logger.info("Initializing feature flags...")
+    try:
+        # Use environment variables in production, JSON file in development
+        # Check if we're in production by looking for ENVIRONMENT env var
+        environment = os.getenv("ENVIRONMENT", "development")
+        if environment == "production":
+            logger.info("Using environment variable provider for feature flags")
+            provider = EnvironmentVariableProvider()
+        else:
+            logger.info("Using JSON file provider for feature flags")
+            feature_flags_path = os.path.join(DATA_DIR, "feature_flags.json")
+            provider = JsonFileProvider(feature_flags_path)
+
+        initialize_feature_flags(provider)
+        logger.info("Feature flags initialized successfully")
+    except Exception as e:
+        logger.warning(f"Failed to initialize feature flags: {e}")
+        logger.warning("Continuing with default flag values")
 
     # Setup signal handlers for graceful shutdown
     signal.signal(signal.SIGTERM, handle_shutdown)
@@ -424,9 +457,15 @@ def main():
         AZURE_ACCOUNT_NAME, AZURE_CONTAINER_NAME, AZURE_SAS_TOKEN
     )
 
-    # Route to appropriate execution mode based on threading configuration
-    if FCD_ENABLE_MULTITHREADING:
+    # Route to appropriate execution mode based on feature flag
+    flags = get_feature_flags()
+    multithreading_enabled = flags.is_enabled(
+        FeatureFlag.FCD_ENABLE_MULTITHREADING, default=False
+    )
+
+    if multithreading_enabled:
         # Multi-threaded mode with ThreadCoordinator
+        logger.info("Multi-threading is ENABLED via feature flag")
         try:
             success = run_multithreaded(azure_manager)
             if not success:
@@ -441,6 +480,7 @@ def main():
             sys.exit(1)
     else:
         # Single-threaded mode (original implementation)
+        logger.info("Multi-threading is DISABLED via feature flag (using single-threaded mode)")
         try:
             run_singlethreaded(azure_manager)
         except Exception as e:

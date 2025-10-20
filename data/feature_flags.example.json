@@ -1,0 +1,40 @@
+{
+  "flags": {
+    "enable_experimental_validation": {
+      "enabled": false,
+      "description": "Toggle experimental validation algorithms"
+    },
+    "enable_parallel_processing": {
+      "enabled": true,
+      "description": "Process multiple segments in parallel"
+    },
+    "enable_segment_caching": {
+      "enabled": false,
+      "description": "Cache FCD segment geometries in memory"
+    },
+    "enable_batch_processing": {
+      "enabled": false,
+      "description": "Enable batch processing mode"
+    },
+    "fcd_enable_multithreading": {
+      "enabled": false,
+      "description": "Enable multi-threaded processing for FCD Manager (producer-consumer pattern with multiple backfill workers)"
+    },
+    "enable_enhanced_logging": {
+      "enabled": false,
+      "description": "Detailed debug logging"
+    },
+    "enable_debug_metrics": {
+      "enabled": false,
+      "description": "Collect detailed performance metrics"
+    },
+    "fcd_update_interval_override": {
+      "value": null,
+      "description": "Override FCD update frequency in minutes (null = use default)"
+    },
+    "disturbance_update_interval_override": {
+      "value": null,
+      "description": "Override disturbance update frequency in minutes (null = use default)"
+    }
+  }
+}

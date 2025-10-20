@@ -532,8 +532,9 @@ def main():
     # Create Azure manager
     azure_manager = AzureBlobContainerManager(...)
 
-    # Check if multi-threading is enabled
-    if FCD_ENABLE_MULTITHREADING:
+    # Check if multi-threading is enabled via feature flag
+    flags = get_feature_flags()
+    if flags.is_enabled(FeatureFlag.FCD_ENABLE_MULTITHREADING):
         run_multithreaded(azure_manager)
     else:
         run_singlethreaded(azure_manager)  # Existing logic

@@ -149,8 +149,37 @@ New constants in `shared/src/idea_shared/lib/Constants/Constants.py`:
 # Multi-threading configuration
 FCD_BACKFILL_WORKER_COUNT = 4  # Number of parallel backfill workers
 FCD_BACKFILL_CHUNK_DAYS = 7    # Days per chunk for parallel processing
-FCD_ENABLE_MULTITHREADING = True  # Feature flag
 ```
+
+New feature flag in `shared/src/idea_shared/feature_flags/flags.py`:
+
+```python
+class FeatureFlag(str, Enum):
+    # ... other flags ...
+    FCD_ENABLE_MULTITHREADING = "fcd_enable_multithreading"
+
+class FlagDefaults:
+    # ... other defaults ...
+    FCD_ENABLE_MULTITHREADING: bool = False  # Safe default, enable via config
+```
+
+**Configuration Options:**
+1. **Development**: Set in `data/feature_flags.json`:
+   ```json
+   {
+     "flags": {
+       "fcd_enable_multithreading": {
+         "enabled": true,
+         "description": "Enable multi-threaded FCD processing"
+       }
+     }
+   }
+   ```
+
+2. **Production**: Set environment variable:
+   ```bash
+   FEATURE_FLAG_FCD_ENABLE_MULTITHREADING=true
+   ```
 
 ## Technical Implementation Plan
 
@@ -216,10 +245,14 @@ def realtime_worker(
 **Refactored `main()` function:**
 ```python
 def main():
+    # Initialize feature flags
+    initialize_feature_flags(provider)
+
     # Initialize health server (existing)
     # Create Azure manager (existing)
 
-    if FCD_ENABLE_MULTITHREADING:
+    flags = get_feature_flags()
+    if flags.is_enabled(FeatureFlag.FCD_ENABLE_MULTITHREADING):
         # Create coordination objects
         write_queue = InfluxDBWriteQueue(...)
         shutdown_event = threading.Event()
