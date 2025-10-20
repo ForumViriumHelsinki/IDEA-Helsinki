@@ -89,6 +89,10 @@ def check_backfill_mode(
 
     if last_record_time is not None:
         # Found recent data - calculate age and return real-time mode
+        # Note: We return real-time mode for ANY data found within the freshness window,
+        # even if it's approaching the threshold (e.g., 29 minutes old with 30-minute threshold).
+        # This is intentional - if data exists in the recent query window, the system is
+        # considered to be in real-time operation mode, not backfill mode.
         age_minutes = (datetime.now(UTC) - last_record_time).total_seconds() / 60
         return True, age_minutes, None  # Real-time mode
 

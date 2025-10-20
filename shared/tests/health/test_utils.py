@@ -298,13 +298,14 @@ class TestCheckBackfillMode:
         """Test that age calculation is precise.
 
         Verifies that the age_minutes calculation correctly converts
-        the time difference from seconds to minutes.
+        the time difference from seconds to minutes. Uses data that is
+        actually within the freshness threshold to properly test real-time mode.
         """
-        # Mock query API with data 2 hours old
+        # Mock query API with data 2 minutes old (within 30-minute threshold)
         mock_query_api = MagicMock()
-        two_hours_ago = datetime.now(UTC) - timedelta(hours=2)
+        two_minutes_ago = datetime.now(UTC) - timedelta(minutes=2)
         mock_record = MagicMock()
-        mock_record.get_time.return_value = two_hours_ago
+        mock_record.get_time.return_value = two_minutes_ago
         mock_table = MagicMock()
         mock_table.records = [mock_record]
         mock_query_api.query.return_value = [mock_table]
@@ -320,8 +321,8 @@ class TestCheckBackfillMode:
 
         assert has_data is True
         assert age_minutes is not None
-        # Should be approximately 120 minutes (allow small variance for test execution time)
-        assert 119 < age_minutes < 121
+        # Should be approximately 2 minutes (allow small variance for test execution time)
+        assert 1.9 < age_minutes < 2.1
         assert backfill_ts is None  # Recent data, real-time mode
 
     def test_invalid_bucket_name(self):
