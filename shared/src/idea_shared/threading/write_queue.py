@@ -94,6 +94,7 @@ class InfluxDBWriteQueue:
         with self._lock:
             return {
                 "total_writes": self._total_writes,
+                "completed_writes": self._total_writes,  # Alias for compatibility
                 "failed_writes": self._failed_writes,
                 "queue_size": self._queue.qsize(),
             }

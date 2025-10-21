@@ -43,6 +43,7 @@ from idea_shared.lib.Constants.Constants import (
     FCD_MAP_DATA_FILE_LOCATION,
     FCD_MAPPING_MAX_AGE_MINUTES,
     FCD_MAX_CHUNK_RETRIES,
+    FCD_PROCESSING_BATCH_SIZE,
     FCD_RETRY_DELAY_SECONDS,
     FCD_SHUTDOWN_TIMEOUT_SECONDS,
     FCD_UPDATE_FREQUENCY,
@@ -241,6 +242,7 @@ def run_multithreaded(azure_manager: AzureBlobContainerManager):
         max_write_queue_size=FCD_WRITE_QUEUE_MAX_SIZE,
         max_retries=FCD_MAX_CHUNK_RETRIES,
         retry_delay=FCD_RETRY_DELAY_SECONDS,
+        batch_size=FCD_PROCESSING_BATCH_SIZE,
     )
 
     logger.info("###########################################")

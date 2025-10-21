@@ -11,6 +11,8 @@ from datetime import datetime
 
 from idea_shared.lib.Constants.Constants import (
     FCD_MAX_CHUNK_RETRIES,
+    FCD_MAX_WRITE_RETRIES,
+    FCD_PROCESSING_BATCH_SIZE,
     FCD_RETRY_DELAY_SECONDS,
     FCD_SHUTDOWN_TIMEOUT_SECONDS,
     FCD_WRITE_QUEUE_MAX_SIZE,
@@ -33,6 +35,7 @@ class ThreadCoordinator:
         max_write_queue_size: int = FCD_WRITE_QUEUE_MAX_SIZE,
         max_retries: int = FCD_MAX_CHUNK_RETRIES,
         retry_delay: int = FCD_RETRY_DELAY_SECONDS,
+        batch_size: int = FCD_PROCESSING_BATCH_SIZE,
     ):
         """
         Initialize the thread coordinator.
@@ -47,6 +50,7 @@ class ThreadCoordinator:
             max_write_queue_size: Maximum write queue size
             max_retries: Maximum retries for failed chunks
             retry_delay: Base delay for exponential backoff (seconds)
+            batch_size: Number of blobs to process per batch
         """
         self.num_backfill_workers = num_backfill_workers
         self.azure_manager = azure_manager
@@ -55,6 +59,7 @@ class ThreadCoordinator:
         self.processing_function = processing_function
         self.max_retries = max_retries
         self.retry_delay = retry_delay
+        self.batch_size = batch_size
 
         # Create queues
         self.date_queue = DateRangeQueue()
@@ -65,8 +70,23 @@ class ThreadCoordinator:
         self._writer_thread: threading.Thread | None = None
         self._shutdown_event = threading.Event()
 
-        # InfluxDB client (initialized when needed)
+        # Initialize InfluxDB client for writer thread (if config is complete)
         self._influx_client = None
+        required_keys = ["url", "token", "org", "bucket"]
+        if all(key in influx_config for key in required_keys):
+            from idea_shared.classes.FCDInfluxDBManager import FCDInfluxDBManager
+
+            self._influx_client = FCDInfluxDBManager(
+                url=influx_config["url"],
+                token=influx_config["token"],
+                org=influx_config["org"],
+                bucket=influx_config["bucket"],
+            )
+            self.logger.info("InfluxDB client initialized for writer thread")
+        else:
+            self.logger.warning(
+                "InfluxDB config incomplete - writer thread will not persist data"
+            )
 
         self.logger.info(
             f"ThreadCoordinator initialized with {num_backfill_workers} workers"
@@ -128,8 +148,8 @@ class ThreadCoordinator:
             date_range = self.date_queue.get_next_range(timeout=1.0)
 
             if date_range is None:
-                # Check if queue is truly empty
-                if self.date_queue.is_empty():
+                # Check if queue is truly empty and all work is complete
+                if self.date_queue.is_complete() and self.date_queue.is_empty():
                     self.logger.info(
                         f"Worker {worker_id} finished - no more date ranges"
                     )
@@ -144,7 +164,7 @@ class ThreadCoordinator:
                 # Process date range using streaming (yields batches)
                 batch_count = 0
                 for batch_data in self.processing_function(
-                    self.azure_manager, date_range.start, date_range.end
+                    self.azure_manager, date_range.start, date_range.end, self.batch_size
                 ):
                     # Submit batch to write queue (with retry on Queue.Full)
                     self._submit_write_with_retry(batch_data, worker_id)
@@ -192,9 +212,8 @@ class ThreadCoordinator:
             worker_id: Worker submitting the request
         """
         retry_count = 0
-        max_write_retries = 5
 
-        while retry_count < max_write_retries:
+        while retry_count < FCD_MAX_WRITE_RETRIES:
             try:
                 self.write_queue.put_write_request(
                     fcd_data, worker_id, timeout=FCD_WRITE_QUEUE_TIMEOUT
@@ -202,10 +221,10 @@ class ThreadCoordinator:
                 return
             except Exception as e:
                 retry_count += 1
-                if retry_count >= max_write_retries:
+                if retry_count >= FCD_MAX_WRITE_RETRIES:
                     self.logger.error(
                         f"Worker {worker_id} failed to submit write after "
-                        f"{max_write_retries} retries: {e}"
+                        f"{FCD_MAX_WRITE_RETRIES} retries: {e}"
                     )
                     raise
                 # Exponential backoff
@@ -286,6 +305,17 @@ class ThreadCoordinator:
             remaining = timeout - (time.time() - start_time)
             if remaining > 0:
                 thread.join(timeout=remaining)
+
+        # Wait for all pending writes to complete before shutting down
+        self.logger.info("Waiting for pending writes to complete...")
+        try:
+            remaining = timeout - (time.time() - start_time)
+            if remaining > 0:
+                # Wait for write queue to drain
+                self.write_queue._queue.join()
+                self.logger.info("All pending writes completed")
+        except Exception as e:
+            self.logger.warning(f"Error waiting for write queue to drain: {e}")
 
         # Shutdown write queue and wait for writer thread
         self.write_queue.shutdown()
