@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.6.1...fcd-manager-v0.6.2) (2025-10-21)
+
+
+### Bug Fixes
+
+* **services:** update for idea-shared module changes ([#121](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/121)) ([26039d3](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/26039d32ec5b4244635272628054742bba85afea))
+
 ## [0.6.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.6.0...fcd-manager-v0.6.1) (2025-10-20)
 
 
