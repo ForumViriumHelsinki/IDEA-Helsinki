@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/orchestrator-v0.8.0...orchestrator-v0.8.1) (2025-10-21)
+
+
+### Bug Fixes
+
+* **services:** update for idea-shared module changes ([#121](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/121)) ([26039d3](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/26039d32ec5b4244635272628054742bba85afea))
+
 ## [0.8.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/orchestrator-v0.7.0...orchestrator-v0.8.0) (2025-10-20)
 
 
