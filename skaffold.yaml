@@ -36,4 +36,4 @@ deploy:
     hooks:
       before:
         - host:
-            command: ["sh", "-c", "envsubst < k8s/secrets.yaml.tmpl > k8s/secrets.yaml"]
+            command: ["sh", "-c", "dotenvx run -- sh scripts/generate-secrets.sh"]
