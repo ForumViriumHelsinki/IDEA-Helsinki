@@ -6,61 +6,102 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 IDEA-Helsinki is a traffic validation system for analyzing the impact of traffic disturbances (like roadworks) on road segments in Helsinki. It processes real-time floating car data (FCD) from TomTom and correlates it with planned traffic disturbances from Helsinki's WFS services to validate traffic impact predictions using the IDEA algorithm.
 
-## Core Application Entry Points
+## Core Application Services
 
-### Main Applications
-- `IDEA_Helsinki.py` - Main async orchestration service for IDEA validation
-- `helsinki_fcd_manager.py` - FCD data synchronization from Azure blob storage to InfluxDB
-- `helsinki_traffic_disturbance_monitor.py` - Traffic disturbance monitoring and intersection detection
+IDEA-Helsinki is composed of three microservices that run as containers in Kubernetes:
 
-### Running Applications
+### Orchestrator Service
+- **Path**: `services/orchestrator/src/main.py`
+- **Purpose**: Main async orchestration service for IDEA validation
+- **Container**: `orchestrator`
+
+### FCD Manager Service
+- **Path**: `services/fcd-manager/src/main.py`
+- **Purpose**: FCD data synchronization from Azure blob storage to InfluxDB
+- **Container**: `fcd-manager`
+
+### Traffic Monitor Service
+- **Path**: `services/traffic-monitor/src/main.py`
+- **Purpose**: Traffic disturbance monitoring and spatial intersection detection
+- **Container**: `traffic-monitor`
+
+## Running the Application
+
+### Local Development with Skaffold
+
+The entire stack (all three services + InfluxDB) can be run locally with a single command:
+
 ```bash
-# Run IDEA validation service
-python IDEA_Helsinki.py
+# Start all services in development mode with hot reload
+skaffold dev
 
-# Run FCD data synchronization service
-python helsinki_fcd_manager.py
-
-# Run traffic disturbance monitoring
-python helsinki_traffic_disturbance_monitor.py
+# Services will be available at:
+# - InfluxDB UI: http://localhost:8086
+# - Services communicate via k8s service discovery
 ```
 
-## Infrastructure and Data Management
+**First-time setup**: On initial startup, InfluxDB automatically creates:
+- Organization: `idea-helsinki`
+- Buckets: `fcd-data`, `validation`
+- Admin token: `dev-token-changeme` (configurable via environment)
 
-### InfluxDB Container Management
+To reset InfluxDB state:
 ```bash
-# Initialize InfluxDB container (first time only)
-./Docker/InfluxDB/init_run_influxdb_docker_container.sh
+# Delete the deployment and persistent volume
+skaffold delete
+kubectl delete pvc influxdb-pvc -n idea-helsinki
 
-# Start existing InfluxDB container
-./Docker/InfluxDB/run_influxdb_docker_container.sh
-
-# Stop InfluxDB container
-./Docker/InfluxDB/stop_influxdb_docker_container.sh
-
-# Remove InfluxDB container and data
-./Docker/InfluxDB/remove_influxdb_docker_container.sh
-
-# Delete bucket contents
-./Docker/InfluxDB/delete_influxdb_bucket_contents.sh
+# Restart with clean state
+skaffold dev
 ```
+
+### Environment Configuration
+
+**Required setup**: Create a `.env` file in the project root with Azure credentials:
+
+```bash
+# .env file (required)
+AZURE_ACCOUNT_NAME=your-account
+AZURE_CONTAINER_NAME=your-container
+AZURE_SAS_TOKEN=your-token
+
+# Optional: Override InfluxDB defaults
+INFLUX_DB_ORG=idea-helsinki
+INFLUX_DB_URL=http://influxdb:8086
+INFLUX_DB_FCD_BUCKET=fcd-data
+INFLUX_DB_VALIDATION_BUCKET=validation
+```
+
+**How it works**: When you run `dotenvx run -- skaffold dev`:
+1. `dotenvx` loads variables from `.env`
+2. The pre-deploy hook (`scripts/generate-secrets.sh`) generates `k8s/secrets.yaml` from `k8s/secrets.yaml.tmpl`
+3. Missing InfluxDB variables are filled with defaults suitable for local development
+4. Skaffold deploys with the generated secrets
 
 ## Architecture Overview
 
 ### Three-Stage Pipeline
-1. **FCD Manager**: Processes TomTom floating car data from Azure blob storage, maintains segment geometry mapping, stores timeseries data in InfluxDB
-2. **Traffic Disturbance Monitor**: Fetches traffic disturbance data from Helsinki WFS API, performs spatial intersection with FCD segments, validates disturbances against data availability
-3. **IDEA Helsinki**: Runs IDEA algorithm validation workers on intersected segments, compares actual vs expected traffic patterns, stores validation results
+1. **FCD Manager** (`fcd-manager` service): Processes TomTom floating car data from Azure blob storage, maintains segment geometry mapping, stores timeseries data in InfluxDB
+2. **Traffic Monitor** (`traffic-monitor` service): Fetches traffic disturbance data from Helsinki WFS API, performs spatial intersection with FCD segments, validates disturbances against data availability
+3. **Orchestrator** (`orchestrator` service): Runs IDEA algorithm validation workers on intersected segments, compares actual vs expected traffic patterns, stores validation results
 
 ### Key Components
+
+#### Infrastructure
+- **Kubernetes**: Container orchestration (local via Skaffold + OrbStack)
+- **Skaffold**: Development workflow automation (build, deploy, hot reload)
+- **InfluxDB StatefulSet**: Time-series database with persistent storage
 
 #### Data Sources
 - **Azure FCD Storage**: TomTom floating car data blobs
 - **Helsinki WFS Service**: Planned roadworks and traffic disturbances
-- **InfluxDB**: Time-series storage for FCD data and validation results
-- **Local JSON Files**: Segment mapping and intersection data
+- **InfluxDB Buckets**:
+  - `fcd-data`: Raw speed/confidence timeseries
+  - `validation`: IDEA validation results
+- **Shared Volumes**: Segment mapping and intersection data (mounted in pods)
 
-#### Core Classes
+#### Core Classes (Shared Library)
+Located in `shared/src/idea_shared/`:
 - `IdeaHelsinkiManager` - Orchestrates IDEA validation workers
 - `IdeaHelsinkiRoadSegment` - Individual segment validation logic
 - `IntersectionDetector` - Spatial analysis for segment-disturbance intersections
@@ -81,9 +122,12 @@ python helsinki_traffic_disturbance_monitor.py
 
 ## Configuration
 
-### Constants Configuration
-- `lib/Constants/Constants.py` - Public configuration (update frequencies, file paths, timeframes)
-- `lib/Constants/PrivateConstants.py` - Private credentials (Azure, InfluxDB tokens) - use PrivateConstantExample.py as template
+### Shared Library Configuration
+- **Path**: `shared/src/idea_shared/lib/Constants/`
+- **Constants.py**: Public configuration (update frequencies, file paths, timeframes)
+- **PrivateConstants.py**: Private credentials (Azure, InfluxDB tokens)
+  - Use `PrivateConstantExample.py` as template for local development
+  - In Kubernetes, values are injected via `k8s/secrets.yaml` (generated from `secrets.yaml.tmpl`)
 
 ### Key Settings
 - FCD history requirement: 6 months minimum for validation
@@ -91,6 +135,13 @@ python helsinki_traffic_disturbance_monitor.py
 - Validation frequency: 5 minutes
 - FCD update frequency: 5 minutes
 - Traffic disturbance update: 60 minutes
+
+### Kubernetes Secrets
+Configuration is managed through environment variables and generated during deployment:
+- **Template**: `k8s/secrets.yaml.tmpl` - Secret structure with `${VAR}` placeholders
+- **Generator**: `scripts/generate-secrets.sh` - Shell script that sets defaults and runs `envsubst`
+- **Generated**: `k8s/secrets.yaml` - Auto-generated before deployment (gitignored)
+- **Workflow**: `dotenvx` → `generate-secrets.sh` → `envsubst` → `k8s/secrets.yaml`
 
 ### Feature Flags Configuration
 - `data/feature_flags.json` - Feature flag configuration (use `data/feature_flags.example.json` as template)
@@ -100,26 +151,40 @@ python helsinki_traffic_disturbance_monitor.py
 
 ## Data Storage Locations
 
-### Local Files
+### Persistent Data Files
+Mounted as shared volumes in Kubernetes pods:
 - `data/segments_mapping.json` - Current FCD segment geometries
 - `data/master_segment_history.json` - Segment geometry change tracking
 - `data/archived_segment_history.json` - Removed segments archive
 - `data/traffic_disturbance_data.json` - Intersected segment-disturbance data
 
 ### InfluxDB Buckets
-- FCD bucket: Raw speed/confidence timeseries data
-- IDEA validation bucket: Algorithm validation results
+Automatically created on first startup via `/docker-entrypoint-initdb.d/init-buckets.sh`:
+- **fcd-data**: Raw speed/confidence timeseries (created via DOCKER_INFLUXDB_INIT_BUCKET)
+- **validation**: IDEA algorithm validation results (created via init script)
 
 ## Important Implementation Notes
 
+### Microservices Architecture
+The application uses a microservices architecture with three independent services:
+- Each service runs in its own container with dedicated resources
+- Services communicate via shared data files and InfluxDB
+- Built with Python 3.12, packaged with `uv` and `hatchling`
+
 ### Async Architecture
-IDEA_Helsinki.py uses asyncio for concurrent segment processing. Each road segment runs as an independent worker with its own validation lifecycle.
+The orchestrator service (`services/orchestrator/src/main.py`) uses asyncio for concurrent segment processing. Each road segment runs as an independent worker with its own validation lifecycle.
 
 ### Geometry Tracking
-The system tracks segment geometry changes using SHA-256 hashing to detect when TomTom updates road segment definitions, maintaining historical mapping for consistent analysis.
+The FCD Manager tracks segment geometry changes using SHA-256 hashing to detect when TomTom updates road segment definitions, maintaining historical mapping for consistent analysis.
 
 ### Validation Requirements
 Traffic disturbances can only be validated if there's at least 6 months of FCD history available for affected segments, ensuring sufficient baseline data for impact analysis.
+
+### Shared Library Pattern
+Common functionality is in `shared/src/idea_shared/`:
+- All three services depend on the shared library
+- Installed as editable dependency during container build
+- Version: managed independently in `shared/pyproject.toml`
 
 ## Testing
 
