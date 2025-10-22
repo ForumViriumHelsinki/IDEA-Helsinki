@@ -25,9 +25,7 @@ class TestJsonFileProvider:
     @pytest.mark.unit
     def test_empty_json_file(self):
         """Provider handles empty JSON file."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump({}, f)
             filepath = f.name
 
@@ -42,9 +40,7 @@ class TestJsonFileProvider:
     @pytest.mark.unit
     def test_resolve_boolean_flag_enabled(self):
         """Boolean flag resolves to enabled."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             data = {"flags": {"test_flag": {"enabled": True}}}
             json.dump(data, f)
             filepath = f.name
@@ -61,9 +57,7 @@ class TestJsonFileProvider:
     @pytest.mark.unit
     def test_resolve_boolean_flag_disabled(self):
         """Boolean flag resolves to disabled."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             data = {"flags": {"test_flag": {"enabled": False}}}
             json.dump(data, f)
             filepath = f.name
@@ -80,9 +74,7 @@ class TestJsonFileProvider:
     @pytest.mark.unit
     def test_resolve_string_flag(self):
         """String flag resolves correctly."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             data = {"flags": {"log_level": {"value": "debug"}}}
             json.dump(data, f)
             filepath = f.name
@@ -98,9 +90,7 @@ class TestJsonFileProvider:
     @pytest.mark.unit
     def test_resolve_integer_flag(self):
         """Integer flag resolves correctly."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             data = {"flags": {"max_connections": {"value": 100}}}
             json.dump(data, f)
             filepath = f.name
@@ -118,9 +108,7 @@ class TestJsonFileProvider:
     @pytest.mark.unit
     def test_resolve_integer_with_string_value(self):
         """Integer flag handles string values."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             data = {"flags": {"max_connections": {"value": "50"}}}
             json.dump(data, f)
             filepath = f.name
@@ -138,9 +126,7 @@ class TestJsonFileProvider:
     @pytest.mark.unit
     def test_resolve_integer_invalid_value_uses_default(self):
         """Invalid integer value falls back to default."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             data = {"flags": {"max_connections": {"value": "invalid"}}}
             json.dump(data, f)
             filepath = f.name
@@ -158,9 +144,7 @@ class TestJsonFileProvider:
     @pytest.mark.unit
     def test_resolve_float_flag(self):
         """Float flag resolves correctly."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             data = {"flags": {"threshold": {"value": 0.75}}}
             json.dump(data, f)
             filepath = f.name
@@ -176,14 +160,8 @@ class TestJsonFileProvider:
     @pytest.mark.unit
     def test_resolve_object_flag(self):
         """Object/dict flag resolves correctly."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
-            data = {
-                "flags": {
-                    "config": {"value": {"key1": "value1", "key2": 42}}
-                }
-            }
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            data = {"flags": {"config": {"value": {"key1": "value1", "key2": 42}}}}
             json.dump(data, f)
             filepath = f.name
 
@@ -198,9 +176,7 @@ class TestJsonFileProvider:
     @pytest.mark.unit
     def test_resolve_object_invalid_type_uses_default(self):
         """Object flag with non-dict value uses default."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             data = {"flags": {"config": {"value": "not a dict"}}}
             json.dump(data, f)
             filepath = f.name
@@ -217,9 +193,7 @@ class TestJsonFileProvider:
     @pytest.mark.unit
     def test_multiple_flags_in_same_file(self):
         """Provider handles multiple flags correctly."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             data = {
                 "flags": {
                     "feature_a": {"enabled": True},
@@ -254,9 +228,7 @@ class TestJsonFileProvider:
     @pytest.mark.unit
     def test_invalid_json_file(self):
         """Provider handles invalid JSON gracefully."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             f.write("invalid json content {")
             filepath = f.name
 
@@ -272,9 +244,7 @@ class TestJsonFileProvider:
     @pytest.mark.unit
     def test_flag_with_description(self):
         """Flags can include optional description field."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             data = {
                 "flags": {
                     "feature": {
@@ -297,9 +267,7 @@ class TestJsonFileProvider:
     @pytest.mark.unit
     def test_invalid_json_root_not_dict(self):
         """Provider handles invalid JSON where root is not a dict."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             # Write JSON array instead of object
             json.dump(["invalid", "root", "type"], f)
             filepath = f.name
@@ -316,9 +284,7 @@ class TestJsonFileProvider:
     @pytest.mark.unit
     def test_invalid_json_flags_not_dict(self):
         """Provider handles invalid JSON where 'flags' is not a dict."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             # Write flags as array instead of object
             data = {"flags": ["invalid", "flags", "type"]}
             json.dump(data, f)

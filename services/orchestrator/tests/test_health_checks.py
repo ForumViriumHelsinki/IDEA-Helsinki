@@ -198,7 +198,7 @@ class TestFCDDatabaseHealthCheck:
             # First call returns empty (recent query), second returns old data (latest query)
             mock_query_api.query.side_effect = [
                 [mock_empty_table],  # recent_query
-                [mock_old_table],     # latest_query
+                [mock_old_table],  # latest_query
             ]
             mock_client.query_api.return_value = mock_query_api
 
@@ -245,7 +245,7 @@ class TestFCDDatabaseHealthCheck:
             mock_latest_table.records = []  # Empty records despite has_any_data being True
 
             mock_query_api.query.side_effect = [
-                [mock_empty_table],   # recent_query
+                [mock_empty_table],  # recent_query
                 [mock_latest_table],  # latest_query with empty records
             ]
             mock_client.query_api.return_value = mock_query_api
@@ -293,7 +293,7 @@ class TestFCDDatabaseHealthCheck:
             mock_threshold_table.records = [mock_threshold_record]
 
             mock_query_api.query.side_effect = [
-                [mock_empty_table],      # recent_query
+                [mock_empty_table],  # recent_query
                 [mock_threshold_table],  # latest_query
             ]
             mock_client.query_api.return_value = mock_query_api
@@ -331,6 +331,7 @@ class TestFCDDatabaseHealthCheck:
 
             # First query succeeds (empty), second query fails
             from influxdb_client.client.exceptions import InfluxDBError
+
             mock_query_api.query.side_effect = [
                 [],  # Empty result for recent_query
                 InfluxDBError(message="Query timeout"),
@@ -400,10 +401,13 @@ class TestFCDDatabaseHealthCheck:
 
             assert result.status == "healthy"
             assert result.metadata["mode"] == "backfill"
-            assert result.metadata["latest_data_timestamp"] == specific_timestamp.isoformat()
+            assert (
+                result.metadata["latest_data_timestamp"]
+                == specific_timestamp.isoformat()
+            )
             assert "2025-10-10" in result.metadata["backfill_progress"]
             assert "data_age_hours" in result.metadata
-            assert isinstance(result.metadata["data_age_hours"], (int, float))
+            assert isinstance(result.metadata["data_age_hours"], int | float)
 
     @pytest.mark.asyncio
     async def test_unhealthy_on_connection_failure(self):

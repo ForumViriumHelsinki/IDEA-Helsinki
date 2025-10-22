@@ -33,9 +33,7 @@ class TestProviderIntegration:
         manager_module._global_manager = None
 
         # Start with JSON provider
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             data = {
                 "flags": {
                     "enable_parallel_processing": {"enabled": False},
@@ -78,9 +76,7 @@ class TestProviderIntegration:
 
         manager_module._global_manager = None
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             data = {
                 "flags": {
                     "enable_experimental_validation": {"enabled": True},
@@ -127,9 +123,7 @@ class TestProviderIntegration:
         manager_module._global_manager = None
 
         # Create JSON file with only some flags
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             data = {
                 "flags": {
                     "enable_parallel_processing": {"enabled": False},
@@ -197,9 +191,7 @@ class TestProviderIntegration:
         manager_module._global_manager = None
 
         # Create invalid JSON file
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             f.write("invalid json content {]")
             filepath = f.name
 
@@ -230,18 +222,9 @@ class TestCrossProviderConsistency:
         """Test that JSON and env providers return same values for same config."""
         import idea_shared.feature_flags.manager as manager_module
 
-        # Test data
-        test_flags = {
-            "enable_parallel_processing": True,
-            "enable_segment_caching": False,
-            "fcd_update_interval_override": 20,
-        }
-
         # Test with JSON provider
         manager_module._global_manager = None
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             data = {
                 "flags": {
                     "enable_parallel_processing": {"enabled": True},
@@ -282,8 +265,8 @@ class TestCrossProviderConsistency:
             )
 
             # Both providers should return same values
-            assert json_parallel == env_parallel == True
-            assert json_caching == env_caching == False
+            assert json_parallel is True and env_parallel is True
+            assert json_caching is False and env_caching is False
             assert json_interval == env_interval == 20
 
         finally:

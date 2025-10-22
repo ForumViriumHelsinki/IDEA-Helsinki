@@ -22,7 +22,7 @@ Basic usage:
     ...     pass
 """
 
-from .flags import FlagDefaults, FeatureFlag
+from .flags import FeatureFlag, FlagDefaults
 from .manager import (
     FeatureFlagManager,
     get_feature_flags,

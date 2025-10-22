@@ -202,8 +202,8 @@ async def main():
 
 if __name__ == "__main__":
     # Initialize Sentry if DSN is provided
-    sentry_dsn = os.getenv("SENTRY_DSN")
-    if sentry_dsn:
+    sentry_dsn = os.getenv("SENTRY_DSN", "").strip()
+    if sentry_dsn and sentry_dsn != "":
         sentry_sdk.init(
             dsn=sentry_dsn,
             sample_rate=0.1,

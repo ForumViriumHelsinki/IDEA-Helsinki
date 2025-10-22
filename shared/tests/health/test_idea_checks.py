@@ -351,7 +351,6 @@ class TestFCDDataFreshnessHealthCheck:
         Verifies that backfill mode includes detailed progress information
         in the metadata, including timestamp and human-readable progress string.
         """
-        from datetime import timedelta
 
         check = FCDDataFreshnessHealthCheck(
             name="freshness_check",
@@ -381,7 +380,10 @@ class TestFCDDataFreshnessHealthCheck:
 
             assert result.status == "healthy"
             assert result.metadata["mode"] == "backfill"
-            assert result.metadata["latest_data_timestamp"] == specific_timestamp.isoformat()
+            assert (
+                result.metadata["latest_data_timestamp"]
+                == specific_timestamp.isoformat()
+            )
             assert "2025-10-15" in result.metadata["backfill_progress"]
             assert "data_age_minutes" in result.metadata
 
