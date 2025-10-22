@@ -2,21 +2,7 @@
   "packages": {
     "shared": {
       "release-type": "python",
-      "component": "idea-shared",
-      "extra-files": [
-        {
-          "type": "generic",
-          "path": "services/fcd-manager/pyproject.toml"
-        },
-        {
-          "type": "generic",
-          "path": "services/orchestrator/pyproject.toml"
-        },
-        {
-          "type": "generic",
-          "path": "services/traffic-monitor/pyproject.toml"
-        }
-      ]
+      "component": "idea-shared"
     },
     "services/orchestrator": {
       "release-type": "python",
@@ -30,5 +16,16 @@
       "release-type": "python",
       "component": "traffic-monitor"
     }
-  }
+  },
+  "plugins": [
+    {
+      "type": "linked-versions",
+      "groupName": "idea-helsinki-services",
+      "components": [
+        "orchestrator",
+        "fcd-manager",
+        "traffic-monitor"
+      ]
+    }
+  ]
 }
