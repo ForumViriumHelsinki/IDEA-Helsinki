@@ -1023,6 +1023,90 @@ class TestInfluxDBConnectionManager:
         # Clean up
         await InfluxDBConnectionManager.cleanup_all()
 
+    @pytest.mark.asyncio
+    async def test_async_context_manager_basic(self):
+        """Test that InfluxDBConnectionManager can be used as async context manager."""
+        url = "http://localhost:8086"
+        token = "test_token"
+        org = "test_org"
+
+        # Use as async context manager
+        async with await InfluxDBConnectionManager.get_instance(url, token, org) as manager:
+            assert manager is not None
+            assert manager.url == url
+            assert manager.org == org
+
+        # Clean up
+        await InfluxDBConnectionManager.cleanup_all()
+
+    @pytest.mark.asyncio
+    async def test_async_context_manager_exception_cleanup(self):
+        """Test that resources are cleaned up even when exception occurs in context."""
+        url = "http://localhost:8086"
+        token = "test_token"
+        org = "test_org"
+
+        # Track if close was called
+        manager = await InfluxDBConnectionManager.get_instance(url, token, org)
+        close_called = False
+        original_close = manager.close
+
+        def tracked_close():
+            nonlocal close_called
+            close_called = True
+            original_close()
+
+        manager.close = tracked_close
+
+        # Use in context that raises exception
+        with pytest.raises(ValueError):
+            async with manager:
+                raise ValueError("Test exception")
+
+        # Verify close was called despite exception
+        assert close_called
+
+        # Clean up
+        await InfluxDBConnectionManager.cleanup_all()
+
+    @pytest.mark.asyncio
+    async def test_async_context_manager_returns_self(self):
+        """Test that __aenter__ returns the manager instance."""
+        url = "http://localhost:8086"
+        token = "test_token"
+        org = "test_org"
+
+        manager = await InfluxDBConnectionManager.get_instance(url, token, org)
+
+        # Verify __aenter__ returns self
+        entered_manager = await manager.__aenter__()
+        assert entered_manager is manager
+
+        # Manually exit
+        await manager.__aexit__(None, None, None)
+
+        # Clean up
+        await InfluxDBConnectionManager.cleanup_all()
+
+    @pytest.mark.asyncio
+    async def test_async_context_manager_with_get_client(self):
+        """Test that context manager works with get_client() calls."""
+        url = "http://localhost:8086"
+        token = "test_token"
+        org = "test_org"
+
+        async with await InfluxDBConnectionManager.get_instance(url, token, org) as manager:
+            # Mock the client creation to avoid actual InfluxDB connection
+            with patch("src.health_checks.InfluxDBClient") as mock_client_class:
+                mock_client = MagicMock()
+                mock_client_class.return_value = mock_client
+
+                client = await manager.get_client()
+                assert client is not None
+
+        # Clean up
+        await InfluxDBConnectionManager.cleanup_all()
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
