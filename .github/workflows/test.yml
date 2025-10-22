@@ -10,6 +10,7 @@ jobs:
   test-shared:
     name: Test Shared Library
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v4
@@ -30,6 +31,7 @@ jobs:
           uv pip install -e .[dev]
 
       - name: Run tests
+        timeout-minutes: 5
         run: |
           cd shared
           . .venv/bin/activate
@@ -38,6 +40,7 @@ jobs:
   test-services:
     name: Test ${{ matrix.service }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     strategy:
       matrix:
         service: [orchestrator, fcd-manager, traffic-monitor]
@@ -63,6 +66,7 @@ jobs:
           uv pip install -e .[dev]
 
       - name: Run tests
+        timeout-minutes: 5
         run: |
           cd services/${{ matrix.service }}
           . .venv/bin/activate
