@@ -188,12 +188,8 @@ class TestEnvironmentVariableProvider:
 
         try:
             # Should work with different cases
-            result1 = provider.resolve_boolean_details(
-                "test_flag", default_value=False
-            )
-            result2 = provider.resolve_boolean_details(
-                "TEST_FLAG", default_value=False
-            )
+            result1 = provider.resolve_boolean_details("test_flag", default_value=False)
+            result2 = provider.resolve_boolean_details("TEST_FLAG", default_value=False)
             assert result1.value is True
             assert result2.value is True
         finally:

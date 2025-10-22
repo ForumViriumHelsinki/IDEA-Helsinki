@@ -13,7 +13,7 @@ from openfeature.client import OpenFeatureClient
 from openfeature.evaluation_context import EvaluationContext
 from openfeature.provider import AbstractProvider
 
-from .flags import FlagDefaults, FeatureFlag
+from .flags import FeatureFlag, FlagDefaults
 
 logger = logging.getLogger(__name__)
 

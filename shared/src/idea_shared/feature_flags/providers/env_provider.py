@@ -6,7 +6,6 @@ Useful for production deployments and containerized environments.
 
 import logging
 import os
-from typing import Any
 
 from openfeature.evaluation_context import EvaluationContext
 from openfeature.flag_evaluation import FlagResolutionDetails, Reason

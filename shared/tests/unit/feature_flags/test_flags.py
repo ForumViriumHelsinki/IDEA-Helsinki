@@ -2,7 +2,7 @@
 
 import pytest
 
-from idea_shared.feature_flags.flags import FlagDefaults, FeatureFlag
+from idea_shared.feature_flags.flags import FeatureFlag, FlagDefaults
 
 
 class TestFeatureFlag:
@@ -98,6 +98,7 @@ class TestFlagDefaults:
     @pytest.mark.unit
     def test_get_default_raises_for_unknown_flag(self):
         """get_default raises AttributeError for undefined flags."""
+
         # Create a flag enum value that doesn't have a corresponding default
         class FakeFlag(str):
             value = "nonexistent_flag"

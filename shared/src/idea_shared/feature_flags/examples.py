@@ -72,7 +72,9 @@ def example_numeric_override():
     if override != FCD_UPDATE_FREQUENCY:
         logger.info(f"FCD update interval overridden to {override} minutes")
     else:
-        logger.info(f"Using default FCD update interval: {FCD_UPDATE_FREQUENCY} minutes")
+        logger.info(
+            f"Using default FCD update interval: {FCD_UPDATE_FREQUENCY} minutes"
+        )
 
     return override
 
@@ -143,7 +145,9 @@ def example_caching_with_flag():
             return data
         else:
             # Caching disabled - always fetch fresh
-            logger.debug(f"Fetching fresh data for segment {segment_id} (cache disabled)")
+            logger.debug(
+                f"Fetching fresh data for segment {segment_id} (cache disabled)"
+            )
             return fetch_segment_data(segment_id)
 
     return get_segment_data
@@ -246,9 +250,7 @@ def example_gradual_rollout():
         - Percentage-based rollouts
         """
         # Create evaluation context
-        context = EvaluationContext(
-            segment_id=segment_id, environment=environment
-        )
+        context = EvaluationContext(segment_id=segment_id, environment=environment)
 
         # Evaluate flag with context
         # Note: Basic providers ignore context, but cloud providers use it

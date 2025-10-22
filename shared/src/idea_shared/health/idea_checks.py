@@ -2,7 +2,6 @@
 
 import asyncio
 import json
-from datetime import UTC, datetime
 from pathlib import Path
 
 from azure.storage.blob import BlobServiceClient

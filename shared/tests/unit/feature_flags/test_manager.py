@@ -21,9 +21,7 @@ class TestFeatureFlagManager:
     @pytest.fixture
     def temp_flags_file(self):
         """Create a temporary feature flags JSON file."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             data = {
                 "flags": {
                     "enable_caching": {"enabled": True},
@@ -53,9 +51,7 @@ class TestFeatureFlagManager:
         manager = FeatureFlagManager(provider)
 
         # Using FeatureFlag enum (with default since it won't be in file)
-        result = manager.is_enabled(
-            FeatureFlag.ENABLE_PARALLEL_PROCESSING
-        )
+        result = manager.is_enabled(FeatureFlag.ENABLE_PARALLEL_PROCESSING)
         # Should use the default from FlagDefaults (True)
         assert result is True
 
@@ -120,9 +116,7 @@ class TestFeatureFlagManager:
     def test_get_float(self, temp_flags_file):
         """get_float retrieves float values."""
         # Create a file with a float value
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             data = {"flags": {"threshold": {"value": 0.75}}}
             json.dump(data, f)
             filepath = f.name
@@ -180,9 +174,7 @@ class TestGlobalManager:
     @pytest.mark.unit
     def test_initialize_feature_flags(self):
         """initialize_feature_flags creates global instance."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump({"flags": {}}, f)
             filepath = f.name
 
@@ -198,9 +190,7 @@ class TestGlobalManager:
     @pytest.mark.unit
     def test_get_feature_flags_after_initialization(self):
         """get_feature_flags returns initialized instance."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump({"flags": {}}, f)
             filepath = f.name
 
@@ -222,9 +212,7 @@ class TestGlobalManager:
     @pytest.mark.unit
     def test_reinitialize_replaces_global_instance(self):
         """Calling initialize_feature_flags twice replaces instance."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump({"flags": {}}, f)
             filepath = f.name
 
@@ -247,9 +235,7 @@ class TestGlobalManager:
     @pytest.mark.unit
     def test_get_all_flags_returns_empty_dict(self):
         """get_all_flags returns empty dict (not implemented)."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump({"flags": {}}, f)
             filepath = f.name
 
@@ -266,19 +252,16 @@ class TestGlobalManager:
     def test_thread_safe_initialization(self):
         """Global manager initialization is thread-safe."""
         import threading
-        from idea_shared.feature_flags.manager import (
-            _global_manager,
-            initialize_feature_flags,
-        )
 
         # Reset global state
         import idea_shared.feature_flags.manager as manager_module
+        from idea_shared.feature_flags.manager import (
+            initialize_feature_flags,
+        )
 
         manager_module._global_manager = None
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump({"flags": {}}, f)
             filepath = f.name
 

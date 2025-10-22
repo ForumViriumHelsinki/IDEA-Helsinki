@@ -1,20 +1,51 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: influxdb-config
+  name: influxdb-init-scripts
   namespace: idea-helsinki
   labels:
     app.kubernetes.io/name: influxdb
     app.kubernetes.io/component: database
     app.kubernetes.io/part-of: idea-helsinki
 data:
-  influxdb.conf: |
-    [meta]
-      dir = "/var/lib/influxdb/meta"
-    [data]
-      dir = "/var/lib/influxdb/data"
-      engine = "tsm1"
-      wal-dir = "/var/lib/influxdb/wal"
+  init-buckets.sh: |
+    #!/bin/sh
+
+    # ==============================================================================
+    # InfluxDB Initialization Script for Kubernetes
+    # ==============================================================================
+    # This script runs automatically on first container startup to create
+    # additional buckets and API tokens beyond the initial setup.
+    #
+    # IMPORTANT: This only runs once when InfluxDB is uninitialized.
+    # To re-run, delete the PVC and restart the pod.
+    # ==============================================================================
+
+    set -e
+
+    echo "==> Starting InfluxDB initialization script..."
+
+    # Wait a moment for InfluxDB to be fully ready
+    sleep 2
+
+    # The DOCKER_INFLUXDB_INIT_* environment variables create:
+    # - Organization: idea-helsinki
+    # - Initial bucket: fcd-data
+    # - Admin user with token
+    #
+    # This script creates additional buckets and scoped tokens
+
+    echo "==> Creating validation bucket..."
+    influx bucket create \
+      --name validation \
+      --retention 0 \
+      --description "IDEA validation results storage" \
+      || echo "Warning: validation bucket may already exist"
+
+    echo "==> Initialization complete!"
+    echo "==> Available buckets: fcd-data, validation"
+    echo "==> Admin token: $DOCKER_INFLUXDB_INIT_ADMIN_TOKEN"
+    echo "==> Note: For production, create scoped tokens via InfluxDB UI or CLI"
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -77,8 +108,9 @@ spec:
         volumeMounts:
         - name: influxdb-storage
           mountPath: /var/lib/influxdb2
-        - name: config
-          mountPath: /etc/influxdb2
+        - name: init-scripts
+          mountPath: /docker-entrypoint-initdb.d
+          readOnly: true
         resources:
           requests:
             memory: "512Mi"
@@ -102,9 +134,10 @@ spec:
       - name: influxdb-storage
         persistentVolumeClaim:
           claimName: influxdb-pvc
-      - name: config
+      - name: init-scripts
         configMap:
-          name: influxdb-config
+          name: influxdb-init-scripts
+          defaultMode: 0755  # Make scripts executable
 ---
 apiVersion: v1
 kind: Service

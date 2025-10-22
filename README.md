@@ -16,34 +16,68 @@ Before setting up the local development environment, ensure you have the followi
 
 ### Environment Configuration
 
-The application uses environment variables for configuration, which are fetched from Google Secret Manager for consistency with production.
+The application uses environment variables for configuration. For local development, these are typically fetched from Google Secret Manager for consistency with production.
 
-1. **Copy the environment template:**
-   ```bash
-   cp .env.example .env
-   ```
-
-2. **Authenticate with Google Cloud:**
+1. **Authenticate with Google Cloud:**
    ```bash
    gcloud auth application-default login
    gcloud config set project fvh-project-containers-etc
    ```
 
-3. **Run with Skaffold (recommended):**
+2. **Copy the environment template:**
+   ```bash
+   cp .env.example .env
+   ```
+
+   The `.env.example` file uses `gcloud` command substitution to fetch secrets:
+   ```bash
+   export AZURE_ACCOUNT_NAME="$(gcloud secrets versions access latest --project=fvh-project-containers-etc --secret=idea-helsinki-azure-account-name)"
+   # ... etc
+   ```
+
+   **Alternative for local development**: You can also set values directly in `.env`:
+   ```bash
+   # Azure credentials
+   export AZURE_ACCOUNT_NAME=your-account
+   export AZURE_CONTAINER_NAME=your-container
+   export AZURE_SAS_TOKEN=your-token
+
+   # InfluxDB configuration (optional, uses defaults if not set)
+   export INFLUX_DB_ORG=idea-helsinki
+   export INFLUX_DB_URL=http://influxdb:8086
+   export INFLUX_DB_FCD_BUCKET=fcd-data
+   export INFLUX_DB_FCD_TOKEN=dev-token-changeme
+   export INFLUX_DB_VALIDATION_BUCKET=validation
+   export INFLUX_DB_VALIDATION_TOKEN=dev-token-changeme
+
+   # Sentry (optional)
+   export SENTRY_DSN=your-sentry-dsn
+   ```
+
+3. **Run with Skaffold:**
    ```bash
    dotenvx run -- skaffold dev
    ```
 
-   Or source the environment manually:
-   ```bash
-   source .env
-   skaffold dev
-   ```
+   The `skaffold dev` command will:
+   - Load environment variables from `.env` (fetching from Google Secret Manager if using gcloud commands)
+   - Generate `k8s/secrets.yaml` from `k8s/secrets.yaml.tmpl` using environment variables
+   - Build all three service containers
+   - Deploy to local Kubernetes (via OrbStack)
+   - Enable hot-reload for code changes
+
+### How Configuration Works
+
+1. **Template file** (`k8s/secrets.yaml.tmpl`): Defines the structure of Kubernetes secrets with variable placeholders
+2. **Skaffold hook**: Before deployment, runs `envsubst` to substitute environment variables into the template
+3. **Generated file** (`k8s/secrets.yaml`): Created automatically, contains actual values (gitignored)
+4. **Kubernetes**: Injects these secrets as environment variables into service containers
 
 ### Configuration Files
 
 Configuration is split between:
 - **Environment variables** (via `.env`) - Secrets and environment-specific settings
+- **Kubernetes secrets** (`k8s/secrets.yaml.tmpl`) - Secret template for deployment
 - **Constants files** - Application logic constants
   - [Constants](shared/src/idea_shared/lib/Constants/Constants.py)
   - [PrivateConstants](shared/src/idea_shared/lib/Constants/PrivateConstants.py)
