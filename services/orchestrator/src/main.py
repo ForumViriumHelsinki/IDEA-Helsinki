@@ -64,8 +64,8 @@ async def shutdown(signal_received, loop):
     logger.info(f"Received exit signal {signal_received.name}...")
 
     if health_server:
-        # Mark health server as shutting down
-        await health_server.mark_shutting_down()
+        # Stop the health server gracefully
+        await health_server.stop_async()
 
     # Cancel all running tasks
     tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
@@ -75,10 +75,6 @@ async def shutdown(signal_received, loop):
 
     # Wait for all tasks to complete cancellation
     await asyncio.gather(*tasks, return_exceptions=True)
-
-    # Shutdown health server
-    if health_server:
-        await health_server.shutdown()
 
     # Clean up InfluxDB connections
     logger.info("Cleaning up InfluxDB connections...")
@@ -180,7 +176,9 @@ async def main():
 
     # Start health server with async integration
     logger.info(f"Starting health server on port {HEALTH_CHECK_PORT}...")
-    await health_server.start_async()
+    # Run health server as background task to avoid blocking
+    asyncio.create_task(health_server.start_async())
+    await asyncio.sleep(0.1)  # Give server time to start
 
     try:
         # Start the manager's main loop and let it run forever.
@@ -196,7 +194,7 @@ async def main():
             f"A critical error occurred in the IdeaHelsinkiManager: {e}", exc_info=True
         )
         if health_server:
-            await health_server.shutdown()
+            await health_server.stop_async()
         sys.exit(1)  # Exit with an error code
 
 
