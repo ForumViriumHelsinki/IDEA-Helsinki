@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/orchestrator-v0.8.1...orchestrator-v0.9.0) (2025-10-24)
+
+
+### Features
+
+* implement async context manager for InfluxDBConnectionManager ([#127](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/127)) ([f7fc26f](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/f7fc26f61fb40a779ccca27e9f76ff9a669bbb8d)), closes [#31](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/31)
+
 ## [0.8.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/orchestrator-v0.8.0...orchestrator-v0.8.1) (2025-10-21)
 
 

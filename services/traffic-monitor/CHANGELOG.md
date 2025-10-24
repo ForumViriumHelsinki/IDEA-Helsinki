@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.6.2...traffic-monitor-v0.9.0) (2025-10-24)
+
+
+### Miscellaneous Chores
+
+* **traffic-monitor:** Synchronize idea-helsinki-services versions
+
 ## [0.6.2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.6.1...traffic-monitor-v0.6.2) (2025-10-21)
 
 
