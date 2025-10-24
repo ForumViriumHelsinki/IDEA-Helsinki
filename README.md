@@ -11,7 +11,7 @@ Before setting up the local development environment, ensure you have the followi
 
 - [gcloud CLI](https://cloud.google.com/sdk/docs/install) - Google Cloud command-line interface
 - [Skaffold](https://skaffold.dev/docs/install/) - Kubernetes deployment automation
-- [dotenvx](https://dotenvx.com/docs/install) (optional but recommended) - Environment variable management
+- [dotenvx](https://dotenvx.com/docs/install) - Environment variable management (required for pre-deploy hook)
 - `envsubst` - Template substitution tool (usually pre-installed on macOS/Linux via gettext)
 
 ### Environment Configuration
@@ -56,12 +56,13 @@ The application uses environment variables for configuration. For local developm
 
 3. **Run with Skaffold:**
    ```bash
-   dotenvx run -- skaffold dev
+   skaffold dev
    ```
 
    The `skaffold dev` command will:
-   - Load environment variables from `.env` (fetching from Google Secret Manager if using gcloud commands)
-   - Generate `k8s/secrets.yaml` from `k8s/secrets.yaml.tmpl` using environment variables
+   - Execute the pre-deploy hook which:
+     - Loads environment variables from `.env` via dotenvx (fetching from Google Secret Manager if using gcloud commands)
+     - Runs `scripts/generate-secrets.sh` to generate `k8s/secrets.yaml` from the template
    - Build all three service containers
    - Deploy to local Kubernetes (via OrbStack)
    - Enable hot-reload for code changes
@@ -69,7 +70,9 @@ The application uses environment variables for configuration. For local developm
 ### How Configuration Works
 
 1. **Template file** (`k8s/secrets.yaml.tmpl`): Defines the structure of Kubernetes secrets with variable placeholders
-2. **Skaffold hook**: Before deployment, runs `envsubst` to substitute environment variables into the template
+2. **Skaffold pre-deploy hook**: Before deployment, runs `dotenvx run -- sh scripts/generate-secrets.sh` which:
+   - Loads environment variables from `.env` via dotenvx
+   - Executes `generate-secrets.sh` which uses `envsubst` to substitute variables into the template
 3. **Generated file** (`k8s/secrets.yaml`): Created automatically, contains actual values (gitignored)
 4. **Kubernetes**: Injects these secrets as environment variables into service containers
 
