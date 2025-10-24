@@ -153,6 +153,15 @@ class InfluxDBConnectionManager:
             self._client.close()
             self._client = None
 
+    async def __aenter__(self):
+        """Async context manager entry."""
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit - ensures cleanup even on exceptions."""
+        self.close()
+        return False  # Don't suppress exceptions
+
 
 class FCDDatabaseHealthCheck(DatabaseHealthCheck):
     """Check InfluxDB FCD bucket connectivity and data availability."""
