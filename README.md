@@ -1,6 +1,8 @@
 # IDEA-Helsinki
 Repository for the IDEA Helsinki application developed for the TFDS-project.
 
+[![Build and push container images](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/actions/workflows/container-build.yml/badge.svg)](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/actions/workflows/container-build.yml)
+
 **ADD: Backsotry = "why-when-where", Project stakeholders, credits for the IDEA algorithm etc.**
 
 ## Local Development Setup
