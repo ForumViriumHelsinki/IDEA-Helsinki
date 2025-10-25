@@ -252,17 +252,49 @@ def process_with_context(segment_id):
         pass
 ```
 
-## Docker Integration
+## Docker and Kubernetes Integration
+
+### Kubernetes with Skaffold (IDEA Helsinki)
+
+**IMPORTANT**: The `data/` directory must be mounted as a volume in your Kubernetes deployments for JSON-based feature flags to work. All three IDEA Helsinki service deployments (`k8s/*-deployment.yaml`) already have this configured:
+
+```yaml
+spec:
+  containers:
+  - name: service-name
+    volumeMounts:
+    - name: data-volume
+      mountPath: /app/data
+  volumes:
+  - name: data-volume
+    hostPath:
+      path: /Users/your-user/repos/IDEA-Helsinki/data
+      type: Directory
+```
+
+This enables:
+- Real-time feature flag updates (changes take effect after pod restart)
+- Shared configuration across all services
+- No need to rebuild containers when toggling features
+
+**Usage:**
+1. Edit `data/feature_flags.json` locally
+2. Restart the pod: `kubectl rollout restart deployment/<service-name> -n idea-helsinki`
+3. Changes take effect immediately
 
 ### Docker Compose
 
 ```yaml
 services:
   orchestrator:
+    # Option 1: Environment variables
     environment:
       - FEATURE_FLAG_ENABLE_CACHING=true
       - FEATURE_FLAG_MAX_CONNECTIONS=50
       - FEATURE_FLAG_LOG_LEVEL=debug
+    # Option 2: Mount JSON file
+    volumes:
+      - ./data:/app/data:ro
 ```
 
 ### Dockerfile
@@ -271,7 +303,7 @@ services:
 # Option 1: Environment variables
 ENV FEATURE_FLAG_ENABLE_CACHING=true
 
-# Option 2: Copy JSON file
+# Option 2: Copy JSON file (not recommended for development)
 COPY data/feature_flags.json /app/data/feature_flags.json
 ```
 
@@ -573,10 +605,15 @@ update_interval = flags.get_int(
 
 ### Flags not taking effect
 
-1. Check initialization: Ensure `initialize_feature_flags()` is called at startup
-2. Check provider: Verify JSON file exists or environment variables are set
-3. Check flag names: Flag names must match exactly (case-sensitive in JSON)
-4. Check logs: Provider logs warnings for invalid configurations
+1. **Check initialization**: Ensure `initialize_feature_flags()` is called at startup
+2. **Check provider**: Verify JSON file exists or environment variables are set
+3. **Check flag names**: Flag names must match exactly (case-sensitive in JSON)
+4. **Check logs**: Provider logs warnings for invalid configurations
+5. **Check volume mount (Kubernetes/Skaffold)**: Verify `data/` directory is mounted in pod:
+   ```bash
+   kubectl exec -n idea-helsinki deployment/<service-name> -- ls -la /app/data
+   ```
+   If you see "No such file or directory", the volume mount is not configured. See [Kubernetes Integration](#kubernetes-with-skaffold-idea-helsinki) above.
 
 ### RuntimeError: Feature flags not initialized
 

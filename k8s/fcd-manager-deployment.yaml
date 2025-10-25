@@ -26,6 +26,9 @@ spec:
         envFrom:
         - secretRef:
             name: idea-helsinki-secrets
+        volumeMounts:
+        - name: data-volume
+          mountPath: /app/data
         resources:
           requests:
             memory: "256Mi"
@@ -49,6 +52,11 @@ spec:
             - "print('ready')"
           initialDelaySeconds: 5
           periodSeconds: 10
+      volumes:
+      - name: data-volume
+        hostPath:
+          path: /Users/lgates/repos/IDEA-Helsinki/data
+          type: Directory
 ---
 apiVersion: v1
 kind: Service

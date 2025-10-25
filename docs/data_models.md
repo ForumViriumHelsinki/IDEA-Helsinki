@@ -233,6 +233,54 @@ Discarded because it was doubtful this could be fitted with non TomTom FCD data.
   }
 }
 ```
+## Feature Flags
+
+Feature flags control runtime behavior and configuration overrides without code changes.
+
+*feature_flags.json* naming used in the current program.
+
+```json
+{
+  "flags": {
+    "enable_experimental_validation": {
+      "enabled": false,
+      "description": "Toggle experimental validation algorithms"
+    },
+    "enable_parallel_processing": {
+      "enabled": true,
+      "description": "Process multiple segments in parallel"
+    },
+    "enable_segment_caching": {
+      "enabled": false,
+      "description": "Cache FCD segment geometries in memory"
+    },
+    "fcd_enable_multithreading": {
+      "enabled": true,
+      "description": "Enable multi-threaded processing for FCD Manager"
+    },
+    "enable_enhanced_logging": {
+      "enabled": false,
+      "description": "Detailed debug logging"
+    },
+    "fcd_update_interval_override": {
+      "value": null,
+      "description": "Override FCD update frequency in minutes (null = use default)"
+    },
+    "disturbance_update_interval_override": {
+      "value": null,
+      "description": "Override disturbance update frequency in minutes (null = use default)"
+    }
+  }
+}
+```
+
+**Field Types:**
+- Boolean flags use `"enabled": true/false`
+- Numeric flags use `"value": <number>`
+- All flags should include a `"description"` field
+
+See [Feature Flags Documentation](../shared/src/idea_shared/feature_flags/README.md) for comprehensive usage guide.
+
 ## Traffic disturbance
 
 For Traffic disturbances there is no need for a dedicated data model. The WFS GeoJSON received from the service is sufficient.

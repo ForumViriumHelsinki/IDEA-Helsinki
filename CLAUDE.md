@@ -195,11 +195,17 @@ IDEA-Helsinki uses **unified versioning** where all components (shared library a
 ## Data Storage Locations
 
 ### Persistent Data Files
-Mounted as shared volumes in Kubernetes pods:
+Mounted as shared volumes in Kubernetes pods at `/app/data` via `hostPath` volume:
 - `data/segments_mapping.json` - Current FCD segment geometries
 - `data/master_segment_history.json` - Segment geometry change tracking
 - `data/archived_segment_history.json` - Removed segments archive
 - `data/traffic_disturbance_data.json` - Intersected segment-disturbance data
+- `data/feature_flags.json` - Runtime feature flag configuration
+
+**Volume Mount Configuration**: All three service deployments (`k8s/*-deployment.yaml`) mount the local `data/` directory. This enables:
+- Real-time feature flag updates without rebuilding containers
+- Shared state across all services
+- Persistent data across pod restarts
 
 ### InfluxDB Buckets
 Automatically created on first startup via `/docker-entrypoint-initdb.d/init-buckets.sh`:

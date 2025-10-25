@@ -83,9 +83,32 @@ The application uses environment variables for configuration. For local developm
 Configuration is split between:
 - **Environment variables** (via `.env`) - Secrets and environment-specific settings
 - **Kubernetes secrets** (`k8s/secrets.yaml.tmpl`) - Secret template for deployment
+- **Feature flags** (`data/feature_flags.json`) - Runtime feature toggles and configuration overrides
+  - See [Feature Flags Documentation](shared/src/idea_shared/feature_flags/README.md)
 - **Constants files** - Application logic constants
   - [Constants](shared/src/idea_shared/lib/Constants/Constants.py)
   - [PrivateConstants](shared/src/idea_shared/lib/Constants/PrivateConstants.py)
+
+### Feature Flags
+
+The application supports runtime feature toggles via feature flags. Create `data/feature_flags.json` from the example:
+
+```bash
+cp data/feature_flags.example.json data/feature_flags.json
+```
+
+Edit the file to enable/disable features like multithreading, caching, or experimental algorithms. Changes take effect after pod restart. See [Feature Flags Documentation](shared/src/idea_shared/feature_flags/README.md) for details.
+
+### Volume Mounts
+
+All three services mount the local `data/` directory into their containers at `/app/data`:
+- `data/segments_mapping.json` - Current FCD segment geometries
+- `data/master_segment_history.json` - Segment geometry change tracking
+- `data/archived_segment_history.json` - Removed segments archive
+- `data/traffic_disturbance_data.json` - Intersected segment-disturbance data
+- `data/feature_flags.json` - Runtime feature flag configuration
+
+This allows real-time updates to feature flags and shared data files without rebuilding containers.
 
 ## Program process schematic
 
