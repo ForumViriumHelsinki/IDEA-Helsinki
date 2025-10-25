@@ -23,6 +23,19 @@ from idea_shared.classes.AzureBlobContainerManager import (
 )
 from idea_shared.classes.FCDInfluxDBManager import FCDInfluxDBManager
 from idea_shared.classes.Logger import Logger
+
+# ------------------------------------------------------#
+# ------------- FEATURE FLAGS IMPORTS ------------------#
+# ------------------------------------------------------#
+from idea_shared.feature_flags import (
+    FeatureFlag,
+    get_feature_flags,
+    initialize_feature_flags,
+)
+from idea_shared.feature_flags.providers import (
+    EnvironmentVariableProvider,
+    JsonFileProvider,
+)
 from idea_shared.health.idea_checks import (
     AzureBlobStorageHealthCheck,
     FCDDataFreshnessHealthCheck,
@@ -78,19 +91,6 @@ from health_checks import (
     ProcessingPipelineHealthCheck,
     SegmentMappingFreshnessHealthCheck,
     UpdateCycleHealthCheck,
-)
-
-# ------------------------------------------------------#
-# ------------- FEATURE FLAGS IMPORTS ------------------#
-# ------------------------------------------------------#
-from idea_shared.feature_flags import (
-    FeatureFlag,
-    get_feature_flags,
-    initialize_feature_flags,
-)
-from idea_shared.feature_flags.providers import (
-    EnvironmentVariableProvider,
-    JsonFileProvider,
 )
 
 logger = Logger(__name__)
@@ -265,7 +265,9 @@ def run_multithreaded(azure_manager: AzureBlobContainerManager):
             logger.info(
                 f"FCD data base is empty, backfilling from {FCD_HISTORY_START_DATE}"
             )
-            start_date = datetime.strptime(FCD_HISTORY_START_DATE, "%Y-%m-%d")
+            start_date = datetime.strptime(FCD_HISTORY_START_DATE, "%Y-%m-%d").replace(
+                tzinfo=UTC
+            )
         else:
             logger.info(f"FCD data base last updated at {data_base_last_update.date()}")
             start_date = data_base_last_update
@@ -482,7 +484,9 @@ def main():
             sys.exit(1)
     else:
         # Single-threaded mode (original implementation)
-        logger.info("Multi-threading is DISABLED via feature flag (using single-threaded mode)")
+        logger.info(
+            "Multi-threading is DISABLED via feature flag (using single-threaded mode)"
+        )
         try:
             run_singlethreaded(azure_manager)
         except Exception as e:
@@ -543,7 +547,7 @@ def initialize_database_update(
                     )
                     data_base_last_update = datetime.strptime(
                         FCD_HISTORY_START_DATE, "%Y-%m-%d"
-                    )
+                    ).replace(tzinfo=UTC)
                 else:
                     logger.info(
                         f"FCD data base last updated at {data_base_last_update.date()}"
