@@ -164,7 +164,10 @@ class ThreadCoordinator:
                 # Process date range using streaming (yields batches)
                 batch_count = 0
                 for batch_data in self.processing_function(
-                    self.azure_manager, date_range.start, date_range.end, self.batch_size
+                    self.azure_manager,
+                    date_range.start,
+                    date_range.end,
+                    self.batch_size,
                 ):
                     # Submit batch to write queue (with retry on Queue.Full)
                     self._submit_write_with_retry(batch_data, worker_id)
