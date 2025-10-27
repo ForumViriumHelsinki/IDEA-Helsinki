@@ -3,17 +3,55 @@ Tests for multi-threaded mode in main.py.
 
 This module tests the multi-threaded backfill functionality, particularly
 focusing on timezone-aware datetime handling.
+
+Following TDD principles: Tests use REAL ThreadCoordinator execution with
+minimal mocking (only external dependencies like InfluxDB).
 """
 
 import sys
+import time
 from datetime import UTC, datetime
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+# Mock external modules that main.py imports but aren't needed for tests
+# These are external dependencies that don't affect the core threading logic we're testing
+sys.modules["pause"] = MagicMock()
+sys.modules["sentry_sdk"] = MagicMock()
+
+# Mock openfeature modules (feature flags library)
+openfeature_mock = MagicMock()
+sys.modules["openfeature"] = openfeature_mock
+sys.modules["openfeature.api"] = MagicMock()
+sys.modules["openfeature.client"] = MagicMock()
+sys.modules["openfeature.evaluation_context"] = MagicMock()
+sys.modules["openfeature.flag_evaluation"] = MagicMock()
+sys.modules["openfeature.provider"] = MagicMock()
+sys.modules["openfeature.provider.provider"] = MagicMock()
+
+
+def fast_processing_function(azure_manager, start_date, end_date, batch_size=50):
+    """
+    Fast processing function for integration tests.
+
+    Returns realistic FCD data structure with minimal delay.
+    """
+    time.sleep(0.01)  # Minimal delay to simulate work
+    yield {
+        "segmentId": {
+            "seg1": {
+                "geometry": {"type": "LineString", "coordinates": [[24.9, 60.1]]},
+                "detailedSegment": {
+                    "date": {start_date.isoformat(): {"properties": {}}}
+                },
+            }
+        }
+    }
 
 
 class TestMultithreadedMode:
@@ -85,68 +123,59 @@ class TestMultithreadedMode:
         result = azure_manager.get_blobs_in_range(aware_start_date, aware_end_date)
         assert result == []
 
-    @patch("main.FCDInfluxDBManager")
-    @patch("main.ThreadCoordinator")
-    def test_run_multithreaded_with_empty_database(
-        self, mock_thread_coordinator, mock_influx_manager
-    ):
+    def test_thread_coordinator_timezone_aware_workflow(self):
         """
-        Integration test for run_multithreaded when database is empty.
+        Integration test for ThreadCoordinator with timezone-aware datetimes.
 
-        This ensures the full workflow uses timezone-aware datetimes.
+        This test uses REAL ThreadCoordinator execution to verify timezone-aware
+        datetime handling throughout the multithreaded workflow, which was the root
+        cause of the bug that prompted this test.
+
+        Verifies:
+        1. Timezone-aware datetimes work correctly with ThreadCoordinator
+        2. Date range processing completes without timezone errors
+        3. Real threading coordination with proper datetime handling
         """
-        # Mock InfluxDB manager to return None (empty database)
-        mock_manager_instance = MagicMock()
-        mock_manager_instance.check_connection.return_value = True
-        mock_manager_instance.get_last_update_timestamp.return_value = None
-        mock_influx_manager.return_value.__enter__.return_value = mock_manager_instance
+        from idea_shared.threading import ThreadCoordinator
 
-        # Mock ThreadCoordinator
-        mock_coordinator_instance = MagicMock()
-        mock_thread_coordinator.return_value = mock_coordinator_instance
+        # Create timezone-aware datetimes (this is what the bug was about)
+        start_date = datetime(2025, 1, 1, tzinfo=UTC)
+        end_date = datetime(2025, 1, 2, tzinfo=UTC)
 
-        # Mock stats to simulate immediate completion
-        mock_coordinator_instance.get_progress_stats.return_value = {
-            "date_queue": {"completed_ranges": 1, "total_ranges": 1},
-            "write_queue": {"queue_size": 0, "completed_writes": 1},
-            "workers_alive": False,
+        # Mock only external dependencies
+        azure_manager = MagicMock()
+        influx_config = {
+            "url": "http://localhost:8086",
+            "token": "test-token",
+            "org": "test-org",
+            "bucket": "test-bucket",
         }
+        logger = MagicMock()
 
-        # Import and patch constants
-        with (
-            patch("main.FCD_HISTORY_START_DATE", "2024-06-01"),
-            patch("main.INFLUX_DB_URL", "http://localhost:8086"),
-            patch("main.INFLUX_DB_FCD_TOKEN", "test-token"),
-            patch("main.INFLUX_DB_ORG", "test-org"),
-            patch("main.INFLUX_DB_FCD_BUCKET", "test-bucket"),
-            patch("main.FCD_BACKFILL_WORKER_COUNT", 2),
-            patch("main.FCD_BACKFILL_CHUNK_DAYS", 7),
-            patch("main.FCD_WRITE_QUEUE_MAX_SIZE", 100),
-            patch("main.FCD_MAX_CHUNK_RETRIES", 3),
-            patch("main.FCD_RETRY_DELAY_SECONDS", 5),
-            patch("main.FCD_PROCESSING_BATCH_SIZE", 50),
-            patch("main.process_date_range_streaming", MagicMock()),
-            patch("main.logger", MagicMock()),
-        ):
-            from main import run_multithreaded
+        # Create REAL coordinator
+        coordinator = ThreadCoordinator(
+            num_backfill_workers=2,
+            azure_manager=azure_manager,
+            influx_config=influx_config,
+            logger=logger,
+            processing_function=fast_processing_function,
+            max_retries=2,
+            retry_delay=1,
+        )
 
-            # Mock azure manager
-            azure_manager = MagicMock()
+        # Start backfill with timezone-aware datetimes
+        # This should NOT raise "can't compare offset-naive and offset-aware" error
+        coordinator.start_backfill(start_date, end_date, chunk_days=1)
 
-            # This should not raise timezone comparison error
-            result = run_multithreaded(azure_manager)
+        # Wait for completion
+        result = coordinator.wait_for_backfill_completion(timeout=10.0)
+        assert result is True, "Coordinator should complete within timeout"
 
-            # Verify ThreadCoordinator.start_backfill was called with timezone-aware datetimes
-            assert mock_coordinator_instance.start_backfill.called
-            call_args = mock_coordinator_instance.start_backfill.call_args[0]
-            start_date_arg = call_args[0]
-            end_date_arg = call_args[1]
+        # Verify work was actually processed
+        stats = coordinator.get_progress_stats()
+        assert (
+            stats["date_queue"]["completed_ranges"] == 2
+        ), "Should complete 2 date ranges (Jan 1-1, Jan 2-2)"
 
-            # Both should be timezone-aware
-            assert (
-                start_date_arg.tzinfo is not None
-            ), "start_date should be timezone-aware"
-            assert end_date_arg.tzinfo is not None, "end_date should be timezone-aware"
-
-            # Function should return True on success
-            assert result is True
+        # Clean up
+        coordinator.shutdown()
