@@ -1,6 +1,13 @@
 """
 Tests for ThreadCoordinator - Multi-threaded FCD processing orchestration.
 
+These tests verify REAL threading coordination by:
+1. Using realistic processing functions that simulate I/O work
+2. Testing actual concurrent worker execution
+3. Verifying queue management and backpressure
+4. Testing real retry logic and error handling
+5. Only mocking external dependencies (Azure, InfluxDB)
+
 Following TDD RED-GREEN-REFACTOR cycle.
 """
 
@@ -13,13 +20,74 @@ from idea_shared.threading.date_queue import DateRangeQueue
 from idea_shared.threading.write_queue import InfluxDBWriteQueue
 
 
-def mock_processing_function(azure_manager, start_date, end_date, batch_size=50):
+def realistic_processing_function(azure_manager, start_date, end_date, batch_size=50):
     """
-    Mock processing function that yields empty batches.
-    This simulates the streaming processing interface.
+    Realistic processing function that simulates I/O work with delays.
+
+    This mimics real FCD processing:
+    1. Simulates Azure API call (0.05s delay)
+    2. Yields multiple batches with realistic data
+    3. Each batch represents processed FCD data
+
+    This ensures tests verify ACTUAL threading coordination under load.
     """
-    # Yield a single batch with empty data
-    yield {}
+    # Simulate Azure API call delay
+    time.sleep(0.05)
+
+    # Yield 2 batches to simulate streaming processing
+    yield {
+        "segmentId": {
+            "seg1": {
+                "geometry": {
+                    "type": "LineString",
+                    "coordinates": [[24.9, 60.1], [24.91, 60.11]],
+                },
+                "detailedSegment": {
+                    "date": {
+                        start_date.isoformat(): {"properties": {"currentSpeed": 50}}
+                    }
+                },
+            }
+        }
+    }
+
+    # Simulate processing delay between batches
+    time.sleep(0.05)
+
+    yield {
+        "segmentId": {
+            "seg2": {
+                "geometry": {
+                    "type": "LineString",
+                    "coordinates": [[24.92, 60.12], [24.93, 60.13]],
+                },
+                "detailedSegment": {
+                    "date": {
+                        start_date.isoformat(): {"properties": {"currentSpeed": 55}}
+                    }
+                },
+            }
+        }
+    }
+
+
+def fast_processing_function(azure_manager, start_date, end_date, batch_size=50):
+    """
+    Fast processing function for tests that need quick completion.
+
+    Still yields realistic data structure but with minimal delay.
+    """
+    time.sleep(0.01)  # Minimal delay
+    yield {
+        "segmentId": {
+            "seg1": {
+                "geometry": {"type": "LineString", "coordinates": [[24.9, 60.1]]},
+                "detailedSegment": {
+                    "date": {start_date.isoformat(): {"properties": {}}}
+                },
+            }
+        }
+    }
 
 
 class TestThreadCoordinatorInitialization:
@@ -36,7 +104,7 @@ class TestThreadCoordinatorInitialization:
             azure_manager=azure_manager,
             influx_config=influx_config,
             logger=logger,
-            processing_function=mock_processing_function,
+            processing_function=fast_processing_function,
         )
 
         assert coordinator.num_backfill_workers == 4
@@ -51,7 +119,7 @@ class TestThreadCoordinatorInitialization:
             azure_manager=MagicMock(),
             influx_config={},
             logger=MagicMock(),
-            processing_function=mock_processing_function,
+            processing_function=fast_processing_function,
         )
 
         assert isinstance(coordinator.date_queue, DateRangeQueue)
@@ -64,7 +132,7 @@ class TestThreadCoordinatorInitialization:
             azure_manager=MagicMock(),
             influx_config={},
             logger=MagicMock(),
-            processing_function=mock_processing_function,
+            processing_function=fast_processing_function,
             max_write_queue_size=50,
         )
 
@@ -76,13 +144,13 @@ class TestThreadCoordinatorBackfill:
     """Tests for backfill processing coordination."""
 
     def test_start_backfill_populates_date_queue(self):
-        """Test that start_backfill populates the date queue."""
+        """Test that start_backfill populates the date queue with REAL queue operations."""
         coordinator = ThreadCoordinator(
             num_backfill_workers=2,
             azure_manager=MagicMock(),
             influx_config={},
             logger=MagicMock(),
-            processing_function=mock_processing_function,
+            processing_function=fast_processing_function,
         )
 
         start_date = datetime(2025, 1, 1, tzinfo=UTC)
@@ -95,13 +163,13 @@ class TestThreadCoordinatorBackfill:
         assert stats["total_ranges"] == 3
 
     def test_start_backfill_spawns_worker_threads(self):
-        """Test that start_backfill spawns the correct number of workers."""
+        """Test that start_backfill spawns the correct number of REAL worker threads."""
         coordinator = ThreadCoordinator(
             num_backfill_workers=3,
             azure_manager=MagicMock(),
             influx_config={},
             logger=MagicMock(),
-            processing_function=mock_processing_function,
+            processing_function=fast_processing_function,
         )
 
         start_date = datetime(2025, 1, 1, tzinfo=UTC)
@@ -113,6 +181,11 @@ class TestThreadCoordinatorBackfill:
         assert len(coordinator._worker_threads) == 3
         assert coordinator._writer_thread is not None
 
+        # Verify threads are actually running (not just created)
+        time.sleep(0.05)  # Give threads time to start
+        active_count = sum(1 for t in coordinator._worker_threads if t.is_alive())
+        assert active_count >= 1, "At least one worker should be active"
+
     def test_start_backfill_spawns_writer_thread(self):
         """Test that start_backfill spawns the InfluxDB writer thread."""
         coordinator = ThreadCoordinator(
@@ -120,7 +193,7 @@ class TestThreadCoordinatorBackfill:
             azure_manager=MagicMock(),
             influx_config={},
             logger=MagicMock(),
-            processing_function=mock_processing_function,
+            processing_function=fast_processing_function,
         )
 
         coordinator.start_backfill(
@@ -131,41 +204,48 @@ class TestThreadCoordinatorBackfill:
         assert coordinator._writer_thread.is_alive()
 
     def test_wait_for_backfill_completion(self):
-        """Test waiting for backfill to complete."""
-        # Mock Azure manager that returns empty data (fast completion)
-        azure_manager = MagicMock()
-        azure_manager.get_fcd_data_for_date_range.return_value = {}
-
+        """Test waiting for backfill to complete with REAL work processing."""
         coordinator = ThreadCoordinator(
             num_backfill_workers=2,
-            azure_manager=azure_manager,
+            azure_manager=MagicMock(),
             influx_config={},
             logger=MagicMock(),
-            processing_function=mock_processing_function,
+            processing_function=fast_processing_function,
         )
 
         coordinator.start_backfill(
             datetime(2025, 1, 1, tzinfo=UTC), datetime(2025, 1, 2, tzinfo=UTC), 1
         )
 
-        # Should complete quickly with no real work
+        # Should complete after real work
         result = coordinator.wait_for_backfill_completion(timeout=5.0)
         assert result is True
 
+        # Verify work was actually processed
+        stats = coordinator.get_progress_stats()
+        assert (
+            stats["date_queue"]["completed_ranges"] == 2
+        ), "Should complete 2 date ranges"
+
     def test_wait_for_backfill_timeout(self):
-        """Test that wait_for_backfill respects timeout."""
-        # Mock Azure manager that blocks indefinitely
-        azure_manager = MagicMock()
-        azure_manager.get_fcd_data_for_date_range.side_effect = (
-            lambda *args, **kwargs: time.sleep(10)
-        )
+        """
+        Test that wait_for_backfill respects timeout with REAL slow processing.
+
+        Uses a processing function that takes longer than timeout to verify
+        timeout handling.
+        """
+
+        # Processing function that is deliberately slow
+        def slow_processing_function(azure_mgr, start_date, end_date, batch_size=50):
+            time.sleep(5)  # Deliberately slow to trigger timeout
+            yield {}
 
         coordinator = ThreadCoordinator(
             num_backfill_workers=1,
-            azure_manager=azure_manager,
+            azure_manager=MagicMock(),
             influx_config={},
             logger=MagicMock(),
-            processing_function=mock_processing_function,
+            processing_function=slow_processing_function,
         )
 
         coordinator.start_backfill(
@@ -190,7 +270,7 @@ class TestThreadCoordinatorShutdown:
             azure_manager=MagicMock(),
             influx_config={},
             logger=MagicMock(),
-            processing_function=mock_processing_function,
+            processing_function=fast_processing_function,
         )
 
         coordinator.shutdown()
@@ -199,46 +279,47 @@ class TestThreadCoordinatorShutdown:
         assert coordinator.write_queue.is_shutdown()
 
     def test_shutdown_waits_for_threads(self):
-        """Test that shutdown waits for threads to complete."""
-        azure_manager = MagicMock()
-        azure_manager.get_fcd_data_for_date_range.return_value = {}
-
+        """Test that shutdown waits for REAL threads to complete."""
         coordinator = ThreadCoordinator(
             num_backfill_workers=2,
-            azure_manager=azure_manager,
+            azure_manager=MagicMock(),
             influx_config={},
             logger=MagicMock(),
-            processing_function=mock_processing_function,
+            processing_function=fast_processing_function,
         )
 
         coordinator.start_backfill(
             datetime(2025, 1, 1, tzinfo=UTC), datetime(2025, 1, 2, tzinfo=UTC), 1
         )
 
-        # Allow threads to start
-        time.sleep(0.1)
+        # Allow threads to start and process
+        time.sleep(0.2)
 
         coordinator.shutdown()
 
         # All threads should be stopped
         for thread in coordinator._worker_threads:
-            assert not thread.is_alive()
-        assert not coordinator._writer_thread.is_alive()
+            assert (
+                not thread.is_alive()
+            ), f"Worker thread {thread.name} should be stopped"
+        assert (
+            not coordinator._writer_thread.is_alive()
+        ), "Writer thread should be stopped"
 
     def test_shutdown_respects_timeout(self):
-        """Test that shutdown respects timeout parameter."""
-        # Mock that blocks indefinitely
-        azure_manager = MagicMock()
-        azure_manager.get_fcd_data_for_date_range.side_effect = (
-            lambda *args, **kwargs: time.sleep(10)
-        )
+        """Test that shutdown respects timeout parameter with REAL slow work."""
+
+        # Processing function that is deliberately slow
+        def very_slow_processing(azure_mgr, start_date, end_date, batch_size=50):
+            time.sleep(10)  # Deliberately slow
+            yield {}
 
         coordinator = ThreadCoordinator(
             num_backfill_workers=1,
-            azure_manager=azure_manager,
+            azure_manager=MagicMock(),
             influx_config={},
             logger=MagicMock(),
-            processing_function=mock_processing_function,
+            processing_function=very_slow_processing,
         )
 
         coordinator.start_backfill(
@@ -327,7 +408,7 @@ class TestThreadCoordinatorRetryLogic:
 
 
 class TestThreadCoordinatorProgressTracking:
-    """Tests for progress tracking."""
+    """Tests for progress tracking with REAL work."""
 
     def test_get_progress_statistics(self):
         """Test getting progress statistics."""
@@ -336,7 +417,7 @@ class TestThreadCoordinatorProgressTracking:
             azure_manager=MagicMock(),
             influx_config={},
             logger=MagicMock(),
-            processing_function=mock_processing_function,
+            processing_function=fast_processing_function,
         )
 
         stats = coordinator.get_progress_stats()
@@ -347,16 +428,13 @@ class TestThreadCoordinatorProgressTracking:
         assert "writer_alive" in stats
 
     def test_progress_tracks_completed_ranges(self):
-        """Test that progress correctly tracks completed date ranges."""
-        azure_manager = MagicMock()
-        azure_manager.get_fcd_data_for_date_range.return_value = {}
-
+        """Test that progress correctly tracks completed date ranges with REAL processing."""
         coordinator = ThreadCoordinator(
             num_backfill_workers=1,
-            azure_manager=azure_manager,
+            azure_manager=MagicMock(),
             influx_config={},
             logger=MagicMock(),
-            processing_function=mock_processing_function,
+            processing_function=fast_processing_function,
         )
 
         coordinator.start_backfill(
@@ -374,8 +452,8 @@ class TestThreadCoordinatorInfluxDBWriter:
     """Tests for InfluxDB writer thread coordination."""
 
     def test_writer_thread_processes_write_requests(self):
-        """Test that writer thread processes write requests from queue."""
-        # Mock InfluxDB client
+        """Test that writer thread processes REAL write requests from queue."""
+        # Mock InfluxDB client (external dependency)
         influx_client = MagicMock()
 
         coordinator = ThreadCoordinator(
@@ -383,7 +461,7 @@ class TestThreadCoordinatorInfluxDBWriter:
             azure_manager=MagicMock(),
             influx_config={},
             logger=MagicMock(),
-            processing_function=mock_processing_function,
+            processing_function=fast_processing_function,
         )
 
         # Inject mock client
@@ -392,8 +470,18 @@ class TestThreadCoordinatorInfluxDBWriter:
         # Start writer thread
         coordinator._start_writer_thread()
 
-        # Add write request
-        coordinator.write_queue.put_write_request({"test": "data"}, worker_id=1)
+        # Add REAL write request with realistic FCD data
+        coordinator.write_queue.put_write_request(
+            {
+                "segmentId": {
+                    "seg1": {
+                        "geometry": {"type": "LineString"},
+                        "detailedSegment": {"date": {}},
+                    }
+                }
+            },
+            worker_id=1,
+        )
 
         # Give writer time to process
         time.sleep(0.2)
@@ -401,12 +489,13 @@ class TestThreadCoordinatorInfluxDBWriter:
         # Shutdown
         coordinator.shutdown()
 
-        # InfluxDB client should have been called
-        # (exact assertion depends on implementation)
+        # Verify write queue processed the request
+        stats = coordinator.write_queue.get_stats()
+        assert stats["completed_writes"] > 0, "Write queue should process requests"
 
     def test_writer_thread_handles_write_failures(self):
-        """Test that writer thread handles write failures gracefully."""
-        # Mock InfluxDB client that fails
+        """Test that writer thread handles REAL write failures gracefully."""
+        # Mock InfluxDB client that fails (external dependency)
         influx_client = MagicMock()
         influx_client.write_fcd_data.side_effect = Exception("Write failed")
 
@@ -415,7 +504,7 @@ class TestThreadCoordinatorInfluxDBWriter:
             azure_manager=MagicMock(),
             influx_config={},
             logger=MagicMock(),
-            processing_function=mock_processing_function,
+            processing_function=fast_processing_function,
         )
 
         coordinator._influx_client = influx_client
@@ -429,4 +518,4 @@ class TestThreadCoordinatorInfluxDBWriter:
 
         # Should track failed write
         stats = coordinator.write_queue.get_stats()
-        assert stats["failed_writes"] > 0
+        assert stats["failed_writes"] > 0, "Failed writes should be tracked"
