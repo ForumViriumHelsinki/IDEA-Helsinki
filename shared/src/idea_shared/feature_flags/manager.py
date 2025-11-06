@@ -230,14 +230,13 @@ def initialize_feature_flags(
     """
     global _global_manager
 
-    # Use lock to ensure thread-safe initialization/reinitialization
-    with _init_lock:
-        is_reinit = _global_manager is not None
-        _global_manager = FeatureFlagManager(provider, domain)
-        if is_reinit:
-            logger.info("Global feature flag manager reinitialized")
-        else:
-            logger.info("Global feature flag manager initialized")
+    # Use double-checked locking pattern for performance
+    if _global_manager is None:
+        with _init_lock:
+            # Check again inside lock to prevent race condition
+            if _global_manager is None:
+                _global_manager = FeatureFlagManager(provider, domain)
+                logger.info("Global feature flag manager initialized")
 
     return _global_manager
 

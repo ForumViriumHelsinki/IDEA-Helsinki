@@ -210,8 +210,8 @@ class TestGlobalManager:
             get_feature_flags()
 
     @pytest.mark.unit
-    def test_reinitialize_replaces_global_instance(self):
-        """Calling initialize_feature_flags twice replaces instance."""
+    def test_reinitialize_returns_same_instance(self):
+        """Calling initialize_feature_flags twice returns same instance (singleton)."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump({"flags": {}}, f)
             filepath = f.name
@@ -223,12 +223,12 @@ class TestGlobalManager:
             provider2 = JsonFileProvider(filepath)
             manager2 = initialize_feature_flags(provider2)
 
-            # Should be different instances
-            assert manager1 is not manager2
+            # Should be the same instance (singleton pattern)
+            assert manager1 is manager2
 
-            # get_feature_flags should return the new one
+            # get_feature_flags should return the same instance
             current = get_feature_flags()
-            assert current is manager2
+            assert current is manager1
         finally:
             Path(filepath).unlink()
 
