@@ -90,25 +90,30 @@ class TestWFSServiceHealthCheck:
             url="https://test.wfs.service",
         )
 
-        # Mock the parent class check method
-        with patch.object(check, "check", new=AsyncMock()) as mock_check:
-            mock_result = MagicMock()
-            mock_result.status = "healthy"
-            mock_result.message = ""
-            mock_result.metadata = {}
-            mock_check.return_value = mock_result
+        # Mock the parent class check method to return a healthy result
+        from idea_shared.health.models import HealthCheckResult
 
-            # Call the actual check method (need to use super's implementation)
-            with patch(
-                "idea_shared.health.idea_checks.ExternalAPIHealthCheck.check",
-                new=AsyncMock(),
-            ) as mock_super:
-                mock_super.return_value = mock_result
-                result = await check.check()
+        mock_result = HealthCheckResult(
+            name="wfs_check",
+            status="healthy",
+            message="API responded with status 200",
+            metadata={
+                "url": "https://test.wfs.service?service=WFS&request=GetCapabilities",
+                "status_code": 200,
+                "circuit_state": "closed",
+            },
+        )
 
-                assert result.status == "healthy"
-                assert "WFS service is available" in result.message
-                assert result.metadata["service"] == "WFS"
+        with patch(
+            "idea_shared.health.idea_checks.ExternalAPIHealthCheck.check",
+            new=AsyncMock(),
+        ) as mock_super:
+            mock_super.return_value = mock_result
+            result = await check.check()
+
+            assert result.status == "healthy"
+            assert "WFS service is available" in result.message
+            assert result.metadata["service"] == "WFS"
 
     @pytest.mark.asyncio
     async def test_wfs_circuit_breaker(self):
