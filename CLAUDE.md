@@ -203,10 +203,15 @@ pytest
 ```bash
 cd services/{service-name}  # orchestrator, fcd-manager, or traffic-monitor
 uv venv
-. .venv/bin/activate
 uv pip install -e ../../shared
-uv pip install -e .[dev]
-pytest
+uv pip install -e '.[dev]'
+
+# Run tests using uv run (recommended - automatically uses venv)
+uv run --no-sync pytest -v
+
+# Alternative: manually activate venv
+# . .venv/bin/activate
+# pytest
 ```
 
 #### Run with Coverage
