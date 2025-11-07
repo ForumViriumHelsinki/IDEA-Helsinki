@@ -1035,7 +1035,9 @@ class TestInfluxDBConnectionManager:
         org = "test_org"
 
         # Use as async context manager
-        async with await InfluxDBConnectionManager.get_instance(url, token, org) as manager:
+        async with await InfluxDBConnectionManager.get_instance(
+            url, token, org
+        ) as manager:
             assert manager is not None
             assert manager.url == url
             assert manager.org == org
@@ -1099,7 +1101,9 @@ class TestInfluxDBConnectionManager:
         token = "test_token"
         org = "test_org"
 
-        async with await InfluxDBConnectionManager.get_instance(url, token, org) as manager:
+        async with await InfluxDBConnectionManager.get_instance(
+            url, token, org
+        ) as manager:
             # Mock the client creation to avoid actual InfluxDB connection
             with patch("src.health_checks.InfluxDBClient") as mock_client_class:
                 mock_client = MagicMock()
