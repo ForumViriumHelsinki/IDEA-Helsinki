@@ -581,7 +581,7 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
                     name=self.name,
                     status="degraded" if not self.critical else "unhealthy",
                     message=error_msg,
-                    metadata={"file_path": self.path},
+                    metadata={"file_path": str(self.path)},
                 )
 
             loop = asyncio.get_event_loop()
@@ -607,7 +607,7 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
                             message=error_msg,
                             metadata={
                                 "error": "Root must be a dictionary",
-                                "file_path": self.path,
+                                "file_path": str(self.path),
                             },
                         )
 
@@ -626,7 +626,7 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
                             metadata={
                                 "missing_fields": missing_fields,
                                 "available_fields": list(data.keys()),
-                                "file_path": self.path,
+                                "file_path": str(self.path),
                             },
                         )
 
@@ -649,7 +649,7 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
                             metadata={
                                 "empty_fields": empty_fields,
                                 "note": "No active disturbances to process",
-                                "file_path": self.path,
+                                "file_path": str(self.path),
                             },
                         )
 
@@ -670,7 +670,7 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
                                 "file_age_minutes": round(file_age_minutes, 2),
                                 "max_age_minutes": self.max_age_minutes,
                                 "segment_count": segment_count,
-                                "file_path": self.path,
+                                "file_path": str(self.path),
                             },
                         )
 
@@ -687,7 +687,7 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
                             "last_modified": datetime.fromtimestamp(
                                 file_stat.st_mtime
                             ).isoformat(),
-                            "file_path": self.path,
+                            "file_path": str(self.path),
                         },
                     )
 
@@ -703,7 +703,7 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
                         metadata={
                             "error": str(e),
                             "error_type": "JSONDecodeError",
-                            "file_path": self.path,
+                            "file_path": str(self.path),
                         },
                     )
                 except Exception as e:
@@ -718,7 +718,7 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
                         metadata={
                             "error": str(e),
                             "error_type": type(e).__name__,
-                            "file_path": self.path,
+                            "file_path": str(self.path),
                         },
                     )
 
@@ -734,7 +734,7 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
                 metadata={
                     "error": str(e),
                     "error_type": type(e).__name__,
-                    "file_path": self.path,
+                    "file_path": str(self.path),
                 },
             )
 

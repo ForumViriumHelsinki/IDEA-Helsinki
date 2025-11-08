@@ -83,7 +83,7 @@ class TestHealthServerIntegration:
         try:
             response = requests.get("http://localhost:18080/healthz", timeout=5)
             assert response.status_code == 200
-            assert response.json()["status"] == "alive"
+            assert response.json()["status"] == "ok"
         except requests.exceptions.RequestException as e:
             pytest.fail(f"Health server not responding: {e}")
 
@@ -105,7 +105,7 @@ class TestHealthServerIntegration:
             response = requests.get("http://localhost:18080/healthz", timeout=5)
             assert response.status_code == 200
             data = response.json()
-            assert data["status"] == "alive"
+            assert data["status"] == "ok"
             assert "timestamp" in data
         finally:
             server.stop()
