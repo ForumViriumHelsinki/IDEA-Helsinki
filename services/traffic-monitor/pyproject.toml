@@ -25,6 +25,7 @@ dependencies = [
     "shapely",
     "pause",
     "sentry-sdk",
+    "openfeature-sdk>=0.6.0,<0.8.0",  # Required by idea-shared feature flags
 ]
 
 [project.optional-dependencies]
