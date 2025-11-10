@@ -1,11 +1,11 @@
 """Integration tests for FCD Manager health server."""
 
-import asyncio
 import json
 import signal
 import sys
 import tempfile
 import time
+from datetime import timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -157,9 +157,7 @@ class TestHealthServerIntegration:
         server, update_check, pipeline_check = health_server
 
         # Simulate grace period has passed and no updates
-        update_check.startup_time = update_check.startup_time - asyncio.timedelta(
-            minutes=15
-        )
+        update_check.startup_time = update_check.startup_time - timedelta(minutes=15)
 
         # Simulate a recent error
         pipeline_check.record_error("Test error")
