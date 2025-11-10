@@ -20,6 +20,11 @@ RUN uv venv .venv && \
 
 FROM python:3.12-alpine AS runtime
 
+# Version metadata (set during build)
+ARG VERSION=dev
+LABEL org.idea-helsinki.version="${VERSION}"
+LABEL org.opencontainers.image.version="${VERSION}"
+
 # Install system dependencies for data processing
 RUN apk add --no-cache \
     gcc \
@@ -40,6 +45,10 @@ COPY --from=build /app/src /app/src
 
 # Copy shared module
 COPY --from=build /app/shared /app/shared
+
+# Create version file
+ARG VERSION=dev
+RUN echo "${VERSION}" > /app/VERSION
 
 # Change ownership to non-root user
 RUN chown -R appuser:appgroup /app
