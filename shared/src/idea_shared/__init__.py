@@ -1,3 +1,3 @@
 """Shared code for IDEA Helsinki services."""
 
-__version__ = "0.6.0"
+__version__ = "0.9.1"
