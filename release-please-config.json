@@ -20,8 +20,9 @@
   "plugins": [
     {
       "type": "linked-versions",
-      "groupName": "idea-helsinki-services",
+      "groupName": "idea-helsinki",
       "components": [
+        "idea-shared",
         "orchestrator",
         "fcd-manager",
         "traffic-monitor"
