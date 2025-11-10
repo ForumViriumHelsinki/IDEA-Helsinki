@@ -9,7 +9,8 @@ class ServiceState:
 
     def __init__(self):
         """Initialize service state."""
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()  # Use reentrant lock to allow nested locking
+        self.startup_time = datetime.now(UTC)  # Track service startup time
         self.last_wfs_success = None
         self.last_wfs_attempt = None
         self.last_wfs_fetch = None  # Track last WFS fetch time
@@ -196,12 +197,21 @@ class ServiceState:
         with self._lock:
             summary = self.get_summary()  # Start with basic summary
 
+            # Add startup tracking
+            summary["startup_time"] = self.startup_time
+            summary["uptime_minutes"] = (
+                datetime.now(UTC) - self.startup_time
+            ).total_seconds() / 60
+
             # Add additional fields for health checks
             summary["current_disturbance_count"] = self.current_disturbance_count
             summary["current_intersection_count"] = self.current_intersection_count
 
             if self.last_wfs_fetch:
                 summary["last_wfs_fetch"] = self.last_wfs_fetch
+
+            if self.last_wfs_success:
+                summary["last_wfs_success"] = self.last_wfs_success
 
             if self.last_intersection_calc:
                 summary["last_intersection_calc"] = self.last_intersection_calc
