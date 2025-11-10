@@ -149,6 +149,49 @@ Configuration is managed through environment variables and generated during depl
 - Can use JSON files (development) or environment variables (production)
 - See `shared/src/idea_shared/feature_flags/README.md` for detailed documentation
 
+## Versioning Strategy
+
+IDEA-Helsinki uses **unified versioning** where all components (shared library and three services) share a single version number. This ensures perfect compatibility and simplifies deployment.
+
+### Current Approach
+- All components move together via release-please's `linked-versions` plugin
+- Services depend on adjacent shared library code (editable installs)
+- Breaking changes update all components atomically
+- See `docs/VERSIONING.md` for detailed versioning documentation
+
+### Version Information
+
+**Release manifest**: `.release-please-manifest.json`
+```json
+{
+  "shared": "0.9.0",
+  "services/orchestrator": "0.9.0",
+  "services/fcd-manager": "0.9.0",
+  "services/traffic-monitor": "0.9.0"
+}
+```
+
+**Docker images** include version metadata:
+- Labels: `org.idea-helsinki.version` and `org.opencontainers.image.version`
+- Version file: `/app/VERSION` (readable at runtime)
+
+### Release Process
+1. Use conventional commits (`feat:`, `fix:`, `feat!:` for breaking changes)
+2. Release-please creates PR with version bumps and changelog
+3. Merge PR triggers GitHub release and Docker builds
+4. All services deploy together with same version
+
+### Semantic Versioning
+- **MAJOR** (X.0.0): Breaking changes anywhere in the system
+- **MINOR** (0.X.0): New backward-compatible features
+- **PATCH** (0.0.X): Backward-compatible bug fixes
+
+**Why unified versioning?**
+- Matches deployment reality (all services deployed together)
+- Implements "living at HEAD" development pattern
+- Eliminates version drift between shared library and services
+- Simpler mental model (one version = complete system state)
+
 ## Data Storage Locations
 
 ### Persistent Data Files
@@ -187,6 +230,22 @@ Common functionality is in `shared/src/idea_shared/`:
 - Version: managed independently in `shared/pyproject.toml`
 
 ## Testing
+
+### **Per-Service Testing Architecture**
+
+This microservices architecture uses independent testing environments for each service. Run tests from each service's directory to leverage the benefits of this design:
+
+**Best practice: Run tests from service directories**
+- Each service maintains its own virtual environment and dependencies
+- Test isolation ensures clean dependency resolution
+- Follows the production Docker container architecture
+- Aligns with microservices testing best practices
+
+**Benefits of per-service testing:**
+- Clean module imports without namespace conflicts
+- Accurate dependency version testing for each service
+- Faster test execution through better isolation
+- Matches how services run in production
 
 ### Running Tests Locally
 
