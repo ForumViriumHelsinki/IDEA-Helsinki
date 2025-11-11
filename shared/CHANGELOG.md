@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.6.0...idea-shared-v0.9.1) (2025-11-10)
+
+
+### Bug Fixes
+
+* **health:** convert PosixPath to string in health check metadata ([#130](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/130)) ([78ebae0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/78ebae051a0791d33fe7656bb347e0d2d579ee10))
+
 ## [0.6.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.5.0...idea-shared-v0.6.0) (2025-10-20)
 
 
