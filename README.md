@@ -110,6 +110,50 @@ All three services mount the local `data/` directory into their containers at `/
 
 This allows real-time updates to feature flags and shared data files without rebuilding containers.
 
+## Testing and Development
+
+The project includes a Makefile for simplified testing and code quality management:
+
+```bash
+# Show all available commands
+make help
+
+# Quick test commands
+make test              # Run all tests sequentially
+make test-parallel     # Run all tests in parallel (faster)
+make test-unit         # Run only unit tests (fast, no external dependencies)
+make test-cov          # Run tests with coverage reports
+
+# Code quality
+make lint              # Run linting checks
+make format            # Auto-format code with ruff
+make pre-commit        # Run format + lint + unit tests (recommended before committing)
+
+# Individual service testing
+make test-shared       # Test shared library only
+make test-orchestrator # Test orchestrator service
+make test-fcd-manager  # Test FCD manager service
+make test-traffic-monitor # Test traffic monitor service
+
+# Utilities
+make clean             # Remove test artifacts and cache files
+make ci                # Simulate full CI pipeline (format-check + lint + test-cov)
+```
+
+**Common workflows:**
+```bash
+# During development - fast feedback
+make test-unit
+
+# Before committing - ensure code quality
+make pre-commit
+
+# For comprehensive testing
+make test-cov
+```
+
+For detailed testing documentation and manual test commands, see [CLAUDE.md](CLAUDE.md#testing).
+
 ## Program process schematic
 
 *Copy pasted from [program_schematic](/docs/program_schematic.md)*
