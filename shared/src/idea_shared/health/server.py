@@ -4,7 +4,7 @@ import asyncio
 import logging
 import threading
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import UTC, datetime
 
 import uvicorn
 from fastapi import FastAPI, Response
@@ -125,7 +125,7 @@ class HealthServer:
             return ReadinessResponse(
                 ready=all_ready,
                 checks=checks,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(UTC),
             )
 
         # Startup probe endpoint
@@ -170,7 +170,7 @@ class HealthServer:
             return ReadinessResponse(
                 ready=all_ready,
                 checks=checks,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(UTC),
             )
 
         # Optional metrics endpoint
@@ -215,7 +215,7 @@ class HealthServer:
             return JSONResponse(
                 content={
                     "service": self.app_name,
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                     "checks": results,
                 }
             )

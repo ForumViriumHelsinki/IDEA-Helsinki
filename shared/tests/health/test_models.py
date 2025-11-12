@@ -1,6 +1,6 @@
 """Unit tests for health check models."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 import pytest
 from pydantic import ValidationError
@@ -79,7 +79,7 @@ class TestReadinessResponse:
         assert response.ready is False
         assert response.checks == {"database": "unhealthy"}
         assert isinstance(response.timestamp, datetime)
-        assert (datetime.utcnow() - response.timestamp).total_seconds() < 1
+        assert (datetime.now(UTC) - response.timestamp).total_seconds() < 1
 
     def test_empty_checks(self):
         """Test readiness response with empty checks."""
@@ -96,7 +96,7 @@ class TestLivenessResponse:
         response = LivenessResponse()
         assert response.status == "ok"
         assert isinstance(response.timestamp, datetime)
-        assert (datetime.utcnow() - response.timestamp).total_seconds() < 1
+        assert (datetime.now(UTC) - response.timestamp).total_seconds() < 1
 
     def test_liveness_with_explicit_timestamp(self):
         """Test liveness response with explicit timestamp."""
