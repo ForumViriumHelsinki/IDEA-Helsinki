@@ -31,6 +31,11 @@ test-traffic-monitor: ## Run tests for traffic-monitor service
 	@echo "$(BLUE)Testing traffic-monitor service...$(NC)"
 	cd services/traffic-monitor && uv run --no-sync pytest -v
 
+test-equivalence: ## Run multithreading equivalence tests for fcd-manager
+	@echo "$(BLUE)Testing multithreading equivalence...$(NC)"
+	cd services/fcd-manager && uv run --no-sync pytest tests/test_multithreading_equivalence.py -v
+	@echo "$(GREEN)✓ Equivalence tests passed!$(NC)"
+
 # Run all tests
 test: ## Run tests for all services (sequential)
 	@echo "$(GREEN)Running all tests...$(NC)"

@@ -1,0 +1,37 @@
+{
+  "detailedSegments": [
+    {
+      "segmentIdStr": "S1",
+      "currentSpeed": 48,
+      "averageSpeed": 53,
+      "typicalSpeed": 58,
+      "confidence": 82,
+      "shape": [
+        {"longitude": 24.9384, "latitude": 60.1699},
+        {"longitude": 24.9394, "latitude": 60.1709}
+      ]
+    },
+    {
+      "segmentIdStr": "S3",
+      "currentSpeed": 40,
+      "averageSpeed": 45,
+      "typicalSpeed": 50,
+      "confidence": 78,
+      "shape": [
+        {"longitude": 24.9425, "latitude": 60.1745},
+        {"longitude": 24.9435, "latitude": 60.1755}
+      ]
+    },
+    {
+      "segmentIdStr": "S4",
+      "currentSpeed": -5,
+      "averageSpeed": 0,
+      "typicalSpeed": 5,
+      "confidence": 0,
+      "shape": [
+        {"longitude": 24.9440, "latitude": 60.1760},
+        {"longitude": 24.9450, "latitude": 60.1770}
+      ]
+    }
+  ]
+}

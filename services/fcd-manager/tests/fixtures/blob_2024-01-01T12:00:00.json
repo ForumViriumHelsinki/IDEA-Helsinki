@@ -1,0 +1,48 @@
+{
+  "detailedSegments": [
+    {
+      "segmentIdStr": "S1",
+      "currentSpeed": 50,
+      "averageSpeed": 55,
+      "typicalSpeed": 60,
+      "confidence": 85,
+      "shape": [
+        {"longitude": 24.9384, "latitude": 60.1699},
+        {"longitude": 24.9394, "latitude": 60.1709}
+      ]
+    },
+    {
+      "segmentIdStr": "S1",
+      "currentSpeed": 52,
+      "averageSpeed": 57,
+      "typicalSpeed": 62,
+      "confidence": 80,
+      "shape": [
+        {"longitude": 24.9384, "latitude": 60.1699},
+        {"longitude": 24.9394, "latitude": 60.1709}
+      ]
+    },
+    {
+      "segmentIdStr": "S2",
+      "currentSpeed": 70,
+      "averageSpeed": 75,
+      "typicalSpeed": 80,
+      "confidence": 90,
+      "shape": [
+        {"longitude": 24.9400, "latitude": 60.1720},
+        {"longitude": 24.9410, "latitude": 60.1730}
+      ]
+    },
+    {
+      "segmentIdStr": "S3",
+      "currentSpeed": 35,
+      "averageSpeed": 40,
+      "typicalSpeed": 45,
+      "confidence": 75,
+      "shape": [
+        {"longitude": 24.9420, "latitude": 60.1740},
+        {"longitude": 24.9430, "latitude": 60.1750}
+      ]
+    }
+  ]
+}
