@@ -497,7 +497,7 @@ class TestThreadCoordinatorInfluxDBWriter:
         """Test that writer thread handles REAL write failures gracefully."""
         # Mock InfluxDB client that fails (external dependency)
         influx_client = MagicMock()
-        influx_client.write_fcd_data.side_effect = Exception("Write failed")
+        influx_client.write_fcd_model.side_effect = Exception("Write failed")
 
         coordinator = ThreadCoordinator(
             num_backfill_workers=1,

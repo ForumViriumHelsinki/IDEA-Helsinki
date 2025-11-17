@@ -212,7 +212,7 @@ class TestFaultInjection:
             if random.random() < 0.3:
                 raise Exception("Random write failure")
 
-        influx_client.write_fcd_data.side_effect = random_write_failure
+        influx_client.write_fcd_model.side_effect = random_write_failure
 
         coordinator = ThreadCoordinator(
             num_backfill_workers=2,
@@ -368,7 +368,7 @@ class TestMemoryAndResources:
         def slow_write(*args, **kwargs):
             time.sleep(0.05)  # Slow writes
 
-        influx_client.write_fcd_data.side_effect = slow_write
+        influx_client.write_fcd_model.side_effect = slow_write
         coordinator._influx_client = influx_client
 
         start_date = datetime(2025, 1, 1, tzinfo=UTC)
@@ -445,7 +445,7 @@ class TestGracefulShutdown:
 
         # Mock very slow writer to create backlog
         influx_client = MagicMock()
-        influx_client.write_fcd_data.side_effect = lambda *args: time.sleep(1.0)
+        influx_client.write_fcd_model.side_effect = lambda *args: time.sleep(1.0)
         coordinator._influx_client = influx_client
 
         start_date = datetime(2025, 1, 1, tzinfo=UTC)

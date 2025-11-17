@@ -17,23 +17,23 @@ help: ## Show this help message
 # Individual service tests
 test-shared: ## Run tests for shared library
 	@echo "$(BLUE)Testing shared library...$(NC)"
-	cd shared && uv run --no-sync pytest -v
+	cd shared && uv sync --all-extras --quiet && .venv/bin/python -m pytest -v
 
 test-orchestrator: ## Run tests for orchestrator service
 	@echo "$(BLUE)Testing orchestrator service...$(NC)"
-	cd services/orchestrator && uv run --no-sync pytest -v
+	cd services/orchestrator && uv sync --all-extras --quiet && .venv/bin/python -m pytest -v
 
 test-fcd-manager: ## Run tests for fcd-manager service
 	@echo "$(BLUE)Testing fcd-manager service...$(NC)"
-	cd services/fcd-manager && uv run --no-sync pytest -v
+	cd services/fcd-manager && uv sync --all-extras --quiet && .venv/bin/python -m pytest -v
 
 test-traffic-monitor: ## Run tests for traffic-monitor service
 	@echo "$(BLUE)Testing traffic-monitor service...$(NC)"
-	cd services/traffic-monitor && uv run --no-sync pytest -v
+	cd services/traffic-monitor && uv sync --all-extras --quiet && .venv/bin/python -m pytest -v
 
 test-equivalence: ## Run multithreading equivalence tests for fcd-manager
 	@echo "$(BLUE)Testing multithreading equivalence...$(NC)"
-	cd services/fcd-manager && uv run --no-sync pytest tests/test_multithreading_equivalence.py -v
+	cd services/fcd-manager && uv sync --all-extras --quiet && .venv/bin/python -m pytest tests/test_multithreading_equivalence.py -v
 	@echo "$(GREEN)✓ Equivalence tests passed!$(NC)"
 
 # Run all tests
@@ -50,37 +50,37 @@ test-all: test ## Alias for 'test' target
 # Test with coverage
 test-cov: ## Run all tests with coverage report
 	@echo "$(BLUE)Running tests with coverage...$(NC)"
-	cd shared && uv run --no-sync pytest --cov --cov-report=html --cov-report=term-missing
-	cd services/orchestrator && uv run --no-sync pytest --cov --cov-report=html --cov-report=term-missing
-	cd services/fcd-manager && uv run --no-sync pytest --cov --cov-report=html --cov-report=term-missing
-	cd services/traffic-monitor && uv run --no-sync pytest --cov --cov-report=html --cov-report=term-missing
+	cd shared && uv sync --all-extras --quiet && .venv/bin/python -m pytest --cov --cov-report=html --cov-report=term-missing
+	cd services/orchestrator && uv sync --all-extras --quiet && .venv/bin/python -m pytest --cov --cov-report=html --cov-report=term-missing
+	cd services/fcd-manager && uv sync --all-extras --quiet && .venv/bin/python -m pytest --cov --cov-report=html --cov-report=term-missing
+	cd services/traffic-monitor && uv sync --all-extras --quiet && .venv/bin/python -m pytest --cov --cov-report=html --cov-report=term-missing
 	@echo "$(GREEN)✓ Coverage reports generated in each service's htmlcov/ directory$(NC)"
 
 # Parallel testing
 test-parallel: ## Run all tests in parallel (fast)
 	@echo "$(BLUE)Running tests in parallel...$(NC)"
-	cd shared && uv run --no-sync pytest -n auto -v
-	cd services/orchestrator && uv run --no-sync pytest -n auto -v
-	cd services/fcd-manager && uv run --no-sync pytest -n auto -v
-	cd services/traffic-monitor && uv run --no-sync pytest -n auto -v
+	cd shared && uv sync --all-extras --quiet && .venv/bin/python -m pytest -n auto -v
+	cd services/orchestrator && uv sync --all-extras --quiet && .venv/bin/python -m pytest -n auto -v
+	cd services/fcd-manager && uv sync --all-extras --quiet && .venv/bin/python -m pytest -n auto -v
+	cd services/traffic-monitor && uv sync --all-extras --quiet && .venv/bin/python -m pytest -n auto -v
 	@echo "$(GREEN)✓ All parallel tests passed!$(NC)"
 
 # Unit tests only (fast)
 test-unit: ## Run only unit tests (fast, no external dependencies)
 	@echo "$(BLUE)Running unit tests only...$(NC)"
-	cd shared && uv run --no-sync pytest -m unit -v
-	cd services/orchestrator && uv run --no-sync pytest -m unit -v
-	cd services/fcd-manager && uv run --no-sync pytest -m unit -v
-	cd services/traffic-monitor && uv run --no-sync pytest -m unit -v
+	cd shared && uv sync --all-extras --quiet && .venv/bin/python -m pytest -m unit -v
+	cd services/orchestrator && uv sync --all-extras --quiet && .venv/bin/python -m pytest -m unit -v
+	cd services/fcd-manager && uv sync --all-extras --quiet && .venv/bin/python -m pytest -m unit -v
+	cd services/traffic-monitor && uv sync --all-extras --quiet && .venv/bin/python -m pytest -m unit -v
 	@echo "$(GREEN)✓ All unit tests passed!$(NC)"
 
 # Integration tests only
 test-integration: ## Run only integration tests
 	@echo "$(BLUE)Running integration tests only...$(NC)"
-	cd shared && uv run --no-sync pytest -m integration -v
-	cd services/orchestrator && uv run --no-sync pytest -m integration -v
-	cd services/fcd-manager && uv run --no-sync pytest -m integration -v
-	cd services/traffic-monitor && uv run --no-sync pytest -m integration -v
+	cd shared && uv sync --all-extras --quiet && .venv/bin/python -m pytest -m integration -v
+	cd services/orchestrator && uv sync --all-extras --quiet && .venv/bin/python -m pytest -m integration -v
+	cd services/fcd-manager && uv sync --all-extras --quiet && .venv/bin/python -m pytest -m integration -v
+	cd services/traffic-monitor && uv sync --all-extras --quiet && .venv/bin/python -m pytest -m integration -v
 	@echo "$(GREEN)✓ All integration tests passed!$(NC)"
 
 # Linting and formatting
