@@ -250,7 +250,7 @@ class ThreadCoordinator:
             try:
                 # Write to InfluxDB (if client is initialized)
                 if self._influx_client:
-                    self._influx_client.write_fcd_data(request.fcd_data)
+                    self._influx_client.write_fcd_model(request.fcd_data)
 
                 self.write_queue.mark_completed(success=True)
                 self.logger.debug(

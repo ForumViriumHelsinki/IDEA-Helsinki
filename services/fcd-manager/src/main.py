@@ -301,16 +301,49 @@ def run_multithreaded(azure_manager: AzureBlobContainerManager):
 
             time.sleep(5)
 
-    # TODO: In future, implement continuous update cycle for multi-threaded mode
-    # For now, just run backfill once and exit
+    # NOTE: Phase 2 - Real-time continuous updates
+    # The current multi-threaded implementation focuses on fast historical backfill.
+    # Continuous real-time updates (5-minute cycle) will be added in Phase 2.
+    # For now, the service exits after completing the backfill and updating segment mapping.
+    # This allows the single-threaded mode to be used for real-time updates until Phase 2.
     logger.info("###########################################")
     logger.info("Multi-threaded backfill completed")
     logger.info("###########################################")
 
     # Update FCD mapping after backfill
     logger.info("Updating FCD segment mapping after backfill")
-    # Get the most recent data for mapping update
-    # For now, we'll trigger a mapping update in the next update cycle
+    current_time = datetime.now(UTC)
+
+    try:
+        # Get the most recent blobs from Azure to update segment mapping
+        blobs_to_process = azure_manager.get_blobs_in_range(
+            current_time - timedelta(hours=1), current_time
+        )
+
+        if blobs_to_process:
+            # Process the recent blobs to get current segment geometry
+            recent_fcd_data = _process_and_update_blob_list(
+                blobs_to_process, azure_manager
+            )
+
+            if recent_fcd_data:
+                # Update the segment mapping
+                if update_fcd_segment_mapping(recent_fcd_data):
+                    logger.info("FCD segment mapping updated successfully")
+                    FcdUtils.update_segment_changelog(
+                        FCD_MAP_DATA_FILE_LOCATION,
+                        MASTER_SEGMENT_HISTORY_FILE_LOCATION,
+                        ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION,
+                        current_time,
+                    )
+                else:
+                    logger.error("FCD segment mapping update failed")
+            else:
+                logger.warning("No recent FCD data available for mapping update")
+        else:
+            logger.warning("No recent blobs found for segment mapping update")
+    except Exception as e:
+        logger.error(f"Error updating segment mapping after backfill: {e}")
 
     return True
 
