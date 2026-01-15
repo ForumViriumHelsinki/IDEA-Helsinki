@@ -559,7 +559,12 @@ def main():
             "Multi-threading is DISABLED via feature flag (using single-threaded mode)"
         )
         try:
-            run_singlethreaded(azure_manager)
+            success = run_singlethreaded(azure_manager)
+            if not success:
+                logger.error("Single-threaded execution failed, exiting...")
+                if health_server:
+                    health_server.stop()
+                sys.exit(1)
         except Exception as e:
             logger.error(f"Single-threaded execution error: {e}")
             if health_server:
