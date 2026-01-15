@@ -231,7 +231,9 @@ def main():
     logger.info(f"Health server started on http://0.0.0.0:{HEALTH_CHECK_PORT}")
     logger.info(f"  - Liveness:  http://0.0.0.0:{HEALTH_CHECK_PORT}/healthz")
     logger.info(f"  - Readiness: http://0.0.0.0:{HEALTH_CHECK_PORT}/ready")
-    logger.info(f"  - Startup:   http://0.0.0.0:{HEALTH_CHECK_PORT}/startup (connectivity only)")
+    logger.info(
+        f"  - Startup:   http://0.0.0.0:{HEALTH_CHECK_PORT}/startup (connectivity only)"
+    )
     logger.info(f"  - Details:   http://0.0.0.0:{HEALTH_CHECK_PORT}/health/detail")
 
     azure_manager = AzureBlobContainerManager(
