@@ -1,6 +1,6 @@
 """Pydantic models for health check responses."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -27,7 +27,7 @@ class ReadinessResponse(BaseModel):
         ..., description="Status of individual health checks"
     )
     timestamp: datetime = Field(
-        default_factory=datetime.utcnow, description="Timestamp of the check"
+        default_factory=lambda: datetime.now(UTC), description="Timestamp of the check"
     )
 
 
@@ -36,7 +36,7 @@ class LivenessResponse(BaseModel):
 
     status: Literal["ok"] = Field(default="ok", description="Liveness status")
     timestamp: datetime = Field(
-        default_factory=datetime.utcnow, description="Timestamp of the check"
+        default_factory=lambda: datetime.now(UTC), description="Timestamp of the check"
     )
 
 
@@ -45,5 +45,6 @@ class MetricsResponse(BaseModel):
 
     metrics: dict[str, Any] = Field(default_factory=dict, description="Service metrics")
     timestamp: datetime = Field(
-        default_factory=datetime.utcnow, description="Timestamp of the metrics"
+        default_factory=lambda: datetime.now(UTC),
+        description="Timestamp of the metrics",
     )

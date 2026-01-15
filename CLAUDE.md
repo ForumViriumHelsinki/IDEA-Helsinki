@@ -195,11 +195,17 @@ IDEA-Helsinki uses **unified versioning** where all components (shared library a
 ## Data Storage Locations
 
 ### Persistent Data Files
-Mounted as shared volumes in Kubernetes pods:
+Mounted as shared volumes in Kubernetes pods at `/app/data` via `hostPath` volume:
 - `data/segments_mapping.json` - Current FCD segment geometries
 - `data/master_segment_history.json` - Segment geometry change tracking
 - `data/archived_segment_history.json` - Removed segments archive
 - `data/traffic_disturbance_data.json` - Intersected segment-disturbance data
+- `data/feature_flags.json` - Runtime feature flag configuration
+
+**Volume Mount Configuration**: All three service deployments (`k8s/*-deployment.yaml`) mount the local `data/` directory. This enables:
+- Real-time feature flag updates without rebuilding containers
+- Shared state across all services
+- Persistent data across pod restarts
 
 ### InfluxDB Buckets
 Automatically created on first startup via `/docker-entrypoint-initdb.d/init-buckets.sh`:
@@ -247,7 +253,42 @@ This microservices architecture uses independent testing environments for each s
 - Faster test execution through better isolation
 - Matches how services run in production
 
-### Running Tests Locally
+### Quick Start with Makefile (Recommended)
+
+The project includes a Makefile that simplifies common testing and development tasks across all services:
+
+```bash
+make help              # Show all available commands
+make test              # Run all tests sequentially
+make test-parallel     # Run all tests in parallel (faster)
+make test-cov          # Run tests with coverage reports
+make test-unit         # Run only unit tests (fast)
+make lint              # Run linting checks
+make format            # Format code with ruff
+make pre-commit        # Run format + lint + unit tests (fast pre-commit check)
+make ci                # Simulate full CI pipeline
+make clean             # Clean test artifacts and cache
+```
+
+**Common workflows:**
+```bash
+# Quick test run during development
+make test-unit         # Fast unit tests only
+
+# Before committing
+make pre-commit        # Format, lint, and test
+
+# Full test suite with coverage
+make test-cov          # Generate coverage reports for all services
+
+# Individual service testing
+make test-shared
+make test-orchestrator
+make test-fcd-manager
+make test-traffic-monitor
+```
+
+### Running Tests Locally (Manual)
 
 #### Shared Library Tests
 ```bash
@@ -347,10 +388,11 @@ We follow **RED-GREEN-REFACTOR**:
 
 ### Before Committing
 ```bash
-# Run tests
-pytest
+# Recommended: Use make pre-commit (fast - format + lint + unit tests)
+make pre-commit
 
-# Run linting
+# Or run manually:
+pytest
 ruff check
 ruff format
 

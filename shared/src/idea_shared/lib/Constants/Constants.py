@@ -39,6 +39,50 @@ ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION = os.path.join(
 ## Start date for the FCD history, or the defined start date for it. format YYYY-MM-DD
 FCD_HISTORY_START_DATE = "2024-12-05"
 
+# FCD MULTI-THREADING CONFIGURATION
+## Number of parallel backfill worker threads for historical data processing
+## Default: 4 (recommended for systems with 1500m CPU allocation)
+## Set to 0 to auto-detect based on CPU cores
+FCD_BACKFILL_WORKER_COUNT = int(os.getenv("FCD_BACKFILL_WORKER_COUNT", "4"))
+
+## Number of days per chunk for parallel backfill processing
+## Smaller chunks = more parallelism but more overhead
+## Larger chunks = less parallelism but more efficient per chunk
+## Default: 1 day prevents memory exhaustion (7 days can use 8-16 GB per worker)
+## With 4 workers: 1-day chunks use ~2-3 GB total vs 8-16 GB with 7-day chunks
+FCD_BACKFILL_CHUNK_DAYS = int(os.getenv("FCD_BACKFILL_CHUNK_DAYS", "1"))
+
+## Number of blobs to process per batch in streaming mode
+## Default: 50 provides good balance between memory usage and processing efficiency
+## Smaller batches = lower memory but more overhead
+## Larger batches = higher memory but better throughput
+FCD_PROCESSING_BATCH_SIZE = int(os.getenv("FCD_PROCESSING_BATCH_SIZE", "50"))
+
+## Maximum size of the InfluxDB write queue (number of pending write requests)
+## This provides backpressure if workers produce faster than InfluxDB can consume
+## Default: 100 provides good buffering without excessive memory usage
+FCD_WRITE_QUEUE_MAX_SIZE = int(os.getenv("FCD_WRITE_QUEUE_MAX_SIZE", "100"))
+
+## Timeout for write queue operations (seconds)
+## How long to wait when queue is full before raising an error
+FCD_WRITE_QUEUE_TIMEOUT = int(os.getenv("FCD_WRITE_QUEUE_TIMEOUT", "30"))
+
+## Maximum number of retries for failed date range chunks
+## After this many retries, the chunk is moved to dead-letter queue
+FCD_MAX_CHUNK_RETRIES = int(os.getenv("FCD_MAX_CHUNK_RETRIES", "3"))
+
+## Maximum number of retries for failed write queue submissions
+## After this many retries, the write is considered failed and an error is raised
+FCD_MAX_WRITE_RETRIES = int(os.getenv("FCD_MAX_WRITE_RETRIES", "5"))
+
+## Delay in seconds before retrying a failed chunk
+## Uses exponential backoff: delay * (2 ** retry_count)
+FCD_RETRY_DELAY_SECONDS = int(os.getenv("FCD_RETRY_DELAY_SECONDS", "10"))
+
+## Timeout in seconds for graceful shutdown
+## Workers will attempt to finish current tasks within this timeframe
+FCD_SHUTDOWN_TIMEOUT_SECONDS = int(os.getenv("FCD_SHUTDOWN_TIMEOUT_SECONDS", "300"))
+
 # HEALTH CHECK DEFAULTS
 HEALTH_CHECK_PORT = 8080
 HEALTH_CHECK_TIMEOUT_SECONDS = 10

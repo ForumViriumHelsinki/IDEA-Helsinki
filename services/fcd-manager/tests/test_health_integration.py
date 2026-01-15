@@ -15,9 +15,20 @@ import requests
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from idea_shared.health.server import HealthServer
+# Mock external modules that main.py imports but aren't needed for these tests
+sys.modules["pause"] = MagicMock()
+sys.modules["sentry_sdk"] = MagicMock()
+sys.modules["openfeature"] = MagicMock()
+sys.modules["openfeature.api"] = MagicMock()
+sys.modules["openfeature.client"] = MagicMock()
+sys.modules["openfeature.evaluation_context"] = MagicMock()
+sys.modules["openfeature.flag_evaluation"] = MagicMock()
+sys.modules["openfeature.provider"] = MagicMock()
+sys.modules["openfeature.provider.provider"] = MagicMock()
 
-from health_checks import (
+from idea_shared.health.server import HealthServer  # noqa: E402
+
+from health_checks import (  # noqa: E402
     ProcessingPipelineHealthCheck,
     SegmentMappingFreshnessHealthCheck,
     UpdateCycleHealthCheck,
@@ -483,10 +494,36 @@ class TestStartupSpecificChecks:
 
 
 class TestSignalHandling:
-    """Test signal handling for graceful shutdown."""
+    """
+    Test signal handling for graceful shutdown.
+
+    Signal handling is critical for Kubernetes deployments where:
+    1. SIGTERM is sent by Kubernetes when terminating a pod
+    2. The service has a grace period (default 30s) to complete work
+    3. Health checks fail immediately on SIGTERM to stop routing traffic
+    4. The service must clean up resources (close connections, flush buffers)
+
+    These tests verify the signal handler logic. Mocking is appropriate here
+    because:
+    - sys.exit would terminate the test process
+    - We're testing the handler's logic, not the OS signal delivery
+    - The handler's behavior (shutdown sequence) is what matters
+    """
 
     def test_graceful_shutdown_sigterm(self):
-        """Test that SIGTERM triggers graceful shutdown."""
+        """
+        Test that SIGTERM triggers graceful shutdown sequence.
+
+        SIGTERM is the standard Kubernetes signal for pod termination.
+        The handler should:
+        1. Stop the health server (marks service unavailable)
+        2. Shutdown ThreadCoordinator if running (complete ongoing work)
+        3. Exit cleanly with status code 0
+
+        This test verifies the shutdown sequence is called correctly.
+        Mocking sys.exit prevents terminating the test process while
+        allowing verification of the exit code (0 = clean shutdown).
+        """
         with patch("sys.exit") as mock_exit:
             from main import handle_shutdown
 
@@ -502,7 +539,15 @@ class TestSignalHandling:
                 mock_exit.assert_called_once_with(0)
 
     def test_graceful_shutdown_sigint(self):
-        """Test that SIGINT triggers graceful shutdown."""
+        """
+        Test that SIGINT (Ctrl+C) triggers graceful shutdown sequence.
+
+        SIGINT is sent when the user presses Ctrl+C during local development.
+        The handler should perform the same graceful shutdown as SIGTERM to
+        ensure a consistent experience and proper cleanup in all scenarios.
+
+        This test verifies the shutdown sequence matches SIGTERM behavior.
+        """
         with patch("sys.exit") as mock_exit:
             from main import handle_shutdown
 

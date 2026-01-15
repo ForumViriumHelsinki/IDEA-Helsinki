@@ -83,9 +83,76 @@ The application uses environment variables for configuration. For local developm
 Configuration is split between:
 - **Environment variables** (via `.env`) - Secrets and environment-specific settings
 - **Kubernetes secrets** (`k8s/secrets.yaml.tmpl`) - Secret template for deployment
+- **Feature flags** (`data/feature_flags.json`) - Runtime feature toggles and configuration overrides
+  - See [Feature Flags Documentation](shared/src/idea_shared/feature_flags/README.md)
 - **Constants files** - Application logic constants
   - [Constants](shared/src/idea_shared/lib/Constants/Constants.py)
   - [PrivateConstants](shared/src/idea_shared/lib/Constants/PrivateConstants.py)
+
+### Feature Flags
+
+The application supports runtime feature toggles via feature flags. Create `data/feature_flags.json` from the example:
+
+```bash
+cp data/feature_flags.example.json data/feature_flags.json
+```
+
+Edit the file to enable/disable features like multithreading, caching, or experimental algorithms. Changes take effect after pod restart. See [Feature Flags Documentation](shared/src/idea_shared/feature_flags/README.md) for details.
+
+### Volume Mounts
+
+All three services mount the local `data/` directory into their containers at `/app/data`:
+- `data/segments_mapping.json` - Current FCD segment geometries
+- `data/master_segment_history.json` - Segment geometry change tracking
+- `data/archived_segment_history.json` - Removed segments archive
+- `data/traffic_disturbance_data.json` - Intersected segment-disturbance data
+- `data/feature_flags.json` - Runtime feature flag configuration
+
+This allows real-time updates to feature flags and shared data files without rebuilding containers.
+
+## Testing and Development
+
+The project includes a Makefile for simplified testing and code quality management:
+
+```bash
+# Show all available commands
+make help
+
+# Quick test commands
+make test              # Run all tests sequentially
+make test-parallel     # Run all tests in parallel (faster)
+make test-unit         # Run only unit tests (fast, no external dependencies)
+make test-cov          # Run tests with coverage reports
+
+# Code quality
+make lint              # Run linting checks
+make format            # Auto-format code with ruff
+make pre-commit        # Run format + lint + unit tests (recommended before committing)
+
+# Individual service testing
+make test-shared       # Test shared library only
+make test-orchestrator # Test orchestrator service
+make test-fcd-manager  # Test FCD manager service
+make test-traffic-monitor # Test traffic monitor service
+
+# Utilities
+make clean             # Remove test artifacts and cache files
+make ci                # Simulate full CI pipeline (format-check + lint + test-cov)
+```
+
+**Common workflows:**
+```bash
+# During development - fast feedback
+make test-unit
+
+# Before committing - ensure code quality
+make pre-commit
+
+# For comprehensive testing
+make test-cov
+```
+
+For detailed testing documentation and manual test commands, see [CLAUDE.md](CLAUDE.md#testing).
 
 ## Program process schematic
 
