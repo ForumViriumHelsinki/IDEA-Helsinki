@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.9.1...idea-shared-v0.10.0) (2026-01-15)
+
+
+### Features
+
+* Implement multi-threaded processing for FCD Manager ([#105](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/105)) ([#114](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/114)) ([b90f486](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/b90f486659f62f444245379a049329cb6e49a607))
+
 ## [0.9.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.6.0...idea-shared-v0.9.1) (2025-11-10)
 
 
