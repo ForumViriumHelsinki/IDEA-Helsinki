@@ -13,6 +13,7 @@ import sentry_sdk
 # ------------------------------------------------------#
 from idea_shared.classes.IdeaHelsinkiManager import IdeaHelsinkiManager
 from idea_shared.classes.Logger import Logger
+from idea_shared.health.idea_checks import InfluxDBHealthCheck
 from idea_shared.health.server import HealthServer
 
 # ------------------------------------------------------#
@@ -121,10 +122,49 @@ async def main():
         db_validation_token=INFLUX_DB_VALIDATION_TOKEN,
     )
 
-    # Add service-specific health checks
-    logger.info("Registering health checks...")
+    # =========================================================================
+    # STARTUP-SPECIFIC HEALTH CHECKS
+    # =========================================================================
+    # These checks are used ONLY for the /startup endpoint during initial boot.
+    # They verify InfluxDB connectivity without requiring the orchestrator loop
+    # or workers to be initialized.
+    #
+    # This separation allows the pod to pass startup probes while the lengthy
+    # orchestrator initialization completes (which may take time to discover
+    # segments and start workers).
+    # =========================================================================
+    logger.info("Registering startup-only health checks (connectivity only)...")
 
-    # Database health checks
+    # Startup check: InfluxDB FCD bucket connectivity
+    influx_fcd_startup = InfluxDBHealthCheck(
+        name="influxdb_fcd_startup",
+        url=INFLUX_DB_URL,
+        token=INFLUX_DB_FCD_TOKEN,
+        org=INFLUX_DB_ORG,
+        bucket=INFLUX_DB_FCD_BUCKET,
+        critical=True,
+    )
+    health_server.add_check("influxdb_fcd", influx_fcd_startup, startup_only=True)
+
+    # Startup check: InfluxDB Validation bucket connectivity
+    influx_validation_startup = InfluxDBHealthCheck(
+        name="influxdb_validation_startup",
+        url=INFLUX_DB_URL,
+        token=INFLUX_DB_VALIDATION_TOKEN,
+        org=INFLUX_DB_ORG,
+        bucket=INFLUX_DB_VALIDATION_BUCKET,
+        critical=True,
+    )
+    health_server.add_check(
+        "influxdb_validation", influx_validation_startup, startup_only=True
+    )
+
+    # =========================================================================
+    # REGULAR HEALTH CHECKS (for /ready and /health/detail endpoints)
+    # =========================================================================
+    logger.info("Registering regular health checks...")
+
+    # Database health checks (with data freshness verification)
     health_server.add_check(
         "influxdb_fcd",
         FCDDatabaseHealthCheck(
