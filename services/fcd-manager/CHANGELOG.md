@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.10.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.9.1...fcd-manager-v0.10.0) (2026-01-15)
+
+
+### Features
+
+* **health:** add startup-specific health checks to fcd-manager ([#138](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/138)) ([0ffb69b](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/0ffb69bacf5b766b7d19e8263a3d71b5e6435233)), closes [#137](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/137)
+* **health:** add startup-specific health checks to orchestrator service ([#140](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/140)) ([3f29264](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/3f292640ea3e1e5e84f2a8e141d24a733d0113bd))
+* **health:** add startup-specific health checks to traffic-monitor service ([#141](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/141)) ([0d33a6f](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/0d33a6f7bf8d34ef0f558aa9478cf9400d6850a0))
+* Implement multi-threaded processing for FCD Manager ([#105](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/105)) ([#114](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/114)) ([b90f486](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/b90f486659f62f444245379a049329cb6e49a607))
+
 ## [0.9.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.9.0...fcd-manager-v0.9.1) (2025-11-10)
 
 
