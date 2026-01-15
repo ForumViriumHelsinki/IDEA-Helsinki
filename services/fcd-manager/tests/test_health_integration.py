@@ -359,7 +359,9 @@ class TestStartupSpecificChecks:
         try:
             # /startup should pass because it uses startup_only checks
             response = requests.get("http://localhost:18081/startup", timeout=5)
-            assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+            assert response.status_code == 200, (
+                f"Expected 200, got {response.status_code}"
+            )
             data = response.json()
             assert data["ready"] is True
             assert "connectivity" in data["checks"]
@@ -377,7 +379,9 @@ class TestStartupSpecificChecks:
         try:
             # /ready should fail because mapping_integrity is critical and unhealthy
             response = requests.get("http://localhost:18081/ready", timeout=5)
-            assert response.status_code == 503, f"Expected 503, got {response.status_code}"
+            assert response.status_code == 503, (
+                f"Expected 503, got {response.status_code}"
+            )
             data = response.json()
             assert data["ready"] is False
             assert data["checks"]["mapping_integrity"] == "unhealthy"
