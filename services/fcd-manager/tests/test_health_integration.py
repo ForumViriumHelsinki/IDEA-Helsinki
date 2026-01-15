@@ -311,6 +311,188 @@ class TestHealthServerIntegration:
             server.stop()
 
 
+class TestStartupSpecificChecks:
+    """Test startup-specific health checks (separate from readiness checks)."""
+
+    @pytest.fixture
+    def server_with_startup_checks(self):
+        """Create a health server with separate startup and readiness checks."""
+        from idea_shared.health.checks import HealthCheck
+        from idea_shared.health.models import HealthCheckResult
+
+        # Create a simple mock check that always passes
+        class AlwaysHealthyCheck(HealthCheck):
+            async def check(self) -> HealthCheckResult:
+                return HealthCheckResult(
+                    name=self.name,
+                    status="healthy",
+                    message="Always healthy",
+                )
+
+        # Create a check that always fails
+        class AlwaysUnhealthyCheck(HealthCheck):
+            async def check(self) -> HealthCheckResult:
+                return HealthCheckResult(
+                    name=self.name,
+                    status="unhealthy",
+                    message="Always unhealthy",
+                )
+
+        server = HealthServer(
+            port=18081,  # Different port to avoid conflicts
+            app_name="Test Startup Checks",
+        )
+
+        # Add a critical check that fails (simulates missing mapping file at startup)
+        failing_check = AlwaysUnhealthyCheck(
+            name="mapping_integrity",
+            critical=True,
+        )
+        server.add_check("mapping_integrity", failing_check)
+
+        # Add startup-only checks that pass (simulates connectivity checks)
+        startup_check = AlwaysHealthyCheck(
+            name="connectivity",
+            critical=True,
+        )
+        server.add_check("connectivity", startup_check, startup_only=True)
+
+        yield server
+
+        server.stop()
+
+    def test_startup_uses_startup_only_checks(self, server_with_startup_checks):
+        """Test that /startup endpoint uses startup_only checks, not regular checks."""
+        server = server_with_startup_checks
+        server.start_background()
+        time.sleep(2)
+
+        try:
+            # /startup should pass because it uses startup_only checks
+            response = requests.get("http://localhost:18081/startup", timeout=5)
+            assert response.status_code == 200, (
+                f"Expected 200, got {response.status_code}"
+            )
+            data = response.json()
+            assert data["ready"] is True
+            assert "connectivity" in data["checks"]
+            # mapping_integrity should NOT be in startup checks
+            assert "mapping_integrity" not in data["checks"]
+        finally:
+            server.stop()
+
+    def test_readiness_uses_regular_checks(self, server_with_startup_checks):
+        """Test that /ready endpoint uses regular checks (not startup_only)."""
+        server = server_with_startup_checks
+        server.start_background()
+        time.sleep(2)
+
+        try:
+            # /ready should fail because mapping_integrity is critical and unhealthy
+            response = requests.get("http://localhost:18081/ready", timeout=5)
+            assert response.status_code == 503, (
+                f"Expected 503, got {response.status_code}"
+            )
+            data = response.json()
+            assert data["ready"] is False
+            assert data["checks"]["mapping_integrity"] == "unhealthy"
+            # startup_only checks should NOT appear in readiness
+            assert "connectivity" not in data["checks"]
+        finally:
+            server.stop()
+
+    def test_startup_success_during_initial_sync(self):
+        """
+        Test scenario: startup passes while initial data sync is running.
+
+        This simulates the real-world case where:
+        - Azure/InfluxDB connectivity checks pass (startup_only)
+        - Mapping integrity check fails (regular check) because file doesn't exist yet
+        - Pod should pass startup probes but fail readiness until sync completes
+        """
+        from idea_shared.health.checks import HealthCheck
+        from idea_shared.health.models import HealthCheckResult
+
+        class ConnectivityCheck(HealthCheck):
+            """Simulates Azure/InfluxDB connectivity check."""
+
+            async def check(self) -> HealthCheckResult:
+                return HealthCheckResult(
+                    name=self.name,
+                    status="healthy",
+                    message="Service reachable",
+                )
+
+        class MappingFileCheck(HealthCheck):
+            """Simulates mapping file check during initial sync."""
+
+            def __init__(self, file_exists: bool = False, **kwargs):
+                super().__init__(**kwargs)
+                self.file_exists = file_exists
+
+            async def check(self) -> HealthCheckResult:
+                if self.file_exists:
+                    return HealthCheckResult(
+                        name=self.name,
+                        status="healthy",
+                        message="Mapping file exists",
+                    )
+                return HealthCheckResult(
+                    name=self.name,
+                    status="unhealthy",
+                    message="Mapping file not found (initial sync in progress)",
+                )
+
+        server = HealthServer(
+            port=18082,
+            app_name="Initial Sync Simulation",
+        )
+
+        # Simulate startup checks (connectivity only)
+        azure_startup = ConnectivityCheck(name="azure", critical=True)
+        influx_startup = ConnectivityCheck(name="influxdb", critical=True)
+        server.add_check("azure", azure_startup, startup_only=True)
+        server.add_check("influxdb", influx_startup, startup_only=True)
+
+        # Simulate regular readiness checks
+        azure_ready = ConnectivityCheck(name="azure", critical=True)
+        influx_ready = ConnectivityCheck(name="influxdb", critical=True)
+        mapping_check = MappingFileCheck(
+            name="mapping", file_exists=False, critical=True
+        )
+        server.add_check("azure", azure_ready)
+        server.add_check("influxdb", influx_ready)
+        server.add_check("mapping", mapping_check)
+
+        server.start_background()
+        time.sleep(2)
+
+        try:
+            # Startup should pass (only connectivity checks)
+            startup_response = requests.get("http://localhost:18082/startup", timeout=5)
+            assert startup_response.status_code == 200
+            startup_data = startup_response.json()
+            assert startup_data["ready"] is True
+
+            # Readiness should fail (mapping file doesn't exist)
+            ready_response = requests.get("http://localhost:18082/ready", timeout=5)
+            assert ready_response.status_code == 503
+            ready_data = ready_response.json()
+            assert ready_data["ready"] is False
+            assert ready_data["checks"]["mapping"] == "unhealthy"
+
+            # Simulate sync completion: mapping file now exists
+            mapping_check.file_exists = True
+
+            # Now readiness should pass
+            ready_response2 = requests.get("http://localhost:18082/ready", timeout=5)
+            assert ready_response2.status_code == 200
+            ready_data2 = ready_response2.json()
+            assert ready_data2["ready"] is True
+        finally:
+            server.stop()
+
+
 class TestSignalHandling:
     """
     Test signal handling for graceful shutdown.

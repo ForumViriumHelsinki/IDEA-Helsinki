@@ -75,6 +75,31 @@ def main():
     # Initialize health server
     health_server = HealthServer(port=HEALTH_CHECK_PORT, app_name="Traffic Monitor")
 
+    # =========================================================================
+    # STARTUP-SPECIFIC HEALTH CHECKS
+    # =========================================================================
+    # These checks are used ONLY for the /startup endpoint during initial boot.
+    # They verify WFS API connectivity without requiring:
+    # - FCD mapping file (created by fcd-manager service)
+    # - First update cycle completion
+    #
+    # This separation allows the pod to pass startup probes while waiting
+    # for dependencies (fcd-manager) and completing initial data fetch.
+    # =========================================================================
+    logger.info("Registering startup-only health checks (WFS connectivity only)...")
+
+    # Startup check: WFS API connectivity
+    wfs_startup_check = WFSAPIHealthCheck(
+        timeout=WFS_HEALTH_CHECK_TIMEOUT,
+        cache_ttl=WFS_HEALTH_CHECK_CACHE_TTL,
+    )
+    health_server.add_check("wfs_api", wfs_startup_check, startup_only=True)
+
+    # =========================================================================
+    # REGULAR HEALTH CHECKS (for /ready and /health/detail endpoints)
+    # =========================================================================
+    logger.info("Registering regular health checks...")
+
     # Add health checks
     health_server.add_check(
         "wfs_api",
