@@ -190,12 +190,48 @@ def main():
     )
     health_server.add_check("processing_pipeline", pipeline_check)
 
+    # =========================================================================
+    # STARTUP-SPECIFIC HEALTH CHECKS
+    # =========================================================================
+    # These checks are used ONLY for the /startup endpoint during initial boot.
+    # They verify external service connectivity without requiring data files
+    # that are created during the initial sync process.
+    #
+    # This separation allows the pod to pass startup probes while the lengthy
+    # initial FCD data sync is running (which can take 5-10+ minutes).
+    # =========================================================================
+
+    # Startup check: Azure Blob Storage connectivity
+    azure_startup_check = AzureBlobStorageHealthCheck(
+        name="azure_storage_startup",
+        account_name=AZURE_ACCOUNT_NAME,
+        container_name=AZURE_CONTAINER_NAME,
+        sas_token=AZURE_SAS_TOKEN,
+        timeout=10.0,
+        critical=True,
+        cache_ttl=HEALTH_CHECK_CACHE_TTL_SECONDS,
+    )
+    health_server.add_check("azure_storage", azure_startup_check, startup_only=True)
+
+    # Startup check: InfluxDB connectivity
+    influx_startup_check = InfluxDBHealthCheck(
+        name="influxdb_startup",
+        url=INFLUX_DB_URL,
+        token=INFLUX_DB_FCD_TOKEN,
+        org=INFLUX_DB_ORG,
+        bucket=INFLUX_DB_FCD_BUCKET,
+        timeout=5.0,
+        critical=True,
+        cache_ttl=HEALTH_CHECK_CACHE_TTL_SECONDS,
+    )
+    health_server.add_check("influxdb", influx_startup_check, startup_only=True)
+
     # Start health server in background thread
     health_server.start_background()
     logger.info(f"Health server started on http://0.0.0.0:{HEALTH_CHECK_PORT}")
     logger.info(f"  - Liveness:  http://0.0.0.0:{HEALTH_CHECK_PORT}/healthz")
     logger.info(f"  - Readiness: http://0.0.0.0:{HEALTH_CHECK_PORT}/ready")
-    logger.info(f"  - Startup:   http://0.0.0.0:{HEALTH_CHECK_PORT}/startup")
+    logger.info(f"  - Startup:   http://0.0.0.0:{HEALTH_CHECK_PORT}/startup (connectivity only)")
     logger.info(f"  - Details:   http://0.0.0.0:{HEALTH_CHECK_PORT}/health/detail")
 
     azure_manager = AzureBlobContainerManager(
