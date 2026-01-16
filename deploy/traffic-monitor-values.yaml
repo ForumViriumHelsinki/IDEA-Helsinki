@@ -1,0 +1,119 @@
+# IDEA-Helsinki Traffic Monitor - Helm values for helm-webapp chart
+# Traffic disturbance monitoring and spatial intersection detection
+#
+# Image Update Strategy:
+# ArgoCD Image Updater automatically updates image.tag when new images are pushed.
+# See infrastructure repo: argocd/apps/templates/idea-helsinki/traffic-monitor.yaml
+
+image:
+  repository: ghcr.io/forumviriumhelsinki/idea-helsinki/traffic-monitor
+  tag: "0.9.1" # Updated by ArgoCD Image Updater
+
+replicaCount: 1
+
+serviceAccount:
+  create: false
+  name: idea-helsinki-shared
+
+keda:
+  enabled: false
+  minReplicaCount: 0
+  maxReplicaCount: 1
+  pollingInterval: 30
+  cooldownPeriod: 300
+  triggers:
+  - type: cron
+    metadata:
+      timezone: Europe/Helsinki
+      start: 0 7 * * 1-5
+      end: 0 18 * * 1-5
+      desiredReplicas: "1"
+
+imagePullSecrets:
+- name: ghcr-login-secret
+
+podAnnotations:
+  gke-gcsfuse/volumes: "true"
+  gke-gcsfuse/cpu-limit: "500m"
+  gke-gcsfuse/memory-limit: "512Mi"
+  gke-gcsfuse/ephemeral-storage-limit: "2Gi"
+
+resources:
+  limits:
+    cpu: "1500m"
+    memory: "1.5Gi"
+  requests:
+    cpu: "250m"
+    memory: "256Mi"
+
+service:
+  type: ClusterIP
+  port: 8080
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 8080
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 1000 # TEMPORARY: Bypassing health checks - see issue #482
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8080
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 1000 # TEMPORARY: Bypassing health checks - see issue #482
+
+startupProbe:
+  httpGet:
+    path: /startup
+    port: 8080
+  initialDelaySeconds: 0
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 1000 # TEMPORARY: Bypassing health checks - see issue #482
+
+env:
+  DATA_DIR:
+    value: "/app/data"
+  SENTRY_DSN:
+    valueFrom:
+      secretKeyRef:
+        name: traffic-monitor-secrets
+        key: SENTRY_DSN
+
+externalSecret:
+  enabled: true
+  name: traffic-monitor-secrets
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: gcp-store
+  target:
+    name: traffic-monitor-secrets
+    creationPolicy: Owner
+  data:
+  - secretKey: SENTRY_DSN # pragma: allowlist secret
+    remoteRef:
+      key: sentry_dsn_idea-helsinki
+
+configMap:
+  enabled: true
+  data:
+    HELSINKI_WFS_URL: "https://kartta.hel.fi/ws/geoserver/avoindata/wfs"
+    WFS_TYPENAME: "avoindata:Liikennehairiöt"
+    CHECK_INTERVAL: "300" # Check every 5 minutes
+
+volumes:
+- name: shared-data
+  persistentVolumeClaim:
+    claimName: idea-helsinki-shared-pvc
+
+volumeMounts:
+- name: shared-data
+  mountPath: /app/data
+  subPath: data

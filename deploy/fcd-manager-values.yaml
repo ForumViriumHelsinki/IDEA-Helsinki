@@ -1,0 +1,170 @@
+# IDEA-Helsinki FCD Manager - Helm values for helm-webapp chart
+# FCD data synchronization from Azure blob storage to InfluxDB
+#
+# Image Update Strategy:
+# ArgoCD Image Updater automatically updates image.tag when new images are pushed.
+# See infrastructure repo: argocd/apps/templates/idea-helsinki/fcd-manager.yaml
+
+image:
+  repository: ghcr.io/forumviriumhelsinki/idea-helsinki/fcd-manager
+  tag: "0.9.1" # Updated by ArgoCD Image Updater
+
+replicaCount: 1
+
+serviceAccount:
+  create: false
+  name: idea-helsinki-shared
+
+keda:
+  enabled: false
+  minReplicaCount: 0
+  maxReplicaCount: 1
+  pollingInterval: 30
+  cooldownPeriod: 300
+  triggers:
+  - type: cron
+    metadata:
+      timezone: Europe/Helsinki
+      start: 0 7 * * 1-5
+      end: 0 18 * * 1-5
+      desiredReplicas: "1"
+
+imagePullSecrets:
+- name: ghcr-login-secret
+
+podAnnotations:
+  gke-gcsfuse/volumes: "true"
+  gke-gcsfuse/cpu-limit: "500m"
+  gke-gcsfuse/memory-limit: "512Mi"
+  gke-gcsfuse/ephemeral-storage-limit: "2Gi"
+
+resources:
+  limits:
+    cpu: "1500m"
+    memory: "3Gi" # Increased from 1.5Gi - backfill processing requires more memory (OOMKilled)
+  requests:
+    cpu: "250m"
+    memory: "512Mi" # Increased from 256Mi to reflect actual usage
+
+service:
+  type: ClusterIP
+  port: 8080
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 8080
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 1000 # TEMPORARY: Bypassing health checks - see issue #482
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8080
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 1000 # TEMPORARY: Bypassing health checks - see issue #482
+
+startupProbe:
+  httpGet:
+    path: /startup
+    port: 8080
+  initialDelaySeconds: 0
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 1000 # TEMPORARY: Bypassing health checks - see issue #482
+
+env:
+  DATA_DIR:
+    value: "/app/data"
+  FCD_ENABLE_MULTITHREADING:
+    value: "True"
+  AZURE_ACCOUNT_NAME:
+    valueFrom:
+      secretKeyRef:
+        name: fcd-manager-secrets
+        key: AZURE_ACCOUNT_NAME
+  AZURE_CONTAINER_NAME:
+    valueFrom:
+      secretKeyRef:
+        name: fcd-manager-secrets
+        key: AZURE_CONTAINER_NAME
+  AZURE_SAS_TOKEN:
+    valueFrom:
+      secretKeyRef:
+        name: fcd-manager-secrets
+        key: AZURE_SAS_TOKEN
+  INFLUX_DB_FCD_TOKEN:
+    valueFrom:
+      secretKeyRef:
+        name: fcd-manager-secrets
+        key: INFLUX_DB_FCD_TOKEN
+  INFLUX_DB_URL:
+    valueFrom:
+      secretKeyRef:
+        name: fcd-manager-secrets
+        key: INFLUX_DB_URL
+  INFLUX_DB_ORG:
+    valueFrom:
+      secretKeyRef:
+        name: fcd-manager-secrets
+        key: INFLUX_DB_ORG
+  INFLUX_DB_FCD_BUCKET:
+    valueFrom:
+      secretKeyRef:
+        name: fcd-manager-secrets
+        key: INFLUX_DB_FCD_BUCKET
+  SENTRY_DSN:
+    valueFrom:
+      secretKeyRef:
+        name: fcd-manager-secrets
+        key: SENTRY_DSN
+
+externalSecret:
+  enabled: true
+  name: fcd-manager-secrets
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: gcp-store
+  target:
+    name: fcd-manager-secrets
+    creationPolicy: Owner
+  data:
+  - secretKey: AZURE_ACCOUNT_NAME # pragma: allowlist secret
+    remoteRef:
+      key: idea-helsinki-azure-account-name
+  - secretKey: AZURE_SAS_TOKEN # pragma: allowlist secret
+    remoteRef:
+      key: idea-helsinki-azure-sas-token
+  - secretKey: AZURE_CONTAINER_NAME # pragma: allowlist secret
+    remoteRef:
+      key: idea-helsinki-azure-container-name
+  - secretKey: INFLUX_DB_FCD_TOKEN # pragma: allowlist secret
+    remoteRef:
+      key: idea-helsinki-influx-fcd-token
+  - secretKey: INFLUX_DB_URL # pragma: allowlist secret
+    remoteRef:
+      key: idea-helsinki-influxdb-url
+  - secretKey: INFLUX_DB_ORG # pragma: allowlist secret
+    remoteRef:
+      key: idea-helsinki-influxdb-org
+  - secretKey: INFLUX_DB_FCD_BUCKET # pragma: allowlist secret
+    remoteRef:
+      key: idea-helsinki-influx-fcd-bucket
+  - secretKey: SENTRY_DSN # pragma: allowlist secret
+    remoteRef:
+      key: sentry_dsn_idea-helsinki
+
+volumes:
+- name: shared-data
+  persistentVolumeClaim:
+    claimName: idea-helsinki-shared-pvc
+
+volumeMounts:
+- name: shared-data
+  mountPath: /app/data
+  subPath: data
