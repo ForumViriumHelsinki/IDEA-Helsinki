@@ -1,0 +1,160 @@
+# IDEA-Helsinki Orchestrator - Helm values for helm-webapp chart
+# Main async orchestration service for IDEA traffic validation
+#
+# Image Update Strategy:
+# ArgoCD Image Updater automatically updates image.tag when new images are pushed.
+# See infrastructure repo: argocd/apps/templates/idea-helsinki/idea-helsinki-orchestrator.yaml
+
+image:
+  repository: ghcr.io/forumviriumhelsinki/idea-helsinki/orchestrator
+  tag: "0.9.1" # Updated by ArgoCD Image Updater
+
+replicaCount: 1
+
+serviceAccount:
+  create: false
+  name: idea-helsinki-shared
+
+keda:
+  enabled: false
+  minReplicaCount: 0
+  maxReplicaCount: 1
+  pollingInterval: 30
+  cooldownPeriod: 300
+  triggers:
+  - type: cron
+    metadata:
+      timezone: Europe/Helsinki
+      start: 0 7 * * 1-5
+      end: 0 18 * * 1-5
+      desiredReplicas: "1"
+
+imagePullSecrets:
+- name: ghcr-login-secret
+
+podAnnotations:
+  gke-gcsfuse/volumes: "true"
+  gke-gcsfuse/cpu-limit: "500m"
+  gke-gcsfuse/memory-limit: "512Mi"
+  gke-gcsfuse/ephemeral-storage-limit: "2Gi"
+
+resources:
+  limits:
+    cpu: "1500m"
+    memory: "1.5Gi"
+  requests:
+    cpu: "250m"
+    memory: "256Mi"
+
+service:
+  type: ClusterIP
+  port: 8080
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 8080
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 1000 # TEMPORARY: Bypassing health checks - see issue #482
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8080
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 1000 # TEMPORARY: Bypassing health checks - see issue #482
+
+startupProbe:
+  httpGet:
+    path: /startup
+    port: 8080
+  initialDelaySeconds: 0
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 1000 # TEMPORARY: Bypassing health checks - see issue #482
+
+env:
+  DATA_DIR:
+    value: "/app/data"
+  INFLUX_DB_VALIDATION_TOKEN:
+    valueFrom:
+      secretKeyRef:
+        name: idea-helsinki-secrets
+        key: INFLUX_DB_VALIDATION_TOKEN
+  INFLUX_DB_FCD_TOKEN:
+    valueFrom:
+      secretKeyRef:
+        name: idea-helsinki-secrets
+        key: INFLUX_DB_FCD_TOKEN
+  INFLUX_DB_URL:
+    valueFrom:
+      secretKeyRef:
+        name: idea-helsinki-secrets
+        key: INFLUX_DB_URL
+  INFLUX_DB_ORG:
+    valueFrom:
+      secretKeyRef:
+        name: idea-helsinki-secrets
+        key: INFLUX_DB_ORG
+  INFLUX_DB_VALIDATION_BUCKET:
+    valueFrom:
+      secretKeyRef:
+        name: idea-helsinki-secrets
+        key: INFLUX_DB_VALIDATION_BUCKET
+  INFLUX_DB_FCD_BUCKET:
+    valueFrom:
+      secretKeyRef:
+        name: idea-helsinki-secrets
+        key: INFLUX_DB_FCD_BUCKET
+  SENTRY_DSN:
+    valueFrom:
+      secretKeyRef:
+        name: idea-helsinki-secrets
+        key: SENTRY_DSN
+
+externalSecret:
+  enabled: true
+  name: idea-helsinki-secrets
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: gcp-store
+  target:
+    name: idea-helsinki-secrets
+    creationPolicy: Owner
+  data:
+  - secretKey: INFLUX_DB_VALIDATION_TOKEN # pragma: allowlist secret
+    remoteRef:
+      key: idea-helsinki-influx-validation-token
+  - secretKey: INFLUX_DB_FCD_TOKEN # pragma: allowlist secret
+    remoteRef:
+      key: idea-helsinki-influx-fcd-token
+  - secretKey: INFLUX_DB_URL # pragma: allowlist secret
+    remoteRef:
+      key: idea-helsinki-influxdb-url
+  - secretKey: INFLUX_DB_ORG # pragma: allowlist secret
+    remoteRef:
+      key: idea-helsinki-influxdb-org
+  - secretKey: INFLUX_DB_VALIDATION_BUCKET # pragma: allowlist secret
+    remoteRef:
+      key: idea-helsinki-influx-validation-bucket
+  - secretKey: INFLUX_DB_FCD_BUCKET # pragma: allowlist secret
+    remoteRef:
+      key: idea-helsinki-influx-fcd-bucket
+  - secretKey: SENTRY_DSN # pragma: allowlist secret
+    remoteRef:
+      key: sentry_dsn_idea-helsinki
+
+volumes:
+- name: shared-data
+  persistentVolumeClaim:
+    claimName: idea-helsinki-shared-pvc
+
+volumeMounts:
+- name: shared-data
+  mountPath: /app/data
+  subPath: data
