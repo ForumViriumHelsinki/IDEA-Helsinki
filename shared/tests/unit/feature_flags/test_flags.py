@@ -91,8 +91,7 @@ class TestFlagDefaults:
         for flag, expected_value in test_cases:
             actual = FlagDefaults.get_default(flag)
             assert actual == expected_value, (
-                f"Expected {flag.value} to have default {expected_value}, "
-                f"got {actual}"
+                f"Expected {flag.value} to have default {expected_value}, got {actual}"
             )
 
     @pytest.mark.unit

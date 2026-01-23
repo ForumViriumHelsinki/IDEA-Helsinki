@@ -80,8 +80,10 @@ startupProbe:
 env:
   DATA_DIR:
     value: "/app/data"
-  FCD_ENABLE_MULTITHREADING:
-    value: "True"
+  ENVIRONMENT:
+    value: "production"
+  FEATURE_FLAG_FCD_ENABLE_MULTITHREADING:
+    value: "true"
   AZURE_ACCOUNT_NAME:
     valueFrom:
       secretKeyRef:
