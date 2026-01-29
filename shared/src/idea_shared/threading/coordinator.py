@@ -118,7 +118,7 @@ class ThreadCoordinator:
                 target=self._backfill_worker,
                 args=(worker_id,),
                 name=f"BackfillWorker-{worker_id}",
-                daemon=False,
+                daemon=True,
             )
             thread.start()
             self._worker_threads.append(thread)
@@ -129,7 +129,7 @@ class ThreadCoordinator:
         self._writer_thread = threading.Thread(
             target=self._influxdb_writer,
             name="InfluxDBWriter",
-            daemon=False,
+            daemon=True,
         )
         self._writer_thread.start()
         self.logger.info("Started InfluxDB writer thread")
