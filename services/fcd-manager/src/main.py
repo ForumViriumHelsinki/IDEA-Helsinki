@@ -30,11 +30,7 @@ from idea_shared.classes.Logger import Logger
 from idea_shared.feature_flags import (
     FeatureFlag,
     get_feature_flags,
-    initialize_feature_flags,
-)
-from idea_shared.feature_flags.providers import (
-    EnvironmentVariableProvider,
-    JsonFileProvider,
+    init_feature_flags,
 )
 from idea_shared.health.idea_checks import (
     AzureBlobStorageHealthCheck,
@@ -369,23 +365,7 @@ def main():
 
     # Initialize feature flags early in startup
     logger.info("Initializing feature flags...")
-    try:
-        # Use environment variables in production, JSON file in development
-        # Check if we're in production by looking for ENVIRONMENT env var
-        environment = os.getenv("ENVIRONMENT", "development")
-        if environment == "production":
-            logger.info("Using environment variable provider for feature flags")
-            provider = EnvironmentVariableProvider()
-        else:
-            logger.info("Using JSON file provider for feature flags")
-            feature_flags_path = os.path.join(DATA_DIR, "feature_flags.json")
-            provider = JsonFileProvider(feature_flags_path)
-
-        initialize_feature_flags(provider)
-        logger.info("Feature flags initialized successfully")
-    except Exception as e:
-        logger.warning(f"Failed to initialize feature flags: {e}")
-        logger.warning("Continuing with default flag values")
+    init_feature_flags(data_dir=DATA_DIR, service_name="fcd-manager")
 
     # Setup signal handlers for graceful shutdown
     signal.signal(signal.SIGTERM, handle_shutdown)

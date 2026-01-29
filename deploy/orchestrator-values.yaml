@@ -29,6 +29,9 @@ keda:
       end: 0 18 * * 1-5
       desiredReplicas: "1"
 
+featureFlags:
+  enabled: true
+
 imagePullSecrets:
 - name: ghcr-login-secret
 

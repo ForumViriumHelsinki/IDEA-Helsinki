@@ -13,6 +13,7 @@ import sentry_sdk
 # ------------------------------------------------------#
 from idea_shared.classes.IdeaHelsinkiManager import IdeaHelsinkiManager
 from idea_shared.classes.Logger import Logger
+from idea_shared.feature_flags import init_feature_flags
 from idea_shared.health.idea_checks import InfluxDBHealthCheck
 from idea_shared.health.server import HealthServer
 
@@ -98,6 +99,10 @@ async def main():
         )
 
     logger.info("Initializing IDEA Helsinki Manager...")
+
+    # Initialize feature flags early in startup
+    logger.info("Initializing feature flags...")
+    init_feature_flags(data_dir="/app/data", service_name="orchestrator")
 
     # Initialize health server
     health_server = HealthServer(
