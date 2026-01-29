@@ -22,11 +22,7 @@ import os
 from openfeature.provider import AbstractProvider
 
 from .manager import initialize_feature_flags
-from .providers import (
-    EnvironmentVariableProvider,
-    GoFeatureFlagProvider,
-    JsonFileProvider,
-)
+from .providers import EnvironmentVariableProvider, JsonFileProvider
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +47,9 @@ def create_provider(data_dir: str = "/app/data") -> AbstractProvider:
     endpoint = os.getenv("FEATURE_FLAG_ENDPOINT")
 
     if endpoint:
+        # Lazy import to avoid dependency issues when GOFF provider is not needed
+        from .providers import GoFeatureFlagProvider
+
         timeout = int(os.getenv("FEATURE_FLAG_TIMEOUT", "3000"))
         logger.info(f"Using GoFeatureFlagProvider with endpoint: {endpoint}")
         return GoFeatureFlagProvider(endpoint=endpoint, timeout=timeout)
