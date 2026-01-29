@@ -35,11 +35,23 @@ from .manager import (
     get_feature_flags,
     initialize_feature_flags,
 )
-from .providers import (
-    EnvironmentVariableProvider,
-    GoFeatureFlagProvider,
-    JsonFileProvider,
-)
+from .providers import EnvironmentVariableProvider, JsonFileProvider
+
+# Lazy import for GoFeatureFlagProvider to avoid dependency issues
+_goff_provider = None
+
+
+def __getattr__(name: str):
+    """Lazy import for GoFeatureFlagProvider."""
+    global _goff_provider
+    if name == "GoFeatureFlagProvider":
+        if _goff_provider is None:
+            from .providers import GoFeatureFlagProvider
+
+            _goff_provider = GoFeatureFlagProvider
+        return _goff_provider
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = [
     # Core classes
