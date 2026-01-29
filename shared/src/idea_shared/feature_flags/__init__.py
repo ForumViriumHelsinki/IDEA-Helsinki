@@ -35,7 +35,11 @@ from .manager import (
     get_feature_flags,
     initialize_feature_flags,
 )
-from .providers import EnvironmentVariableProvider, JsonFileProvider
+from .providers import (
+    EnvironmentVariableProvider,
+    GoFeatureFlagProvider,
+    JsonFileProvider,
+)
 
 # Lazy import for GoFeatureFlagProvider to avoid dependency issues
 _goff_provider = None
