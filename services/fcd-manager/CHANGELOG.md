@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.10.0...fcd-manager-v0.11.0) (2026-01-29)
+
+
+### Features
+
+* migrate IDEA-Helsinki to GoFeatureFlag relay proxy ([#149](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/149)) ([c8fcd2e](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/c8fcd2eb6323d3e9dca1df36ca7184e6f673df4f))
+
+
+### Bug Fixes
+
+* **deploy:** correct feature flag env var for fcd-manager multithreading ([#143](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/143)) ([043e26c](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/043e26cbb03e4921f09b9aa837de1b4dbd114810))
+
 ## [0.10.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.9.1...fcd-manager-v0.10.0) (2026-01-15)
 
 
