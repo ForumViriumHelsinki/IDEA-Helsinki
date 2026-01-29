@@ -19,6 +19,7 @@ import sentry_sdk
 from idea_shared.classes.HelsinkiWFSClient import HelsinkiAlluWFSClient
 from idea_shared.classes.IntersectionDetector import IntersectionDetector
 from idea_shared.classes.Logger import Logger
+from idea_shared.feature_flags import init_feature_flags
 from idea_shared.health.server import HealthServer
 
 # ------------------------------------------------------#
@@ -67,6 +68,10 @@ def main():
         affected by the disturbances.
     5.  Saves the resulting intersection data to a JSON file.
     """
+
+    # Initialize feature flags early in startup
+    logger.info("Initializing feature flags...")
+    init_feature_flags(data_dir="/app/data", service_name="traffic-monitor")
 
     # Initialize core components
     detector = IntersectionDetector()

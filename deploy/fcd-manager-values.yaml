@@ -29,6 +29,9 @@ keda:
       end: 0 18 * * 1-5
       desiredReplicas: "1"
 
+featureFlags:
+  enabled: true
+
 imagePullSecrets:
 - name: ghcr-login-secret
 
@@ -82,8 +85,6 @@ env:
     value: "/app/data"
   ENVIRONMENT:
     value: "production"
-  FEATURE_FLAG_FCD_ENABLE_MULTITHREADING:
-    value: "true"
   AZURE_ACCOUNT_NAME:
     valueFrom:
       secretKeyRef:
