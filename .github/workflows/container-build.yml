@@ -2,12 +2,13 @@ name: Build and push container images
 
 on:
   push:
-    branches:
-      - 'main'
     tags:
       - 'orchestrator-v*.*.*'
       - 'fcd-manager-v*.*.*'
       - 'traffic-monitor-v*.*.*'
+  pull_request:
+    branches:
+      - 'main'
 
 env:
   REGISTRY: ghcr.io
@@ -16,6 +17,10 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    # Only run for release tags or release-please PRs
+    if: |
+      github.event_name == 'push' ||
+      startsWith(github.head_ref, 'release-please--branches--main')
     strategy:
       matrix:
         service: [orchestrator, fcd-manager, traffic-monitor]
