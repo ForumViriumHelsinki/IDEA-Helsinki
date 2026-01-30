@@ -10,21 +10,37 @@ from urllib3.util.retry import Retry
 
 from idea_shared.classes.Logger import Logger
 
+# Default timeout reduced from 300s to 60s for faster failure detection
+DEFAULT_TIMEOUT_MS = 60000
+
 
 class FCDInfluxDBManager:
     """
     Manages writing and querying Floating Car Data (FCD) to InfluxDB.
     This class is specifically designed to work with the TFDS data models.
+
+    Includes improved retry strategy with exponential backoff and jitter
+    for better reliability under transient network failures.
     """
 
     def __init__(
-        self, url: str, token: str, org: str, bucket: str, timeout: int = 300000
+        self, url: str, token: str, org: str, bucket: str, timeout: int = DEFAULT_TIMEOUT_MS
     ):
         self.client = None  # Initialize client to None
         try:
-            # Initialize the connection to the InfluxDB client with a retry strategy and timeout.
-            # Timeout is in milliseconds (default: 300000ms = 5 minutes)
-            retries = Retry(total=5, backoff_factor=1, status_forcelist=[502, 503, 504])
+            # Initialize the connection to the InfluxDB client with enhanced retry strategy.
+            # Timeout is in milliseconds (default: 60000ms = 1 minute)
+            # Retry on common transient errors including connection issues
+            retries = Retry(
+                total=5,
+                backoff_factor=1,
+                # Add jitter to prevent thundering herd
+                backoff_jitter=0.5,
+                status_forcelist=[429, 500, 502, 503, 504],
+                # Retry on connection-related errors
+                allowed_methods=["HEAD", "GET", "POST", "PUT", "DELETE", "OPTIONS", "TRACE"],
+                raise_on_status=False,
+            )
             self.client = InfluxDBClient(
                 url=url, token=token, org=org, retries=retries, timeout=timeout
             )
@@ -36,7 +52,7 @@ class FCDInfluxDBManager:
             self.logger.info(
                 f"FCDInfluxDBManager initialized - URL: {url}, Org: {self.org}, Bucket: {self.bucket}, Timeout: {timeout}ms"
             )
-        except (ApiException, ConnectionError) as e:
+        except (ApiException, ConnectionError, TimeoutError, OSError) as e:
             print(f"Failed to connect to InfluxDB: {e}")
             self.close()
             raise
@@ -54,8 +70,11 @@ class FCDInfluxDBManager:
         self.close()
 
     def check_connection(self) -> bool:
-        """ "
-        This function checks if the connection to the InfluxDB server is established.
+        """
+        Check if the connection to the InfluxDB server is established.
+
+        Returns:
+            bool: True if connection is active, False otherwise.
         """
         try:
             if self.client and self.client.ping():
@@ -68,8 +87,14 @@ class FCDInfluxDBManager:
                     f"InfluxDB ping failed. Check URL ({self.client.url}), token, and org ({self.org})."
                 )
             return False
+        except (ConnectionError, TimeoutError, OSError) as e:
+            self.logger.error(
+                f"InfluxDB connection check failed due to network error: {e}. "
+                f"URL: {self.client.url if self.client else 'N/A'}"
+            )
+            return False
         except Exception as e:
-            self.logger.error(f"InfluxDB connection check failed. {e}")
+            self.logger.error(f"InfluxDB connection check failed unexpectedly: {e}")
             return False
 
     def _write_batch(self, points: list, batch_number: int):
