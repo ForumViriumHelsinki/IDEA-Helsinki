@@ -11,6 +11,7 @@ from pathlib import Path
 # -------------- PROJECT CLASS IMPORTS -----------------#
 # ------------------------------------------------------#
 from idea_shared.classes.Logger import Logger
+from idea_shared.threading.file_locks import atomic_write_json
 
 logger = Logger(__name__)
 
@@ -126,7 +127,11 @@ def parse_json_from_bytes(
 
 def write_json_records(records: dict, json_file: str) -> bool:
     """
-    Function for writing JSON records to a file.
+    Function for writing JSON records to a file using atomic writes.
+
+    Uses atomic write pattern (temp file + rename) to prevent corruption
+    and includes retry logic for ESTALE errors on NFS/hostPath mounts.
+
     Args:
         records: The records to write.
         json_file: The name of the JSON file to write.
@@ -141,9 +146,7 @@ def write_json_records(records: dict, json_file: str) -> bool:
     json_file_path = Path(json_file)
 
     try:
-        json_file_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(json_file, "w", encoding="utf-8") as f:
-            json.dump(records, f, indent=4)
+        atomic_write_json(json_file_path, records)
         logger.info(
             f"Successfully wrote {len(segment_ids)} records to '{json_file_path}'."
         )
@@ -311,15 +314,13 @@ def update_segment_changelog(
     if not newly_added_ids and not removed_segments_ids and not modified_ids:
         logger.info("Segment inventory check complete. No changes detected.")
 
-    # Update files
+    # Update files using atomic writes to prevent corruption from ESTALE errors
     try:
-        with open(changelog_path, "w", encoding="utf-8") as f:
-            json.dump(changelog, f, indent=4)
+        atomic_write_json(changelog_path, changelog)
         logger.info("Segment changelog file has been updated.")
 
         if removed_segments_ids:
-            with open(archive_path, "w", encoding="utf-8") as f:
-                json.dump(archived_segments, f, indent=4)
+            atomic_write_json(archive_path, archived_segments)
             logger.info("Segment archive file has been updated.")
     except OSError as e:
         logger.error(f"Failed to write updated changelog or archive file: {e}")

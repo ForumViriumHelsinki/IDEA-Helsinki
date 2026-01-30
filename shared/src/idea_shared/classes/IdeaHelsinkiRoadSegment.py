@@ -17,6 +17,7 @@ from idea_shared.lib import IdeaHelsinkiDataPreProcessor
 # ------------------------------------------------------#
 # ------------- PROJECT MODULE IMPORTS -----------------#
 # ------------------------------------------------------#
+from idea_shared.lib.idea.exceptions import IDEAError
 from idea_shared.lib.idea.profile.profile import calculate_profile
 from idea_shared.lib.idea.validation.validation import validate_roadwork
 
@@ -129,12 +130,25 @@ class IdeaHelsinkiRoadSegment:
                 segment_data_to_profile is not None
                 and not segment_data_to_profile.empty
             ):
-                profile = await asyncio.to_thread(
-                    calculate_profile,
-                    df=segment_data_to_profile,
-                    start=self.profiling_start_date,
-                    end=self.profiling_end_date,
-                )
+                try:
+                    profile = await asyncio.to_thread(
+                        calculate_profile,
+                        df=segment_data_to_profile,
+                        start=self.profiling_start_date,
+                        end=self.profiling_end_date,
+                    )
+                except IDEAError as e:
+                    # Profile validation failed due to insufficient data quality
+                    data_points = len(segment_data_to_profile)
+                    self.logger.error(
+                        f"Profile validation failed: {e.message}. "
+                        f"Segment had {data_points} data points for period "
+                        f"{self.profiling_start_date} to {self.profiling_end_date}. "
+                        f"This typically means the FCD coverage quality is too low "
+                        f"(too many gaps or zeros in the data)."
+                    )
+                    return
+
                 if not profile.empty:
                     self.logger.info("Segment profile generated")
                     self.segment_profile = profile
@@ -142,7 +156,12 @@ class IdeaHelsinkiRoadSegment:
                     self.logger.error("IDEA returned an empty segment profile")
                     return
             else:
-                self.logger.error("Segment profile could not be generated")
+                # No FCD data available at all for this segment/period
+                self.logger.error(
+                    f"No FCD data available for segment. "
+                    f"Query returned empty/None for period "
+                    f"{self.profiling_start_date} to {self.profiling_end_date}."
+                )
                 return
 
         self.logger.info(

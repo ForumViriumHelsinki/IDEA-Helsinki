@@ -238,6 +238,7 @@ def does_profile_has_enough_data(profile: pd.DataFrame) -> None:
         True if the average ratio of rows with acceptable consecutive zeros
         is greater than THRESHOLD_OF_USEFUL_DATA_PROFILE, False otherwise
     """
+    total_hour_buckets = len(profile)
 
     # Count the number of values below MAX_ACCEPTABLE_PERIOD_WITH_NO_TRAFFIC_DATA
     # in max_consecutive_zeros_q95 column
@@ -246,9 +247,22 @@ def does_profile_has_enough_data(profile: pd.DataFrame) -> None:
         profile["max_consecutive_zeros_q95"] < MAX_ACCEPTABLE_CONSECUTIVE_ZEROS_Q95
     ).sum()
 
+    # Log diagnostic info for debugging profile validation failures
+    logger.debug(
+        f"Profile data quality check: {total_count_consecutive_zeros_below_max}/{total_hour_buckets} "
+        f"hour-of-week buckets pass quality threshold "
+        f"(max_consecutive_zeros_q95 < {MAX_ACCEPTABLE_CONSECUTIVE_ZEROS_Q95}). "
+        f"Required minimum: {THRESHOLD_OF_USEFUL_DATA_PROFILE} buckets."
+    )
+
     # Return True if the average is greater than the minimum threshold
     if total_count_consecutive_zeros_below_max < THRESHOLD_OF_USEFUL_DATA_PROFILE:
-        raise IDEAError("Not enough fcd input data for creating profile.")
+        raise IDEAError(
+            f"Not enough fcd input data for creating profile. "
+            f"Only {total_count_consecutive_zeros_below_max} of {total_hour_buckets} "
+            f"hour-of-week buckets pass quality checks "
+            f"(required: {THRESHOLD_OF_USEFUL_DATA_PROFILE})."
+        )
 
 
 def verify_start_and_end_time(

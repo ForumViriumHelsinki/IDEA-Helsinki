@@ -13,6 +13,7 @@ from shapely.geometry import mapping, shape
 # -------------- PROJECT CLASS IMPORTS -----------------#
 # ------------------------------------------------------#
 from idea_shared.classes.Logger import Logger
+from idea_shared.threading.file_locks import atomic_write_json
 
 
 class IntersectionDetectorError(Exception):
@@ -339,6 +340,12 @@ class IntersectionDetector:
         return True
 
     def write_json_records(self, records: dict, json_file: str) -> bool:
+        """
+        Write JSON records using atomic writes to prevent corruption.
+
+        Uses atomic write pattern (temp file + rename) with retry logic
+        for ESTALE errors on NFS/hostPath mounts.
+        """
         json_file_path = Path(json_file)
         segment_ids = records.get("segmentId")
 
@@ -348,9 +355,7 @@ class IntersectionDetector:
             )
             return False
         try:
-            json_file_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(json_file_path, "w", encoding="utf-8") as f:
-                json.dump(records, f, indent=4)
+            atomic_write_json(json_file_path, records)
             self.logger.info(
                 f"Successfully wrote {len(segment_ids)} records to '{json_file_path}'."
             )
