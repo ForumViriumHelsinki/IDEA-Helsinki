@@ -3,6 +3,7 @@
 import errno
 import json
 import os
+import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, mock_open, patch
 
@@ -58,11 +59,12 @@ class TestAtomicWriteJson:
     def test_atomic_write_temp_file_cleaned_on_success(self, tmp_path: Path):
         """Test temporary file is removed after successful write."""
         test_file = tmp_path / "test.json"
-        temp_file = test_file.with_suffix(".json.tmp")
 
         atomic_write_json(test_file, {"data": True})
 
-        assert not temp_file.exists()
+        # No temp files should remain (with any prefix pattern)
+        temp_files = list(tmp_path.glob(".test.json.*.tmp"))
+        assert len(temp_files) == 0
 
     def test_atomic_write_with_list_data(self, tmp_path: Path):
         """Test atomic write handles list data correctly."""
@@ -86,6 +88,32 @@ class TestAtomicWriteJson:
         assert result is True
         assert Path(test_file).exists()
 
+    def test_atomic_write_uses_unpredictable_temp_names(self, tmp_path: Path):
+        """Test that temporary files use unpredictable names (security)."""
+        test_file = tmp_path / "test.json"
+        temp_names = []
+
+        # Mock NamedTemporaryFile to capture temp file names
+        original_named_temp = tempfile.NamedTemporaryFile
+
+        def capture_temp_name(*args, **kwargs):
+            temp_file = original_named_temp(*args, **kwargs)
+            temp_names.append(Path(temp_file.name).name)
+            return temp_file
+
+        with patch("tempfile.NamedTemporaryFile", side_effect=capture_temp_name):
+            atomic_write_json(test_file, {"data": True})
+
+        # Verify temp file name is NOT predictable (not just "test.json.tmp")
+        assert len(temp_names) == 1
+        temp_name = temp_names[0]
+        # Should have unpredictable component (random chars from tempfile)
+        assert temp_name.startswith(".test.json.")
+        assert temp_name.endswith(".tmp")
+        # Should have random component between prefix and suffix
+        # (tempfile adds random chars, length varies but should be > prefix + suffix)
+        assert len(temp_name) > len(".test.json.tmp")
+
 
 class TestAtomicWriteEstaleRetry:
     """Tests for ESTALE error retry logic."""
@@ -96,9 +124,9 @@ class TestAtomicWriteEstaleRetry:
         test_data = {"retry": "test"}
 
         call_count = 0
-        original_open = open
+        original_rename = os.rename
 
-        def mock_open_with_estale(*args, **kwargs):
+        def mock_rename_with_estale(*args, **kwargs):
             nonlocal call_count
             call_count += 1
             # Fail on first attempt, succeed on second
@@ -106,9 +134,9 @@ class TestAtomicWriteEstaleRetry:
                 error = OSError("Stale file handle")
                 error.errno = ESTALE
                 raise error
-            return original_open(*args, **kwargs)
+            return original_rename(*args, **kwargs)
 
-        with patch("builtins.open", side_effect=mock_open_with_estale):
+        with patch("os.rename", side_effect=mock_rename_with_estale):
             with patch("time.sleep"):  # Skip actual sleep
                 result = atomic_write_json(test_file, test_data)
 
@@ -125,7 +153,7 @@ class TestAtomicWriteEstaleRetry:
             error.errno = ESTALE
             raise error
 
-        with patch("builtins.open", side_effect=always_fail):
+        with patch("os.rename", side_effect=always_fail):
             with patch("time.sleep"):  # Skip actual sleep
                 with pytest.raises(OSError) as exc_info:
                     atomic_write_json(test_file, test_data, max_retries=3)
@@ -145,7 +173,7 @@ class TestAtomicWriteEstaleRetry:
             error.errno = ESTALE
             raise error
 
-        with patch("builtins.open", side_effect=always_fail):
+        with patch("os.rename", side_effect=always_fail):
             with patch("time.sleep", side_effect=capture_sleep):
                 with patch("random.uniform", return_value=0.25):  # Fixed jitter
                     with pytest.raises(OSError):
@@ -169,7 +197,7 @@ class TestAtomicWriteEstaleRetry:
             error.errno = errno.EACCES
             raise error
 
-        with patch("builtins.open", side_effect=fail_with_permission_error):
+        with patch("os.rename", side_effect=fail_with_permission_error):
             with pytest.raises(OSError) as exc_info:
                 atomic_write_json(test_file, {})
 

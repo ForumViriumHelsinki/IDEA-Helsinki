@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import random
+import tempfile
 import threading
 import time
 from pathlib import Path
@@ -24,11 +25,12 @@ def atomic_write_json(
     base_delay: float = 1.0,
 ) -> bool:
     """
-    Write JSON atomically using temp file + rename pattern with ESTALE retry.
+    Write JSON atomically using secure temp file + rename pattern with ESTALE retry.
 
-    Uses write-to-temp-then-rename strategy to ensure readers always
-    get a complete, consistent file. Implements exponential backoff
-    retry for ESTALE (errno 116) errors that occur with NFS/hostPath mounts.
+    Uses tempfile.NamedTemporaryFile with unpredictable names and O_EXCL flag
+    to prevent symlink attacks, then renames to target path atomically.
+    Implements exponential backoff retry for ESTALE (errno 116) errors that
+    occur with NFS/hostPath mounts.
 
     Args:
         filepath: Target file path
@@ -43,21 +45,32 @@ def atomic_write_json(
         OSError: If write fails after all retries
     """
     filepath = Path(filepath)
-    temp_file = filepath.with_suffix(filepath.suffix + ".tmp")
 
     for attempt in range(max_retries + 1):
+        temp_fd = None
+        temp_path = None
         try:
             # Ensure parent directory exists
             filepath.parent.mkdir(parents=True, exist_ok=True)
 
-            # Write to temporary file
-            with open(temp_file, "w", encoding="utf-8") as f:
+            # Create secure temporary file with unpredictable name
+            # delete=False because we need to rename it (rename closes the file)
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=filepath.parent,
+                prefix=f".{filepath.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as f:
+                temp_path = Path(f.name)
+                temp_fd = f.fileno()
                 json.dump(data, f, indent=4)
                 f.flush()
-                os.fsync(f.fileno())  # Force write to disk
+                os.fsync(temp_fd)  # Force write to disk
 
             # Atomic rename (POSIX systems)
-            os.rename(temp_file, filepath)
+            os.rename(temp_path, filepath)
             return True
 
         except OSError as e:
@@ -69,13 +82,18 @@ def atomic_write_json(
                     f"Retrying in {delay:.1f}s..."
                 )
                 time.sleep(delay)
+                # Clean up failed temp file if it exists
+                if temp_path:
+                    _cleanup_temp_file(temp_path)
                 continue
             # Clean up temp file if it exists
-            _cleanup_temp_file(temp_file)
+            if temp_path:
+                _cleanup_temp_file(temp_path)
             raise
 
         except Exception:
-            _cleanup_temp_file(temp_file)
+            if temp_path:
+                _cleanup_temp_file(temp_path)
             raise
 
 
