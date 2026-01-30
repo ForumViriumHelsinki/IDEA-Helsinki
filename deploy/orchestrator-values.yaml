@@ -56,7 +56,7 @@ service:
 livenessProbe:
   httpGet:
     path: /healthz
-    port: 8080
+    port: http
   initialDelaySeconds: 30
   periodSeconds: 30
   timeoutSeconds: 5
@@ -65,7 +65,7 @@ livenessProbe:
 readinessProbe:
   httpGet:
     path: /ready
-    port: 8080
+    port: http
   initialDelaySeconds: 10
   periodSeconds: 10
   timeoutSeconds: 5
@@ -74,7 +74,7 @@ readinessProbe:
 startupProbe:
   httpGet:
     path: /startup
-    port: 8080
+    port: http
   initialDelaySeconds: 0
   periodSeconds: 10
   timeoutSeconds: 5

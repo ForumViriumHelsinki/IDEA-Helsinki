@@ -40,11 +40,12 @@ spec:
             memory: "1Gi"
             cpu: "1000m"
         ports:
-        - containerPort: 8080
+        - name: http
+          containerPort: 8080
         livenessProbe:
           httpGet:
             path: /healthz
-            port: 8080
+            port: http
           initialDelaySeconds: 30
           periodSeconds: 30
           timeoutSeconds: 5
@@ -52,7 +53,7 @@ spec:
         readinessProbe:
           httpGet:
             path: /ready
-            port: 8080
+            port: http
           initialDelaySeconds: 10
           periodSeconds: 10
           timeoutSeconds: 5
@@ -60,7 +61,7 @@ spec:
         startupProbe:
           httpGet:
             path: /startup
-            port: 8080
+            port: http
           initialDelaySeconds: 0
           periodSeconds: 10
           timeoutSeconds: 5
