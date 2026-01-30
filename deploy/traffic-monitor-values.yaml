@@ -58,9 +58,9 @@ livenessProbe:
     path: /healthz
     port: 8080
   initialDelaySeconds: 30
-  periodSeconds: 10
+  periodSeconds: 30
   timeoutSeconds: 5
-  failureThreshold: 1000 # TEMPORARY: Bypassing health checks - see issue #482
+  failureThreshold: 3
 
 readinessProbe:
   httpGet:
@@ -69,7 +69,7 @@ readinessProbe:
   initialDelaySeconds: 10
   periodSeconds: 10
   timeoutSeconds: 5
-  failureThreshold: 1000 # TEMPORARY: Bypassing health checks - see issue #482
+  failureThreshold: 3
 
 startupProbe:
   httpGet:
@@ -78,7 +78,7 @@ startupProbe:
   initialDelaySeconds: 0
   periodSeconds: 10
   timeoutSeconds: 5
-  failureThreshold: 1000 # TEMPORARY: Bypassing health checks - see issue #482
+  failureThreshold: 30
 
 env:
   DATA_DIR:
