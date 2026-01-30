@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.11.0...idea-shared-v0.11.1) (2026-01-30)
+
+
+### Bug Fixes
+
+* Sentry error improvements and GoFeatureFlag migration ([#154](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/154)) ([77df5a9](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/77df5a9033aa1a128254327246bcb342178d0c1e))
+
 ## [0.11.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.10.0...idea-shared-v0.11.0) (2026-01-29)
 
 
