@@ -2,9 +2,108 @@
 Thread-safe file locking for segment mapping files.
 """
 
+import errno
 import json
+import logging
 import os
+import random
+import tempfile
 import threading
+import time
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+# ESTALE error number (116 on Linux, may differ on other systems)
+ESTALE = getattr(errno, "ESTALE", 116)
+
+
+def atomic_write_json(
+    filepath: str | Path,
+    data: dict | list,
+    max_retries: int = 3,
+    base_delay: float = 1.0,
+) -> bool:
+    """
+    Write JSON atomically using secure temp file + rename pattern with ESTALE retry.
+
+    Uses tempfile.NamedTemporaryFile with unpredictable names and O_EXCL flag
+    to prevent symlink attacks, then renames to target path atomically.
+    Implements exponential backoff retry for ESTALE (errno 116) errors that
+    occur with NFS/hostPath mounts.
+
+    Args:
+        filepath: Target file path
+        data: Dictionary or list data to write as JSON
+        max_retries: Maximum retry attempts for ESTALE errors (default: 3)
+        base_delay: Base delay in seconds for exponential backoff (default: 1.0)
+
+    Returns:
+        bool: True if successful
+
+    Raises:
+        OSError: If write fails after all retries
+    """
+    filepath = Path(filepath)
+
+    for attempt in range(max_retries + 1):
+        temp_fd = None
+        temp_path = None
+        try:
+            # Ensure parent directory exists
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+
+            # Create secure temporary file with unpredictable name
+            # delete=False because we need to rename it (rename closes the file)
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=filepath.parent,
+                prefix=f".{filepath.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as f:
+                temp_path = Path(f.name)
+                temp_fd = f.fileno()
+                json.dump(data, f, indent=4)
+                f.flush()
+                os.fsync(temp_fd)  # Force write to disk
+
+            # Atomic rename (POSIX systems)
+            os.rename(temp_path, filepath)
+            return True
+
+        except OSError as e:
+            # Check for ESTALE (Stale file handle) error
+            if e.errno == ESTALE and attempt < max_retries:
+                delay = base_delay * (2**attempt) + random.uniform(0, 0.5)
+                logger.warning(
+                    f"ESTALE error writing to {filepath}, attempt {attempt + 1}/{max_retries + 1}. "
+                    f"Retrying in {delay:.1f}s..."
+                )
+                time.sleep(delay)
+                # Clean up failed temp file if it exists
+                if temp_path:
+                    _cleanup_temp_file(temp_path)
+                continue
+            # Clean up temp file if it exists
+            if temp_path:
+                _cleanup_temp_file(temp_path)
+            raise
+
+        except Exception:
+            if temp_path:
+                _cleanup_temp_file(temp_path)
+            raise
+
+
+def _cleanup_temp_file(temp_file: Path) -> None:
+    """Clean up temporary file if it exists."""
+    try:
+        if temp_file.exists():
+            os.remove(temp_file)
+    except Exception:
+        pass
 
 
 class SegmentMappingFileManager:
