@@ -4,6 +4,7 @@
 import os
 import signal
 import sys
+import threading
 from datetime import UTC, datetime, timedelta
 
 # ------------------------------------------------------#
@@ -99,12 +100,29 @@ pipeline_check = None
 # Global thread coordinator (for multi-threaded mode)
 thread_coordinator = None
 
+# Write protection: tracks when critical file writes are in progress
+# to prevent data corruption during shutdown
+_write_in_progress = threading.Event()
+
 
 def handle_shutdown(signum, frame):
     """Handle graceful shutdown on SIGTERM/SIGINT."""
     logger.info(f"Received signal {signum}, shutting down gracefully...")
 
     global health_server, thread_coordinator
+
+    # Wait for any pending file writes to complete to prevent data corruption
+    if _write_in_progress.is_set():
+        logger.info("Waiting for pending file writes to complete...")
+        # Wait up to 30 seconds for writes to finish
+        start_time = datetime.now(UTC)
+        while _write_in_progress.is_set():
+            if (datetime.now(UTC) - start_time).total_seconds() > 30:
+                logger.warning("Timeout waiting for file writes, proceeding with shutdown")
+                break
+            import time
+
+            time.sleep(0.1)
 
     # Shutdown thread coordinator first (if running in multi-threaded mode)
     if thread_coordinator:
@@ -166,12 +184,16 @@ def run_singlethreaded(azure_manager: AzureBlobContainerManager):
                 update_cycle_check.update_timestamp()
             if update_fcd_mapping:
                 last_fcd_mapping_done = current_time
-                FcdUtils.update_segment_changelog(
-                    FCD_MAP_DATA_FILE_LOCATION,
-                    MASTER_SEGMENT_HISTORY_FILE_LOCATION,
-                    ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION,
-                    current_time,
-                )
+                _write_in_progress.set()
+                try:
+                    FcdUtils.update_segment_changelog(
+                        FCD_MAP_DATA_FILE_LOCATION,
+                        MASTER_SEGMENT_HISTORY_FILE_LOCATION,
+                        ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION,
+                        current_time,
+                    )
+                finally:
+                    _write_in_progress.clear()
         else:
             logger.error(
                 f"FCD database could not be updated, retrying in {FCD_UPDATE_FREQUENCY} minutes!"
@@ -326,12 +348,16 @@ def run_multithreaded(azure_manager: AzureBlobContainerManager):
                 # Update the segment mapping
                 if update_fcd_segment_mapping(recent_fcd_data):
                     logger.info("FCD segment mapping updated successfully")
-                    FcdUtils.update_segment_changelog(
-                        FCD_MAP_DATA_FILE_LOCATION,
-                        MASTER_SEGMENT_HISTORY_FILE_LOCATION,
-                        ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION,
-                        current_time,
-                    )
+                    _write_in_progress.set()
+                    try:
+                        FcdUtils.update_segment_changelog(
+                            FCD_MAP_DATA_FILE_LOCATION,
+                            MASTER_SEGMENT_HISTORY_FILE_LOCATION,
+                            ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION,
+                            current_time,
+                        )
+                    finally:
+                        _write_in_progress.clear()
                 else:
                     logger.error("FCD segment mapping update failed")
             else:
@@ -664,12 +690,16 @@ def initialize_database_update(
                     if update_fcd_mapping:
                         if update_fcd_segment_mapping(final_daily_file):
                             logger.info("FCD segment mapping updated")
-                            FcdUtils.update_segment_changelog(
-                                FCD_MAP_DATA_FILE_LOCATION,
-                                MASTER_SEGMENT_HISTORY_FILE_LOCATION,
-                                ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION,
-                                date_i,
-                            )
+                            _write_in_progress.set()
+                            try:
+                                FcdUtils.update_segment_changelog(
+                                    FCD_MAP_DATA_FILE_LOCATION,
+                                    MASTER_SEGMENT_HISTORY_FILE_LOCATION,
+                                    ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION,
+                                    date_i,
+                                )
+                            finally:
+                                _write_in_progress.clear()
                         else:
                             logger.error("FCD segment mapping update failed")
 

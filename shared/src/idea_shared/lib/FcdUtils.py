@@ -4,6 +4,7 @@
 import hashlib
 import json
 import re
+import shutil
 from datetime import datetime
 from pathlib import Path
 
@@ -228,7 +229,25 @@ def update_segment_changelog(
         try:
             with open(changelog_path, encoding="utf-8") as f:
                 changelog = json.load(f)
-        except (OSError, json.JSONDecodeError) as e:
+        except json.JSONDecodeError as e:
+            # Recovery: backup corrupted file and start fresh instead of aborting
+            # This handles cases where pod termination leaves truncated JSON
+            logger.warning(f"Changelog file corrupted: {e}. Attempting recovery...")
+
+            backup_suffix = processing_date.strftime("%Y%m%d_%H%M%S")
+            backup_path = changelog_path.with_suffix(f".{backup_suffix}.corrupted")
+            try:
+                shutil.copy2(changelog_path, backup_path)
+                logger.info(f"Corrupted file backed up to: {backup_path}")
+            except OSError as backup_error:
+                logger.warning(f"Could not backup corrupted file: {backup_error}")
+
+            # Start fresh - will rebuild from current mapping
+            changelog = {}
+            logger.warning(
+                "Starting with empty changelog. Historical geometry changes will be lost."
+            )
+        except OSError as e:
             logger.error(
                 f"Could not load changelog file '{changelog_path}'. Aborting. Error: {e}"
             )
