@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.11.1...fcd-manager-v0.11.2) (2026-02-05)
+
+
+### Bug Fixes
+
+* add resilience to segment changelog corruption and graceful shutdown ([#158](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/158)) ([aab7b5e](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/aab7b5e5e617bff55447606ae1cb9414718ee4a9))
+
 ## [0.11.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.11.0...fcd-manager-v0.11.1) (2026-01-30)
 
 
