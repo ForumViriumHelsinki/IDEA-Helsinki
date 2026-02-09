@@ -28,7 +28,6 @@ from lib.Constants.Constants import ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION
 
 from lib.Constants.Constants import FCD_HISTORY_START_DATE
 from lib.Constants.Constants import FCD_UPDATE_FREQUENCY
-from lib.Constants.Constants import MAX_FCD_DATA_BASE_UPDATE_DOWNTIME
 
 from lib.Constants.PrivateConstants import AZURE_ACCOUNT_NAME
 from lib.Constants.PrivateConstants import AZURE_CONTAINER_NAME
@@ -227,10 +226,6 @@ def update_fcd_database(azure_manager: AzureBlobContainerManager,current_time:da
                 data_base_last_update = manager.get_last_update_timestamp()
                 if data_base_last_update is None:
                     logger.info("FCD data base is empty! Please run the initialize_database_update() function! Aborting..")
-                    return False
-
-                if (current_time - data_base_last_update) >= timedelta(days=MAX_FCD_DATA_BASE_UPDATE_DOWNTIME):
-                    logger.info(f"Last FCD data base update is older than {MAX_FCD_DATA_BASE_UPDATE_DOWNTIME} days! Please run the initialize_database_update() function! Aborting..")
                     return False
 
                 logger.info(f"FCD data base last updated at {data_base_last_update}, updating to current time {current_time}")
