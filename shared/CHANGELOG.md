@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.3](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.11.2...idea-shared-v0.11.3) (2026-02-11)
+
+
+### Bug Fixes
+
+* increase InfluxDB client timeout from 60s to 300s ([#160](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/160)) ([ce56b8b](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/ce56b8b82ac9e3f7e56bab395296556baef1c304))
+
 ## [0.11.2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.11.1...idea-shared-v0.11.2) (2026-02-05)
 
 
