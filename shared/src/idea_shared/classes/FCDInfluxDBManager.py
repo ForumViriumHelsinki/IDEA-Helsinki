@@ -10,8 +10,9 @@ from urllib3.util.retry import Retry
 
 from idea_shared.classes.Logger import Logger
 
-# Default timeout reduced from 300s to 60s for faster failure detection
-DEFAULT_TIMEOUT_MS = 60000
+# 5 minutes — must exceed worst-case query time to prevent abandoned queries
+# that keep running server-side after client disconnect (causing InfluxDB saturation)
+DEFAULT_TIMEOUT_MS = 300_000
 
 
 class FCDInfluxDBManager:
@@ -29,7 +30,7 @@ class FCDInfluxDBManager:
         self.client = None  # Initialize client to None
         try:
             # Initialize the connection to the InfluxDB client with enhanced retry strategy.
-            # Timeout is in milliseconds (default: 60000ms = 1 minute)
+            # Timeout is in milliseconds (default: 300000ms = 5 minutes)
             # Retry on common transient errors including connection issues
             retries = Retry(
                 total=5,
