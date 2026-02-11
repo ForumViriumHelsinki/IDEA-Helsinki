@@ -14,13 +14,13 @@ from idea_shared.classes.FCDInfluxDBManager import (
 class TestFCDInfluxDBManagerInit:
     """Tests for FCDInfluxDBManager initialization."""
 
-    def test_default_timeout_is_60_seconds(self):
-        """Test default timeout is 60000ms (1 minute)."""
-        assert DEFAULT_TIMEOUT_MS == 60000
+    def test_default_timeout_is_300_seconds(self):
+        """Test default timeout is 300000ms (5 minutes)."""
+        assert DEFAULT_TIMEOUT_MS == 300_000
 
     @patch("idea_shared.classes.FCDInfluxDBManager.InfluxDBClient")
     def test_initialization_with_default_timeout(self, mock_client_class):
-        """Test manager initializes with default 60s timeout."""
+        """Test manager initializes with default 300s timeout."""
         mock_client = MagicMock()
         mock_client_class.return_value = mock_client
 
