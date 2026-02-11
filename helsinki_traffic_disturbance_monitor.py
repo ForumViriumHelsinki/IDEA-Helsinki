@@ -25,6 +25,8 @@ from lib.Constants.Constants import PROFILE_TIME_FRAME_WEEKS
 from lib.Constants.Constants import FCD_MAP_DATA_FILE_LOCATION
 from lib.Constants.Constants import TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION
 from lib.Constants.Constants import TRAFFIC_DISTURBANCES_TO_MONITOR
+from lib.Constants.Constants import BUFFERING_FCD_CRS
+from lib.Constants.Constants import BUFFERING_DISTANCE
 
 logger = Logger(__name__)
 
@@ -85,10 +87,18 @@ def main():
 
                 logger.info("Loading FCD segment map data")
                 # Note that the detector class validates if the FCD_MAP_DATA_FILE_LOCATION location is valid and a file is found.
-                tomtom_segments_gdf = detector.load_tomtom_segment_data(FCD_MAP_DATA_FILE_LOCATION)
+                fcd_segments_gdf = detector.load_fcd_segment_data(FCD_MAP_DATA_FILE_LOCATION)
+
+                # Buffer segments for better intersection detection (addresses precision/alignment issues)
+                logger.info(f"Buffering road segments by {BUFFERING_DISTANCE} meters using CRS {BUFFERING_FCD_CRS }...")
+                fcd_segments_gdf = detector.buffer_segments(gdf=fcd_segments_gdf, buffer_distance=BUFFERING_DISTANCE, buffering_crs=BUFFERING_FCD_CRS)
 
                 # Find intersections
-                intersecting_features = detector.find_intersecting_features(allu_wfs_gdf, tomtom_segments_gdf)
+                intersecting_features = detector.find_intersecting_features(allu_wfs_gdf, fcd_segments_gdf)
+
+                # Restore original LineString geometries before processing the final data model
+                if intersecting_features is not None and not intersecting_features.empty:
+                    intersecting_features = detector.restore_original_geometries(intersecting_features)
 
                 # Process intersections to an intersection data model
                 # Note that usually there is a numerical difference between the "intersecting_features" and the "final_model_data".

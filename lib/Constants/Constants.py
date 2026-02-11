@@ -28,4 +28,14 @@ ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION = "data/archived_segment_history.json"
 ## Start date for the FCD history, or the defined start date for it. format YYYY-MM-DD
 FCD_HISTORY_START_DATE = "2024-12-05"
 
+# FCD segment buffering
+## Sometimes the road disturbances drawn on the map leave gaps and this leads to a situation were only certain segments are being intersected while logically others should also be intersected.
+## Buffering is done by converting the segment CRS to a metric system and then converted back to the original CRS.
+## In Helsinki's case the FCD CRS is EPSG:4326 and the metric conversion is to EPSG:3879
+
+BUFFERING_FCD_CRS = "EPSG:3879"
+# Buffering variable is in meters
+BUFFERING_DISTANCE = 5.0
+
+
 
