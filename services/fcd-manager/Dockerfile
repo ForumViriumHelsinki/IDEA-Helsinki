@@ -12,6 +12,10 @@ COPY shared/ ./shared/
 COPY services/fcd-manager/pyproject.toml .
 COPY services/fcd-manager/src/ ./src/
 
+# Fix shared library path for Docker context (pyproject.toml references ../../shared
+# which is valid locally but not in Docker where shared/ is at ./shared/)
+RUN sed -i 's|"../../shared"|"./shared"|' pyproject.toml
+
 # Create virtual environment and install dependencies
 RUN uv venv .venv && \
     . .venv/bin/activate && \
