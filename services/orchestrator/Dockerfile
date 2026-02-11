@@ -5,21 +5,18 @@ RUN pip install --no-cache-dir uv
 
 WORKDIR /app
 
-# Copy shared package first
+# Copy shared package and service, preserving repo directory structure
+# so that the relative path "../../shared" in pyproject.toml resolves naturally
 COPY shared/ ./shared/
+COPY services/orchestrator/ ./services/orchestrator/
 
-# Copy service package and dependencies
-COPY services/orchestrator/pyproject.toml .
-COPY services/orchestrator/src/ ./src/
-
-# Fix shared library path for Docker context (pyproject.toml references ../../shared
-# which is valid locally but not in Docker where shared/ is at ./shared/)
-RUN sed -i 's|"../../shared"|"./shared"|' pyproject.toml
+# Build from the service directory where pyproject.toml lives
+WORKDIR /app/services/orchestrator
 
 # Create virtual environment and install dependencies
 RUN uv venv .venv && \
     . .venv/bin/activate && \
-    uv pip install -e ./shared && \
+    uv pip install -e ../../shared && \
     uv pip install -e .
 
 FROM python:3.12-alpine AS runtime
@@ -42,10 +39,10 @@ RUN addgroup -g 1001 -S appgroup && \
 WORKDIR /app
 
 # Copy virtual environment from build stage
-COPY --from=build /app/.venv /app/.venv
+COPY --from=build /app/services/orchestrator/.venv /app/.venv
 
 # Copy source code
-COPY --from=build /app/src /app/src
+COPY --from=build /app/services/orchestrator/src /app/src
 
 # Copy shared module
 COPY --from=build /app/shared /app/shared
