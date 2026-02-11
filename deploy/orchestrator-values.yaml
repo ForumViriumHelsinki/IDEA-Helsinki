@@ -7,14 +7,11 @@
 
 image:
   repository: ghcr.io/forumviriumhelsinki/idea-helsinki/orchestrator
-  tag: "0.9.1" # Updated by ArgoCD Image Updater
-
+  tag: "0.11.4" # Updated by ArgoCD Image Updater
 replicaCount: 1
-
 serviceAccount:
   create: false
   name: idea-helsinki-shared
-
 keda:
   enabled: false
   minReplicaCount: 0
@@ -28,19 +25,15 @@ keda:
       start: 0 7 * * 1-5
       end: 0 18 * * 1-5
       desiredReplicas: "1"
-
 featureFlags:
   enabled: true
-
 imagePullSecrets:
 - name: ghcr-login-secret
-
 podAnnotations:
   gke-gcsfuse/volumes: "true"
   gke-gcsfuse/cpu-limit: "500m"
   gke-gcsfuse/memory-limit: "512Mi"
   gke-gcsfuse/ephemeral-storage-limit: "2Gi"
-
 resources:
   limits:
     cpu: "1500m"
@@ -48,11 +41,9 @@ resources:
   requests:
     cpu: "250m"
     memory: "256Mi"
-
 service:
   type: ClusterIP
   port: 8080
-
 livenessProbe:
   httpGet:
     path: /healthz
@@ -61,7 +52,6 @@ livenessProbe:
   periodSeconds: 30
   timeoutSeconds: 5
   failureThreshold: 3
-
 readinessProbe:
   httpGet:
     path: /ready
@@ -70,7 +60,6 @@ readinessProbe:
   periodSeconds: 10
   timeoutSeconds: 5
   failureThreshold: 3
-
 startupProbe:
   httpGet:
     path: /startup
@@ -79,7 +68,6 @@ startupProbe:
   periodSeconds: 10
   timeoutSeconds: 5
   failureThreshold: 30
-
 env:
   DATA_DIR:
     value: "/app/data"
@@ -118,7 +106,6 @@ env:
       secretKeyRef:
         name: idea-helsinki-secrets
         key: SENTRY_DSN
-
 externalSecret:
   enabled: true
   name: idea-helsinki-secrets
@@ -151,12 +138,10 @@ externalSecret:
   - secretKey: SENTRY_DSN # pragma: allowlist secret
     remoteRef:
       key: sentry_dsn_idea-helsinki
-
 volumes:
 - name: shared-data
   persistentVolumeClaim:
     claimName: idea-helsinki-shared-pvc
-
 volumeMounts:
 - name: shared-data
   mountPath: /app/data
