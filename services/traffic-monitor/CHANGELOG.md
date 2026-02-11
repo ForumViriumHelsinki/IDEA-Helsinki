@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.4](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.11.3...traffic-monitor-v0.11.4) (2026-02-11)
+
+
+### Bug Fixes
+
+* preserve repo directory structure in Docker builds instead of sed hack ([b2c68dd](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/b2c68dd0551ac924f3fdd4e56745aeae46b15001))
+* rewrite shared library path in Dockerfiles for container builds ([9d7550d](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/9d7550d28fc7afa62cd0e844296daaa4ee9853c6))
+
 ## [0.11.3](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.11.2...traffic-monitor-v0.11.3) (2026-02-11)
 
 

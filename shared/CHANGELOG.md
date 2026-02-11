@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.4](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.11.3...idea-shared-v0.11.4) (2026-02-11)
+
+
+### Miscellaneous Chores
+
+* **idea-shared:** Synchronize idea-helsinki versions
+
 ## [0.11.3](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.11.2...idea-shared-v0.11.3) (2026-02-11)
 
 
