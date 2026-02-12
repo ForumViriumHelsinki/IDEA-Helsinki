@@ -16,20 +16,20 @@
         "pal-mcp-server"
       ]
     },
-    "serena": {
+    "sentry": {
+      "type": "http",
+      "url": "https://mcp.sentry.dev/mcp"
+    },
+    "github": {
       "type": "stdio",
-      "command": "uvx",
+      "command": "go",
       "args": [
-        "--from",
-        "git+https://github.com/oraios/serena",
-        "serena",
-        "start-mcp-server",
-        "--context",
-        "claude-code",
-        "--project",
-        "IDEA-Helsinki"
+        "run",
+        "github.com/github/github-mcp-server/cmd/github-mcp-server@latest",
+        "stdio"
       ],
       "env": {}
     }
   }
 }
+
