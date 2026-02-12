@@ -253,39 +253,39 @@ This microservices architecture uses independent testing environments for each s
 - Faster test execution through better isolation
 - Matches how services run in production
 
-### Quick Start with Makefile (Recommended)
+### Quick Start with Justfile (Recommended)
 
-The project includes a Makefile that simplifies common testing and development tasks across all services:
+The project includes a Justfile that simplifies common testing and development tasks across all services:
 
 ```bash
-make help              # Show all available commands
-make test              # Run all tests sequentially
-make test-parallel     # Run all tests in parallel (faster)
-make test-cov          # Run tests with coverage reports
-make test-unit         # Run only unit tests (fast)
-make lint              # Run linting checks
-make format            # Format code with ruff
-make pre-commit        # Run format + lint + unit tests (fast pre-commit check)
-make ci                # Simulate full CI pipeline
-make clean             # Clean test artifacts and cache
+just --list            # Show all available commands
+just test              # Run all tests sequentially
+just test-parallel     # Run all tests in parallel (faster)
+just test-coverage     # Run tests with coverage reports
+just test-unit         # Run only unit tests (fast)
+just lint              # Run linting checks
+just format            # Format code with ruff
+just pre-commit        # Run format + lint + unit tests (fast pre-commit check)
+just ci                # Simulate full CI pipeline
+just clean             # Clean test artifacts and cache
 ```
 
 **Common workflows:**
 ```bash
 # Quick test run during development
-make test-unit         # Fast unit tests only
+just test-unit         # Fast unit tests only
 
 # Before committing
-make pre-commit        # Format, lint, and test
+just pre-commit        # Format, lint, and test
 
 # Full test suite with coverage
-make test-cov          # Generate coverage reports for all services
+just test-coverage     # Generate coverage reports for all services
 
 # Individual service testing
-make test-shared
-make test-orchestrator
-make test-fcd-manager
-make test-traffic-monitor
+just test-shared
+just test-orchestrator
+just test-fcd-manager
+just test-traffic-monitor
 ```
 
 ### Running Tests Locally (Manual)
@@ -388,8 +388,8 @@ We follow **RED-GREEN-REFACTOR**:
 
 ### Before Committing
 ```bash
-# Recommended: Use make pre-commit (fast - format + lint + unit tests)
-make pre-commit
+# Recommended: Use just pre-commit (fast - format + lint + unit tests)
+just pre-commit
 
 # Or run manually:
 pytest
