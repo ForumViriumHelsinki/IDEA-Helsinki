@@ -24,18 +24,11 @@ jobs:
         uses: astral-sh/setup-uv@v4
 
       - name: Install dependencies
-        run: |
-          cd shared
-          uv venv
-          . .venv/bin/activate
-          uv pip install -e .[dev]
+        run: uv sync --all-packages --all-extras
 
       - name: Run tests
         timeout-minutes: 5
-        run: |
-          cd shared
-          . .venv/bin/activate
-          pytest --cov=idea_shared --cov-report=xml --cov-report=term-missing
+        run: uv run --package idea-shared --directory shared python -m pytest tests --cov=idea_shared --cov-report=xml --cov-report=term-missing
 
   test-services:
     name: Test ${{ matrix.service }}
@@ -58,16 +51,8 @@ jobs:
         uses: astral-sh/setup-uv@v4
 
       - name: Install dependencies
-        run: |
-          cd services/${{ matrix.service }}
-          uv venv
-          . .venv/bin/activate
-          uv pip install -e ../../shared
-          uv pip install -e .[dev]
+        run: uv sync --all-packages --all-extras
 
       - name: Run tests
         timeout-minutes: 5
-        run: |
-          cd services/${{ matrix.service }}
-          . .venv/bin/activate
-          pytest -v --tb=short --cov --cov-report=xml --cov-report=term-missing
+        run: uv run --package ${{ matrix.service }} --directory services/${{ matrix.service }} python -m pytest tests -v --tb=short --cov --cov-report=xml --cov-report=term-missing

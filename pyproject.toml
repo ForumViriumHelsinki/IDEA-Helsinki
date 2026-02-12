@@ -1,0 +1,10 @@
+[project]
+name = "idea-helsinki"
+version = "0.11.4"
+requires-python = ">=3.12"
+
+[tool.uv.workspace]
+members = ["shared", "services/orchestrator", "services/fcd-manager", "services/traffic-monitor"]
+
+[tool.uv.sources]
+idea-shared = { workspace = true }
