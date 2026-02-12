@@ -248,7 +248,7 @@ class TestFCDInfluxDBManagerContextManager:
             token="test-token",
             org="test-org",
             bucket="test-bucket",
-        ) as manager:
+        ) as _:
             # Use manager
             pass
 
@@ -266,7 +266,7 @@ class TestFCDInfluxDBManagerContextManager:
                 token="test-token",
                 org="test-org",
                 bucket="test-bucket",
-            ) as manager:
+            ) as _:
                 raise ValueError("Test exception")
 
         mock_client.close.assert_called_once()
