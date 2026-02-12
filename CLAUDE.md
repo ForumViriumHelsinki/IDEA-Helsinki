@@ -241,22 +241,43 @@ Common functionality is in `shared/src/idea_shared/`:
 
 This project uses a **uv workspace** with a single root lockfile (`uv.lock`) and shared virtual environment. All four packages (shared + 3 services) are workspace members managed from the project root.
 
+### Quick Start with Justfile (Recommended)
+
+The project includes a Justfile that simplifies common testing and development tasks across all services:
+
 **Setup:**
 ```bash
 # Install all dependencies (run from project root)
 uv sync --all-packages --all-extras
+
+just --list            # Show all available commands
+just test              # Run all tests sequentially
+just test-parallel     # Run all tests in parallel (faster)
+just test-coverage     # Run tests with coverage reports
+just test-unit         # Run only unit tests (fast)
+just lint              # Run linting checks
+just format            # Format code with ruff
+just pre-commit        # Run format + lint + unit tests (fast pre-commit check)
+just ci                # Simulate full CI pipeline
+just clean             # Clean test artifacts and cache
 ```
 
 **Running tests** uses `--directory` to set the correct working directory for each service (required because services share the `src` package name):
 ```bash
-just test                    # Run all tests sequentially
-just test-shared             # Shared library tests
-just test-orchestrator       # Orchestrator service tests
-just test-fcd-manager        # FCD Manager service tests
-just test-traffic-monitor    # Traffic Monitor service tests
-just test-unit               # Fast unit tests only
-just pre-commit              # Format check + lint + unit tests
-just ci                      # Full CI simulation
+# Quick test run during development
+just test-unit         # Fast unit tests only
+
+# Before committing
+just pre-commit        # Format, lint, and test
+
+# Full test suite with coverage
+just test-coverage     # Generate coverage reports for all services
+
+# Individual service testing
+just test-shared
+just test-orchestrator
+just test-fcd-manager
+just test-traffic-monitor
 ```
 
 **Manual test commands:**
@@ -342,8 +363,8 @@ We follow **RED-GREEN-REFACTOR**:
 
 ### Before Committing
 ```bash
-# Recommended: Use make pre-commit (fast - format + lint + unit tests)
-make pre-commit
+# Recommended: Use just pre-commit (fast - format + lint + unit tests)
+just pre-commit
 
 # Or run manually:
 pytest
