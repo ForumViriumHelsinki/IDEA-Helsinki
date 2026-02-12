@@ -24,10 +24,7 @@ help:
 # Install dependencies for all services
 install:
     @echo "Installing dependencies..."
-    cd shared && uv pip install -e .[dev]
-    cd services/orchestrator && uv pip install -e ../../shared && uv pip install -e .[dev]
-    cd services/fcd-manager && uv pip install -e ../../shared && uv pip install -e .[dev]
-    cd services/traffic-monitor && uv pip install -e ../../shared && uv pip install -e .[dev]
+    uv sync --all-packages --all-extras
     @echo "Dependencies installed!"
 
 # Build project (Docker images via Skaffold)
@@ -63,28 +60,19 @@ clean:
 # Run linting checks (ruff check)
 lint *args:
     @echo "Running linting checks..."
-    cd shared && uv run ruff check {{ args }}
-    cd services/orchestrator && uv run ruff check {{ args }}
-    cd services/fcd-manager && uv run ruff check {{ args }}
-    cd services/traffic-monitor && uv run ruff check {{ args }}
+    uv run ruff check {{ args }}
     @echo "Linting passed!"
 
 # Format code with ruff
 format *args:
     @echo "Formatting code..."
-    cd shared && uv run ruff format {{ args }}
-    cd services/orchestrator && uv run ruff format {{ args }}
-    cd services/fcd-manager && uv run ruff format {{ args }}
-    cd services/traffic-monitor && uv run ruff format {{ args }}
+    uv run ruff format {{ args }}
     @echo "Code formatted!"
 
 # Check code formatting without modifying
 format-check *args:
     @echo "Checking code formatting..."
-    cd shared && uv run ruff format --check {{ args }}
-    cd services/orchestrator && uv run ruff format --check {{ args }}
-    cd services/fcd-manager && uv run ruff format --check {{ args }}
-    cd services/traffic-monitor && uv run ruff format --check {{ args }}
+    uv run ruff format --check {{ args }}
     @echo "Formatting check passed!"
 
 # Composite: format-check + lint (code quality only, no tests)
@@ -107,63 +95,63 @@ test *args:
 # Run tests for shared library
 test-shared *args:
     @echo "Testing shared library..."
-    cd shared && uv sync --all-extras --quiet && uv run pytest -v {{ args }}
+    uv run --package idea-shared --directory shared python -m pytest tests -v {{ args }}
 
 # Run tests for orchestrator service
 test-orchestrator *args:
     @echo "Testing orchestrator service..."
-    cd services/orchestrator && uv sync --all-extras --quiet && uv run pytest -v {{ args }}
+    uv run --package orchestrator --directory services/orchestrator python -m pytest tests -v {{ args }}
 
 # Run tests for fcd-manager service
 test-fcd-manager *args:
     @echo "Testing fcd-manager service..."
-    cd services/fcd-manager && uv sync --all-extras --quiet && uv run pytest -v {{ args }}
+    uv run --package fcd-manager --directory services/fcd-manager python -m pytest tests -v {{ args }}
 
 # Run tests for traffic-monitor service
 test-traffic-monitor *args:
     @echo "Testing traffic-monitor service..."
-    cd services/traffic-monitor && uv sync --all-extras --quiet && uv run pytest -v {{ args }}
+    uv run --package traffic-monitor --directory services/traffic-monitor python -m pytest tests -v {{ args }}
 
 # Run only unit tests (fast, no external dependencies)
 test-unit *args:
     @echo "Running unit tests only..."
-    cd shared && uv sync --all-extras --quiet && uv run pytest -m unit -v {{ args }}
-    cd services/orchestrator && uv sync --all-extras --quiet && uv run pytest -m unit -v {{ args }}
-    cd services/fcd-manager && uv sync --all-extras --quiet && uv run pytest -m unit -v {{ args }}
-    cd services/traffic-monitor && uv sync --all-extras --quiet && uv run pytest -m unit -v {{ args }}
+    uv run --package idea-shared --directory shared python -m pytest tests -m unit -v {{ args }}
+    uv run --package orchestrator --directory services/orchestrator python -m pytest tests -m unit -v {{ args }}
+    uv run --package fcd-manager --directory services/fcd-manager python -m pytest tests -m unit -v {{ args }}
+    uv run --package traffic-monitor --directory services/traffic-monitor python -m pytest tests -m unit -v {{ args }}
     @echo "All unit tests passed!"
 
 # Run only integration tests
 test-integration *args:
     @echo "Running integration tests only..."
-    cd shared && uv sync --all-extras --quiet && uv run pytest -m integration -v {{ args }}
-    cd services/orchestrator && uv sync --all-extras --quiet && uv run pytest -m integration -v {{ args }}
-    cd services/fcd-manager && uv sync --all-extras --quiet && uv run pytest -m integration -v {{ args }}
-    cd services/traffic-monitor && uv sync --all-extras --quiet && uv run pytest -m integration -v {{ args }}
+    uv run --package idea-shared --directory shared python -m pytest tests -m integration -v {{ args }}
+    uv run --package orchestrator --directory services/orchestrator python -m pytest tests -m integration -v {{ args }}
+    uv run --package fcd-manager --directory services/fcd-manager python -m pytest tests -m integration -v {{ args }}
+    uv run --package traffic-monitor --directory services/traffic-monitor python -m pytest tests -m integration -v {{ args }}
     @echo "All integration tests passed!"
 
 # Run all tests with coverage report
 test-coverage *args:
     @echo "Running tests with coverage..."
-    cd shared && uv sync --all-extras --quiet && uv run pytest --cov --cov-report=html --cov-report=term-missing {{ args }}
-    cd services/orchestrator && uv sync --all-extras --quiet && uv run pytest --cov --cov-report=html --cov-report=term-missing {{ args }}
-    cd services/fcd-manager && uv sync --all-extras --quiet && uv run pytest --cov --cov-report=html --cov-report=term-missing {{ args }}
-    cd services/traffic-monitor && uv sync --all-extras --quiet && uv run pytest --cov --cov-report=html --cov-report=term-missing {{ args }}
-    @echo "Coverage reports generated in each service's htmlcov/ directory"
+    uv run --package idea-shared --directory shared python -m pytest tests --cov --cov-report=html --cov-report=term-missing {{ args }}
+    uv run --package orchestrator --directory services/orchestrator python -m pytest tests --cov --cov-report=html --cov-report=term-missing {{ args }}
+    uv run --package fcd-manager --directory services/fcd-manager python -m pytest tests --cov --cov-report=html --cov-report=term-missing {{ args }}
+    uv run --package traffic-monitor --directory services/traffic-monitor python -m pytest tests --cov --cov-report=html --cov-report=term-missing {{ args }}
+    @echo "Coverage reports generated!"
 
 # Run all tests in parallel (fast)
 test-parallel *args:
     @echo "Running tests in parallel..."
-    cd shared && uv sync --all-extras --quiet && uv run pytest -n auto -v {{ args }}
-    cd services/orchestrator && uv sync --all-extras --quiet && uv run pytest -n auto -v {{ args }}
-    cd services/fcd-manager && uv sync --all-extras --quiet && uv run pytest -n auto -v {{ args }}
-    cd services/traffic-monitor && uv sync --all-extras --quiet && uv run pytest -n auto -v {{ args }}
+    uv run --package idea-shared --directory shared python -m pytest tests -n auto -v {{ args }}
+    uv run --package orchestrator --directory services/orchestrator python -m pytest tests -n auto -v {{ args }}
+    uv run --package fcd-manager --directory services/fcd-manager python -m pytest tests -n auto -v {{ args }}
+    uv run --package traffic-monitor --directory services/traffic-monitor python -m pytest tests -n auto -v {{ args }}
     @echo "All parallel tests passed!"
 
 # Run multithreading equivalence tests for fcd-manager
 test-equivalence *args:
     @echo "Testing multithreading equivalence..."
-    cd services/fcd-manager && uv sync --all-extras --quiet && uv run pytest tests/test_multithreading_equivalence.py -v {{ args }}
+    uv run --package fcd-manager --directory services/fcd-manager python -m pytest tests/test_multithreading_equivalence.py -v {{ args }}
     @echo "Equivalence tests passed!"
 
 ####################

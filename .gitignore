@@ -8,8 +8,9 @@
 venv/
 env/
 
-# uv
-uv.lock
+# uv (per-component lockfiles superseded by root uv.lock)
+shared/uv.lock
+services/*/uv.lock
 
 # Python cache and compiled files
 __pycache__/

@@ -1,23 +1,23 @@
-FROM python:3.12-alpine AS build
-
-# Install uv
-RUN pip install --no-cache-dir uv
+FROM ghcr.io/astral-sh/uv:python3.12-alpine AS build
 
 WORKDIR /app
 
-# Copy shared package and service, preserving repo directory structure
-# so that the relative path "../../shared" in pyproject.toml resolves naturally
-COPY shared/ ./shared/
-COPY services/orchestrator/ ./services/orchestrator/
+# Copy workspace root config + lockfile
+COPY pyproject.toml uv.lock ./
 
-# Build from the service directory where pyproject.toml lives
-WORKDIR /app/services/orchestrator
+# Copy member pyproject.toml files for workspace resolution
+COPY shared/pyproject.toml shared/pyproject.toml
+COPY services/orchestrator/pyproject.toml services/orchestrator/pyproject.toml
 
-# Create virtual environment and install dependencies
-RUN uv venv .venv && \
-    . .venv/bin/activate && \
-    uv pip install -e ../../shared && \
-    uv pip install -e .
+# Install third-party deps only (cacheable layer)
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --package orchestrator --no-install-workspace --no-editable
+
+# Copy source and install workspace packages
+COPY shared/ shared/
+COPY services/orchestrator/ services/orchestrator/
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --package orchestrator --no-editable
 
 FROM python:3.12-alpine AS runtime
 
@@ -39,13 +39,10 @@ RUN addgroup -g 1001 -S appgroup && \
 WORKDIR /app
 
 # Copy virtual environment from build stage
-COPY --from=build /app/services/orchestrator/.venv /app/.venv
+COPY --from=build /app/.venv /app/.venv
 
 # Copy source code
 COPY --from=build /app/services/orchestrator/src /app/src
-
-# Copy shared module
-COPY --from=build /app/shared /app/shared
 
 # Create version file
 ARG VERSION=dev
@@ -56,8 +53,5 @@ RUN chown -R appuser:appgroup /app
 
 USER appuser
 
-# Install uv in runtime
-COPY --from=build /usr/local/bin/uv /usr/local/bin/uv
-
-# Run the application using uv
-CMD ["uv", "run", "python", "src/main.py"]
+# Run the application using the venv Python directly
+CMD ["/app/.venv/bin/python", "src/main.py"]

@@ -232,32 +232,24 @@ Traffic disturbances can only be validated if there's at least 6 months of FCD h
 ### Shared Library Pattern
 Common functionality is in `shared/src/idea_shared/`:
 - All three services depend on the shared library
-- Installed as editable dependency during container build
+- Resolved automatically via uv workspace (declared in root `pyproject.toml`)
 - Version: managed independently in `shared/pyproject.toml`
 
 ## Testing
 
-### **Per-Service Testing Architecture**
+### **uv Workspace Architecture**
 
-This microservices architecture uses independent testing environments for each service. Run tests from each service's directory to leverage the benefits of this design:
-
-**Best practice: Run tests from service directories**
-- Each service maintains its own virtual environment and dependencies
-- Test isolation ensures clean dependency resolution
-- Follows the production Docker container architecture
-- Aligns with microservices testing best practices
-
-**Benefits of per-service testing:**
-- Clean module imports without namespace conflicts
-- Accurate dependency version testing for each service
-- Faster test execution through better isolation
-- Matches how services run in production
+This project uses a **uv workspace** with a single root lockfile (`uv.lock`) and shared virtual environment. All four packages (shared + 3 services) are workspace members managed from the project root.
 
 ### Quick Start with Justfile (Recommended)
 
 The project includes a Justfile that simplifies common testing and development tasks across all services:
 
+**Setup:**
 ```bash
+# Install all dependencies (run from project root)
+uv sync --all-packages --all-extras
+
 just --list            # Show all available commands
 just test              # Run all tests sequentially
 just test-parallel     # Run all tests in parallel (faster)
@@ -270,7 +262,7 @@ just ci                # Simulate full CI pipeline
 just clean             # Clean test artifacts and cache
 ```
 
-**Common workflows:**
+**Running tests** uses `--directory` to set the correct working directory for each service (required because services share the `src` package name):
 ```bash
 # Quick test run during development
 just test-unit         # Fast unit tests only
@@ -288,37 +280,20 @@ just test-fcd-manager
 just test-traffic-monitor
 ```
 
-### Running Tests Locally (Manual)
-
-#### Shared Library Tests
+**Manual test commands:**
 ```bash
-cd shared
-uv venv
-. .venv/bin/activate
-uv pip install -e .[dev]
-pytest
-```
+# Shared library
+uv run --package idea-shared --directory shared python -m pytest tests -v
 
-#### Service Tests
-```bash
-cd services/{service-name}  # orchestrator, fcd-manager, or traffic-monitor
-uv venv
-uv pip install -e ../../shared
-uv pip install -e '.[dev]'
-
-# Run tests using uv run (recommended - automatically uses venv)
-uv run --no-sync pytest -v
-
-# Alternative: manually activate venv
-# . .venv/bin/activate
-# pytest
+# Services
+uv run --package orchestrator --directory services/orchestrator python -m pytest tests -v
+uv run --package fcd-manager --directory services/fcd-manager python -m pytest tests -v
+uv run --package traffic-monitor --directory services/traffic-monitor python -m pytest tests -v
 ```
 
 #### Run with Coverage
 ```bash
-# In shared directory
-pytest --cov --cov-report=html
-# Open htmlcov/index.html to view coverage report
+just test-coverage
 ```
 
 #### Run Specific Test Types
