@@ -275,17 +275,22 @@ class FCDInfluxDBManager:
                 f"Completed: {total_points_written} points written in {batch_number} batches"
             )
 
-    def get_last_update_timestamp(self) -> datetime | None:
+    def get_last_update_timestamp(self, search_all: bool = False) -> datetime | None:
         """
         Queries the InfluxDB database for the latest timestamp.
 
         NOTE! This returns the latest update timestamp of a measurement, not the timestamp then it was uploaded to InfluxDB.
         This is used to determine how "late" the database is.
 
+        Args:
+            search_all: If True, searches from epoch (for startup when the database may be very old).
+                        If False, searches last 30 days to avoid full-shard scans.
+
         Returns:
             Timestamp of the latest measurement or None if no measurements were found (the bucket is empty).
         """
-        flux_query = f'from(bucket: "{self.bucket}") |> range(start: 0) |> filter(fn: (r) => r._measurement == "segment_data") |> last() |> keep(columns: ["_time"])'
+        range_start = "0" if search_all else "-30d"
+        flux_query = f'from(bucket: "{self.bucket}") |> range(start: {range_start}) |> filter(fn: (r) => r._measurement == "segment_data") |> last() |> keep(columns: ["_time"])'
         try:
             tables = self.query_api.query(query=flux_query, org=self.org)
             if tables and tables[0].records:
@@ -313,9 +318,12 @@ class FCDInfluxDBManager:
         Returns:
             Timestamp of the measurement for the segment or None if no measurements were found (the segment is not in the database).
         """
+        # Use bounded range for "last" queries to avoid full-shard scans.
+        # "first" queries need unbounded range to find the earliest data point.
+        range_start = "-30d" if first_or_last == "last" else "0"
         query_parts = [
             f'from(bucket: "{self.bucket}")',
-            "|> range(start: 0)",
+            f"|> range(start: {range_start})",
             f'|> filter(fn: (r) => r._measurement == "{measurement_name}" and r.segmentId == "{segment_id}")',
         ]
         if interval_minutes and interval_minutes > 0:
@@ -415,7 +423,7 @@ class FCDInfluxDBManager:
         query_body_parts = [f'from(bucket: "{self.bucket}")']
 
         if latest_only:
-            query_body_parts.append("|> range(start: 0)")
+            query_body_parts.append("|> range(start: -30d)")
         else:
             start = start_time.isoformat() if start_time else "0"
             stop_part = f", stop: {end_time.isoformat()}" if end_time else ""
@@ -484,7 +492,7 @@ class FCDInfluxDBManager:
         query_body_parts = [f'from(bucket: "{self.bucket}")']
 
         if latest_only:
-            query_body_parts.append("|> range(start: 0)")
+            query_body_parts.append("|> range(start: -30d)")
         else:
             start = start_time.isoformat() if start_time else "0"
             stop_part = f", stop: {end_time.isoformat()}" if end_time else ""

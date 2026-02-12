@@ -278,7 +278,7 @@ def run_multithreaded(azure_manager: AzureBlobContainerManager):
             logger.error("Failed to connect to InfluxDB, cannot start backfill")
             return False
 
-        data_base_last_update = manager.get_last_update_timestamp()
+        data_base_last_update = manager.get_last_update_timestamp(search_all=True)
         if data_base_last_update is None:
             logger.info(
                 f"FCD data base is empty, backfilling from {FCD_HISTORY_START_DATE}"
@@ -622,7 +622,7 @@ def initialize_database_update(
             bucket=INFLUX_DB_FCD_BUCKET,
         ) as manager:
             if manager.check_connection():
-                data_base_last_update = manager.get_last_update_timestamp()
+                data_base_last_update = manager.get_last_update_timestamp(search_all=True)
                 if data_base_last_update is None:
                     logger.info(
                         f"FCD data base is empty, updating from FCD history start date : {FCD_HISTORY_START_DATE}"
