@@ -118,7 +118,9 @@ def handle_shutdown(signum, frame):
         start_time = datetime.now(UTC)
         while _write_in_progress.is_set():
             if (datetime.now(UTC) - start_time).total_seconds() > 30:
-                logger.warning("Timeout waiting for file writes, proceeding with shutdown")
+                logger.warning(
+                    "Timeout waiting for file writes, proceeding with shutdown"
+                )
                 break
             import time
 
@@ -622,7 +624,9 @@ def initialize_database_update(
             bucket=INFLUX_DB_FCD_BUCKET,
         ) as manager:
             if manager.check_connection():
-                data_base_last_update = manager.get_last_update_timestamp(search_all=True)
+                data_base_last_update = manager.get_last_update_timestamp(
+                    search_all=True
+                )
                 if data_base_last_update is None:
                     logger.info(
                         f"FCD data base is empty, updating from FCD history start date : {FCD_HISTORY_START_DATE}"

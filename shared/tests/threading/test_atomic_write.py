@@ -5,11 +5,15 @@ import json
 import os
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import patch
 
 import pytest
 
-from idea_shared.threading.file_locks import ESTALE, _cleanup_temp_file, atomic_write_json
+from idea_shared.threading.file_locks import (
+    ESTALE,
+    _cleanup_temp_file,
+    atomic_write_json,
+)
 
 
 class TestAtomicWriteJson:

@@ -25,7 +25,12 @@ class FCDInfluxDBManager:
     """
 
     def __init__(
-        self, url: str, token: str, org: str, bucket: str, timeout: int = DEFAULT_TIMEOUT_MS
+        self,
+        url: str,
+        token: str,
+        org: str,
+        bucket: str,
+        timeout: int = DEFAULT_TIMEOUT_MS,
     ):
         self.client = None  # Initialize client to None
         try:
@@ -39,7 +44,15 @@ class FCDInfluxDBManager:
                 backoff_jitter=0.5,
                 status_forcelist=[429, 500, 502, 503, 504],
                 # Retry on connection-related errors
-                allowed_methods=["HEAD", "GET", "POST", "PUT", "DELETE", "OPTIONS", "TRACE"],
+                allowed_methods=[
+                    "HEAD",
+                    "GET",
+                    "POST",
+                    "PUT",
+                    "DELETE",
+                    "OPTIONS",
+                    "TRACE",
+                ],
                 raise_on_status=False,
             )
             self.client = InfluxDBClient(
