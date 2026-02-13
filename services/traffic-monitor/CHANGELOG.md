@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.11.4...traffic-monitor-v0.12.0) (2026-02-12)
+
+
+### Features
+
+* migrate IDEA-Helsinki to uv workspace ([#174](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/174)) ([76c5daa](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/76c5daaff941909f6f1d1ef671ab2fe264de840a))
+
 ## [0.11.4](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.11.3...traffic-monitor-v0.11.4) (2026-02-11)
 
 

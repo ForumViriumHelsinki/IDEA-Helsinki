@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.12.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.11.4...fcd-manager-v0.12.0) (2026-02-12)
+
+
+### Features
+
+* migrate IDEA-Helsinki to uv workspace ([#174](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/174)) ([76c5daa](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/76c5daaff941909f6f1d1ef671ab2fe264de840a))
+
+
+### Bug Fixes
+
+* bound InfluxDB Flux queries to avoid full-shard scans ([#172](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/172)) ([a58787d](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/a58787d967438d96fb4e7793e8a0aee0e0ad82fc))
+
 ## [0.11.4](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.11.3...fcd-manager-v0.11.4) (2026-02-11)
 
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.11.4...idea-shared-v0.12.0) (2026-02-12)
+
+
+### Bug Fixes
+
+* bound InfluxDB Flux queries to avoid full-shard scans ([#172](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/172)) ([a58787d](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/a58787d967438d96fb4e7793e8a0aee0e0ad82fc))
+
 ## [0.11.4](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.11.3...idea-shared-v0.11.4) (2026-02-11)
 
 
