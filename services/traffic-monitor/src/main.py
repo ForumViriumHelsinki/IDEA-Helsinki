@@ -218,7 +218,10 @@ def main():
             try:
                 wfs_cache_path.write_text(
                     json.dumps(
-                        {"timestamp": datetime.now(UTC).isoformat(), "data": allu_wfs_data}
+                        {
+                            "timestamp": datetime.now(UTC).isoformat(),
+                            "data": allu_wfs_data,
+                        }
                     )
                 )
             except OSError as e:

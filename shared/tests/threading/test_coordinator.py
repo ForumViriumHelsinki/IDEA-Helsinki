@@ -223,9 +223,9 @@ class TestThreadCoordinatorBackfill:
 
         # Verify work was actually processed
         stats = coordinator.get_progress_stats()
-        assert (
-            stats["date_queue"]["completed_ranges"] == 2
-        ), "Should complete 2 date ranges"
+        assert stats["date_queue"]["completed_ranges"] == 2, (
+            "Should complete 2 date ranges"
+        )
 
     def test_wait_for_backfill_timeout(self):
         """
@@ -299,12 +299,12 @@ class TestThreadCoordinatorShutdown:
 
         # All threads should be stopped
         for thread in coordinator._worker_threads:
-            assert (
-                not thread.is_alive()
-            ), f"Worker thread {thread.name} should be stopped"
-        assert (
-            not coordinator._writer_thread.is_alive()
-        ), "Writer thread should be stopped"
+            assert not thread.is_alive(), (
+                f"Worker thread {thread.name} should be stopped"
+            )
+        assert not coordinator._writer_thread.is_alive(), (
+            "Writer thread should be stopped"
+        )
 
     def test_shutdown_respects_timeout(self):
         """Test that shutdown respects timeout parameter with REAL slow work."""

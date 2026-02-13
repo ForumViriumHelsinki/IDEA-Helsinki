@@ -165,9 +165,7 @@ class HelsinkiWFSClient:
                 self.logger.warning(
                     f"Transient HTTP {status_code} for {url}, retrying..."
                 )
-                raise _TransientHTTPError(
-                    f"HTTP {status_code} for {url}"
-                ) from http_err
+                raise _TransientHTTPError(f"HTTP {status_code} for {url}") from http_err
             self.logger.error(
                 f"HTTP error occurred for {url}: {http_err} - Status: {status_code}"
             )
@@ -198,7 +196,11 @@ class HelsinkiWFSClient:
 
         try:
             return self._get_request(self._format_get_url(type_name))
-        except (_TransientHTTPError, requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+        except (
+            _TransientHTTPError,
+            requests.exceptions.ConnectionError,
+            requests.exceptions.Timeout,
+        ) as e:
             self.logger.warning(
                 f"Failed to get feature '{type_name}' after retries: {e}"
             )
