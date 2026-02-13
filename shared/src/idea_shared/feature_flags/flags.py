@@ -4,11 +4,11 @@ This module defines all available feature flags for IDEA Helsinki services.
 Each flag has a constant name and a default value used as fallback.
 """
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 
-class FeatureFlag(str, Enum):
+class FeatureFlag(StrEnum):
     """Feature flag name constants.
 
     Use these constants when evaluating flags to ensure type safety
