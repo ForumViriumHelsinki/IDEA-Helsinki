@@ -24,6 +24,10 @@ env:
 
 jobs:
   build-and-push:
+    # Only build on tag pushes or release-please PRs (to validate before merge)
+    if: >
+      github.event_name == 'push' ||
+      startsWith(github.head_ref, 'release-please--branches--main')
     runs-on: ubuntu-latest
     strategy:
       matrix:
