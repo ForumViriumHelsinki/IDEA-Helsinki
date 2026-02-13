@@ -108,7 +108,10 @@ class TestWFSSuccessAfterRetry:
         success_response = MagicMock()
         success_response.status_code = 200
         success_response.raise_for_status.return_value = None
-        success_response.json.return_value = {"type": "FeatureCollection", "features": []}
+        success_response.json.return_value = {
+            "type": "FeatureCollection",
+            "features": [],
+        }
 
         mock_session.get.side_effect = [
             requests.exceptions.ConnectionError("refused"),
