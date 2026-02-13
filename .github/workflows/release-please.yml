@@ -12,9 +12,40 @@ name: release-please
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    outputs:
+      pr: ${{ steps.release.outputs.pr }}
     steps:
       - uses: googleapis/release-please-action@v4
+        id: release
         with:
           token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+  update-lockfile:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.pr }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get PR branch
+        id: pr-info
+        run: |
+          echo "branch=${{ fromJSON(needs.release-please.outputs.pr).headBranchName }}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr-info.outputs.branch }}
+          token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Update lockfile
+        run: uv lock
+
+      - name: Commit updated lockfile
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add uv.lock
+          git diff --staged --quiet || git commit -m "chore: update uv.lock after version bump"
+          git push
