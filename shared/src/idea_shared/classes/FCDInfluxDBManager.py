@@ -45,6 +45,14 @@ _influxdb_retry = retry(
 )
 
 
+def _sanitize_flux_string(value: str) -> str:
+    """Sanitize a string value for safe interpolation in Flux queries.
+
+    Escapes backslashes and double quotes to prevent Flux injection.
+    """
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
 class FCDInfluxDBManager:
     """
     Manages writing and querying Floating Car Data (FCD) to InfluxDB.
@@ -365,11 +373,13 @@ class FCDInfluxDBManager:
         """
         # Use bounded range for "last" queries to avoid full-shard scans.
         # "first" queries need unbounded range to find the earliest data point.
+        safe_measurement = _sanitize_flux_string(measurement_name)
+        safe_segment = _sanitize_flux_string(segment_id)
         range_start = "-30d" if first_or_last == "last" else "0"
         query_parts = [
             f'from(bucket: "{self.bucket}")',
             f"|> range(start: {range_start})",
-            f'|> filter(fn: (r) => r._measurement == "{measurement_name}" and r.segmentId == "{segment_id}")',
+            f'|> filter(fn: (r) => r._measurement == "{safe_measurement}" and r.segmentId == "{safe_segment}")',
         ]
         if interval_minutes and interval_minutes > 0:
             query_parts.append(
@@ -466,6 +476,8 @@ class FCDInfluxDBManager:
         Returns:
             A CSV formated string for the found measurements or None if nothing was found.
         """
+        safe_measurement = _sanitize_flux_string(measurement_name)
+        safe_segment = _sanitize_flux_string(segment_id)
         query_body_parts = [f'from(bucket: "{self.bucket}")']
 
         if latest_only:
@@ -477,14 +489,17 @@ class FCDInfluxDBManager:
 
         query_body_parts.extend(
             [
-                f'|> filter(fn: (r) => r._measurement == "{measurement_name}")',
-                f'|> filter(fn: (r) => r.segmentId == "{segment_id}")',
+                f'|> filter(fn: (r) => r._measurement == "{safe_measurement}")',
+                f'|> filter(fn: (r) => r.segmentId == "{safe_segment}")',
             ]
         )
 
         # Determine if there are specific fields targeted in the query
         if query_fields:
-            field_conditions = [f'r._field == "{field}"' for field in query_fields]
+            field_conditions = [
+                f'r._field == "{_sanitize_flux_string(field)}"'
+                for field in query_fields
+            ]
             filter_logic = " or ".join(field_conditions)
             query_body_parts.append(f"|> filter(fn: (r) => {filter_logic})")
 
@@ -536,6 +551,8 @@ class FCDInfluxDBManager:
         Returns:
             A Pandas DataFrame containing the queried data, or None if an error occurs.
         """
+        safe_measurement = _sanitize_flux_string(measurement_name)
+        safe_segment = _sanitize_flux_string(segment_id)
         query_body_parts = [f'from(bucket: "{self.bucket}")']
 
         if latest_only:
@@ -547,14 +564,17 @@ class FCDInfluxDBManager:
 
         query_body_parts.extend(
             [
-                f'|> filter(fn: (r) => r._measurement == "{measurement_name}")',
-                f'|> filter(fn: (r) => r.segmentId == "{segment_id}")',
+                f'|> filter(fn: (r) => r._measurement == "{safe_measurement}")',
+                f'|> filter(fn: (r) => r.segmentId == "{safe_segment}")',
             ]
         )
 
         # Determine if there are specific fields targeted in the query
         if query_fields:
-            field_conditions = [f'r._field == "{field}"' for field in query_fields]
+            field_conditions = [
+                f'r._field == "{_sanitize_flux_string(field)}"'
+                for field in query_fields
+            ]
             filter_logic = " or ".join(field_conditions)
             query_body_parts.append(f"|> filter(fn: (r) => {filter_logic})")
 
