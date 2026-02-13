@@ -239,7 +239,7 @@ def main():
                     allu_wfs_data = cache["data"]
                 else:
                     logger.warning("WFS cache too old (>24h), skipping")
-            except (json.JSONDecodeError, KeyError, OSError) as e:
+            except (json.JSONDecodeError, KeyError, OSError, ValueError, TypeError) as e:
                 logger.warning(f"Failed to read WFS cache: {e}")
 
         if not allu_wfs_data:

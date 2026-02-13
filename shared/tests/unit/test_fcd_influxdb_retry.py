@@ -1,5 +1,6 @@
 """Tests for FCDInfluxDBManager operation-level retry logic."""
 
+from datetime import UTC, datetime
 from http.client import IncompleteRead, RemoteDisconnected
 from unittest.mock import MagicMock, patch
 
@@ -60,7 +61,7 @@ class TestInfluxDBQueryRetry:
     def test_succeeds_after_transient_failure(self, manager):
         """Should succeed on second attempt after transient failure."""
         mock_record = MagicMock()
-        mock_record.get_time.return_value = "2024-01-01T00:00:00Z"
+        mock_record.get_time.return_value = datetime(2024, 1, 1, tzinfo=UTC)
         mock_table = MagicMock()
         mock_table.records = [mock_record]
 
@@ -71,7 +72,7 @@ class TestInfluxDBQueryRetry:
 
         result = manager.get_last_update_timestamp()
 
-        assert result == "2024-01-01T00:00:00Z"
+        assert result == datetime(2024, 1, 1, tzinfo=UTC)
         assert manager.query_api.query.call_count == 2
 
 
