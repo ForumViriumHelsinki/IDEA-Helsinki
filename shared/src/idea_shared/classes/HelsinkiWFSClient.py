@@ -4,11 +4,24 @@
 import json
 
 import requests
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential_jitter,
+)
 
 # ------------------------------------------------------#
 # -------------- PROJECT CLASS IMPORTS -----------------#
 # ------------------------------------------------------#
 from idea_shared.classes.Logger import Logger
+
+# Transient HTTP status codes worth retrying
+_RETRIABLE_STATUS_CODES = {502, 503, 504}
+
+
+class _TransientHTTPError(Exception):
+    """Raised for HTTP errors that are worth retrying (502/503/504)."""
 
 
 class HelsinkiWFSClient:
@@ -97,9 +110,24 @@ class HelsinkiWFSClient:
         prepared_request = self.session.prepare_request(request)
         return prepared_request.url
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential_jitter(initial=2, max=30),
+        retry=retry_if_exception_type(
+            (
+                requests.exceptions.ConnectionError,
+                requests.exceptions.Timeout,
+                _TransientHTTPError,
+            )
+        ),
+        reraise=True,
+    )
     def _get_request(self, url: str):
         """
         Performs a GET request to the given URL and processes the response.
+
+        Retries up to 3 times with exponential backoff on transient errors
+        (ConnectionError, Timeout, HTTP 502/503/504).
 
         Args:
             url: The URL to request.
@@ -132,17 +160,25 @@ class HelsinkiWFSClient:
                 )
                 return response.text
         except requests.exceptions.HTTPError as http_err:
+            status_code = http_err.response.status_code
+            if status_code in _RETRIABLE_STATUS_CODES:
+                self.logger.warning(
+                    f"Transient HTTP {status_code} for {url}, retrying..."
+                )
+                raise _TransientHTTPError(
+                    f"HTTP {status_code} for {url}"
+                ) from http_err
             self.logger.error(
-                f"HTTP error occurred for {url}: {http_err} - Status: {http_err.response.status_code}"
+                f"HTTP error occurred for {url}: {http_err} - Status: {status_code}"
             )
             self.logger.debug(f"Response body: {http_err.response.text[:500]}...")
             return None
-        except requests.exceptions.ConnectionError as conn_err:
-            self.logger.error(f"Connection error occurred for {url}: {conn_err}")
-            return None
-        except requests.exceptions.Timeout as timeout_err:
-            self.logger.error(f"Timeout error occurred for {url}: {timeout_err}")
-            return None
+        except requests.exceptions.ConnectionError:
+            self.logger.warning(f"Connection error for {url}, retrying...")
+            raise
+        except requests.exceptions.Timeout:
+            self.logger.warning(f"Timeout for {url}, retrying...")
+            raise
         except requests.exceptions.RequestException as req_err:
             self.logger.error(f"An error occurred with the request to {url}: {req_err}")
             return None
@@ -162,6 +198,11 @@ class HelsinkiWFSClient:
 
         try:
             return self._get_request(self._format_get_url(type_name))
+        except (_TransientHTTPError, requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            self.logger.warning(
+                f"Failed to get feature '{type_name}' after retries: {e}"
+            )
+            return None
         except ValueError as ve:
             self.logger.error(f"Could not get feature for '{type_name}': {ve}")
             return None

@@ -85,6 +85,21 @@ class WFSAPIHealthCheck(ExternalAPIHealthCheck):
                 await cls._session.close()
                 cls._session = None
 
+    @classmethod
+    def close_session_sync(cls):
+        """Close the shared session from a synchronous context.
+
+        Safe to call from signal handlers — creates a new event loop
+        to avoid conflicts with the running asyncio loop.
+        """
+        if cls._session and not cls._session.closed:
+            try:
+                loop = asyncio.new_event_loop()
+                loop.run_until_complete(cls.close_session())
+                loop.close()
+            except Exception as e:
+                logger.error(f"Error closing WFS session: {e}")
+
     async def check(self) -> HealthCheckResult:
         """Check WFS API accessibility and feature type availability.
 

@@ -1,11 +1,19 @@
 import csv
 import io
 from datetime import UTC, datetime
+from http.client import IncompleteRead, RemoteDisconnected
 
 import pandas as pd
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 from influxdb_client.rest import ApiException
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    retry_if_not_exception_type,
+    stop_after_attempt,
+    wait_exponential_jitter,
+)
 from urllib3.util.retry import Retry
 
 from idea_shared.classes.Logger import Logger
@@ -13,6 +21,28 @@ from idea_shared.classes.Logger import Logger
 # 5 minutes — must exceed worst-case query time to prevent abandoned queries
 # that keep running server-side after client disconnect (causing InfluxDB saturation)
 DEFAULT_TIMEOUT_MS = 300_000
+
+# Transient exceptions worth retrying at the application level.
+# urllib3.Retry handles HTTP-level retries; tenacity handles application-level
+# failures like mid-stream disconnects that urllib3 doesn't cover.
+_TRANSIENT_EXCEPTIONS = (
+    ConnectionError,
+    RemoteDisconnected,
+    IncompleteRead,
+    OSError,
+    TimeoutError,
+)
+
+# Reusable retry decorator for InfluxDB query/write operations
+_influxdb_retry = retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential_jitter(initial=1, max=15),
+    retry=(
+        retry_if_exception_type(_TRANSIENT_EXCEPTIONS)
+        & retry_if_not_exception_type(ApiException)
+    ),
+    reraise=True,
+)
 
 
 class FCDInfluxDBManager:
@@ -288,6 +318,7 @@ class FCDInfluxDBManager:
                 f"Completed: {total_points_written} points written in {batch_number} batches"
             )
 
+    @_influxdb_retry
     def get_last_update_timestamp(self, search_all: bool = False) -> datetime | None:
         """
         Queries the InfluxDB database for the latest timestamp.
@@ -313,6 +344,7 @@ class FCDInfluxDBManager:
             self.logger.error(f"Querying last timestamp failed. {e}")
             raise
 
+    @_influxdb_retry
     def get_segment_update_timestamp(
         self,
         segment_id: str,
@@ -408,6 +440,7 @@ class FCDInfluxDBManager:
             interval_minutes=interval_minutes,
         )
 
+    @_influxdb_retry
     def get_segment_data_csv(
         self,
         segment_id: str,
@@ -477,6 +510,7 @@ class FCDInfluxDBManager:
             self.logger.error(f"An error occurred during segment data query. {e}")
             raise e
 
+    @_influxdb_retry
     def get_segment_data_dataframe(
         self,
         segment_id: str,
