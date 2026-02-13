@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/orchestrator-v0.12.1...orchestrator-v0.12.2) (2026-02-13)
+
+
+### Bug Fixes
+
+* resolve container build and lint workflow issues from uv workspace migration ([#178](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/178)) ([d19f203](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/d19f2030ff67c3c925cdafc1090bd2790b0d5087)), closes [#174](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/174)
+
 ## [0.12.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/orchestrator-v0.12.0...orchestrator-v0.12.1) (2026-02-13)
 
 
