@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.12.0...fcd-manager-v0.12.1) (2026-02-13)
+
+
+### Bug Fixes
+
+* optimize InfluxDB health check queries with field filters ([#176](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/176)) ([02955a6](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/02955a682c65d74a84bf78aff4a8a3cbaf3d23be)), closes [#35](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/35)
+
 ## [0.12.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.11.4...fcd-manager-v0.12.0) (2026-02-12)
 
 
