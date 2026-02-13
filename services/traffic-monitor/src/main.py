@@ -1,10 +1,12 @@
 # ------------------------------------------------------#
 # ---------------- GENERAL IMPORTS ---------------------#
 # ------------------------------------------------------#
+import json
 import os
 import signal
 import sys
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 # ------------------------------------------------------#
 # ------------- PROJECT MODULE IMPORTS -----------------#
@@ -166,16 +168,9 @@ def main():
             logger.error(f"Error stopping health server: {e}")
 
         # Close WFS session if exists
-        import asyncio
-
         from health_checks import WFSAPIHealthCheck
 
-        try:
-            loop = asyncio.new_event_loop()
-            loop.run_until_complete(WFSAPIHealthCheck.close_session())
-            loop.close()
-        except Exception as e:
-            logger.error(f"Error closing WFS session: {e}")
+        WFSAPIHealthCheck.close_session_sync()
 
         logger.info("Shutdown complete")
         sys.exit(0)
@@ -208,6 +203,7 @@ def main():
             update_cycle_pause(TRAFFIC_DISTURBANCE_UPDATE_FREQUENCY)
             continue
 
+        wfs_cache_path = Path("data/wfs_cache.json")
         try:
             with HelsinkiAlluWFSClient() as allu_client:
                 allu_wfs_data = allu_client.request_wfs_features_from_list(
@@ -215,8 +211,43 @@ def main():
                 )
         except Exception as e:
             logger.error(f"Failed to get data from Allu: {e}")
-            service_state.update_wfs_fetch(success=False, error=str(e))
+            allu_wfs_data = None
+
+        # Cache successful responses; fall back to cache on failure
+        if allu_wfs_data:
+            try:
+                wfs_cache_path.write_text(
+                    json.dumps(
+                        {
+                            "timestamp": datetime.now(UTC).isoformat(),
+                            "data": allu_wfs_data,
+                        }
+                    )
+                )
+            except OSError as e:
+                logger.warning(f"Failed to write WFS cache: {e}")
+        elif wfs_cache_path.exists():
+            try:
+                cache = json.loads(wfs_cache_path.read_text())
+                cache_age_hours = (
+                    datetime.now(UTC) - datetime.fromisoformat(cache["timestamp"])
+                ).total_seconds() / 3600
+                if cache_age_hours < 24:
+                    logger.warning(
+                        f"Using cached WFS data ({cache_age_hours:.1f}h old)"
+                    )
+                    allu_wfs_data = cache["data"]
+                else:
+                    logger.warning("WFS cache too old (>24h), skipping")
+            except (json.JSONDecodeError, KeyError, OSError) as e:
+                logger.warning(f"Failed to read WFS cache: {e}")
+
+        if not allu_wfs_data:
+            service_state.update_wfs_fetch(
+                success=False, error="No data from WFS or cache"
+            )
             service_state.set_processing(False)
+            update_cycle_pause(TRAFFIC_DISTURBANCE_UPDATE_FREQUENCY)
             continue
 
         if allu_wfs_data:
