@@ -460,6 +460,7 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
                     from(bucket: "{self.bucket}")
                         |> range(start: -24h)
                         |> filter(fn: (r) => r["_measurement"] == "validation_result")
+                        |> keep(columns: ["_time"])
                         |> limit(n: 1)
                     """
 

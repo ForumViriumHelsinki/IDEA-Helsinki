@@ -66,11 +66,13 @@ def check_backfill_mode(
         raise ValueError(f"Invalid measurement name: {measurement}")
 
     # Query for recent data (normal operation mode)
+    # Use keep(columns: ["_time"]) to reduce data transfer since only timestamp is needed
     recent_query = f"""
     from(bucket: "{bucket}")
         |> range(start: -{freshness_threshold_minutes}m)
         |> filter(fn: (r) => r["_measurement"] == "{measurement}")
         |> last()
+        |> keep(columns: ["_time"])
         |> limit(n: 1)
     """
 
@@ -80,6 +82,7 @@ def check_backfill_mode(
         |> range(start: -{backfill_lookback_days}d)
         |> filter(fn: (r) => r["_measurement"] == "{measurement}")
         |> last()
+        |> keep(columns: ["_time"])
         |> limit(n: 1)
     """
 
