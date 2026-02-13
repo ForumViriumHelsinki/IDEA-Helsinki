@@ -287,10 +287,8 @@ class TestOrchestratorMainConfiguration:
 
             # Track all add_check calls
             add_check_calls = []
-            mock_server.add_check.side_effect = (
-                lambda name, check, **kwargs: add_check_calls.append(
-                    (name, check, kwargs)
-                )
+            mock_server.add_check.side_effect = lambda name, check, **kwargs: (
+                add_check_calls.append((name, check, kwargs))
             )
 
             # We need to import in a way that triggers the setup

@@ -7,7 +7,9 @@ COPY pyproject.toml uv.lock ./
 
 # Copy member pyproject.toml files for workspace resolution
 COPY shared/pyproject.toml shared/pyproject.toml
+COPY services/orchestrator/pyproject.toml services/orchestrator/pyproject.toml
 COPY services/fcd-manager/pyproject.toml services/fcd-manager/pyproject.toml
+COPY services/traffic-monitor/pyproject.toml services/traffic-monitor/pyproject.toml
 
 # Install third-party deps only (cacheable layer)
 RUN --mount=type=cache,target=/root/.cache/uv \
