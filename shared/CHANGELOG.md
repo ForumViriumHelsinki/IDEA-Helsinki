@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.3](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.12.2...idea-shared-v0.12.3) (2026-02-13)
+
+
+### Bug Fixes
+
+* add retry logic for WFS and InfluxDB transient failures ([#185](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/185)) ([347a311](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/347a311fa48fa6a2301932fd09cf3d3ca43d5307))
+
 ## [0.12.2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.12.1...idea-shared-v0.12.2) (2026-02-13)
 
 
