@@ -498,6 +498,7 @@ class TestSegmentMappingIntegrityHealthCheck:
             name="mapping_check",
             mapping_file_path=str(mapping_file),
             history_file_path=str(history_file),
+            startup_grace_minutes=0,
         )
 
         result = await check.check()
@@ -521,6 +522,7 @@ class TestSegmentMappingIntegrityHealthCheck:
             name="mapping_check",
             mapping_file_path=str(missing_file),
             history_file_path=str(tmp_path / "history.json"),
+            startup_grace_minutes=0,
         )
 
         result = await check.check()
@@ -543,6 +545,7 @@ class TestSegmentMappingIntegrityHealthCheck:
             name="mapping_check",
             mapping_file_path=str(mapping_file),
             history_file_path=str(tmp_path / "history.json"),
+            startup_grace_minutes=0,
         )
 
         result = await check.check()
@@ -573,6 +576,7 @@ class TestSegmentMappingIntegrityHealthCheck:
             name="mapping_check",
             mapping_file_path=str(mapping_file),
             history_file_path=str(tmp_path / "history.json"),
+            startup_grace_minutes=0,
         )
 
         result = await check.check()

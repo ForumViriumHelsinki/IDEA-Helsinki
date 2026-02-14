@@ -67,12 +67,14 @@ startupProbe:
   initialDelaySeconds: 0
   periodSeconds: 10
   timeoutSeconds: 5
-  failureThreshold: 30
+  failureThreshold: 120 # 20 minutes for initial backfill (was 30 = 5 min)
 env:
   DATA_DIR:
     value: "/app/data"
   ENVIRONMENT:
     value: "production"
+  FEATURE_FLAG_FCD_ENABLE_MULTITHREADING:
+    value: "true"
   AZURE_ACCOUNT_NAME:
     valueFrom:
       secretKeyRef:

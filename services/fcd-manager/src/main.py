@@ -321,53 +321,80 @@ def run_multithreaded(azure_manager: AzureBlobContainerManager):
 
             time.sleep(5)
 
-    # NOTE: Phase 2 - Real-time continuous updates
-    # The current multi-threaded implementation focuses on fast historical backfill.
-    # Continuous real-time updates (5-minute cycle) will be added in Phase 2.
-    # For now, the service exits after completing the backfill and updating segment mapping.
-    # This allows the single-threaded mode to be used for real-time updates until Phase 2.
     logger.info("###########################################")
     logger.info("Multi-threaded backfill completed")
+    logger.info("Starting Phase 2: continuous real-time updates")
     logger.info("###########################################")
 
-    # Update FCD mapping after backfill
-    logger.info("Updating FCD segment mapping after backfill")
-    current_time = datetime.now(UTC)
-
-    try:
-        # Get the most recent blobs from Azure to update segment mapping
-        blobs_to_process = azure_manager.get_blobs_in_range(
-            current_time - timedelta(hours=1), current_time
-        )
-
-        if blobs_to_process:
-            # Process the recent blobs to get current segment geometry
-            recent_fcd_data = _process_and_update_blob_list(
-                blobs_to_process, azure_manager
+    # Define the real-time update function that the coordinator will call each cycle
+    def realtime_update_cycle() -> bool:
+        """Perform one real-time update cycle (fetch recent data, write to InfluxDB, update mapping)."""
+        current_time = datetime.now(UTC)
+        try:
+            blobs_to_process = azure_manager.get_blobs_in_range(
+                current_time - timedelta(hours=1), current_time
             )
 
-            if recent_fcd_data:
-                # Update the segment mapping
-                if update_fcd_segment_mapping(recent_fcd_data):
-                    logger.info("FCD segment mapping updated successfully")
-                    _write_in_progress.set()
-                    try:
-                        FcdUtils.update_segment_changelog(
-                            FCD_MAP_DATA_FILE_LOCATION,
-                            MASTER_SEGMENT_HISTORY_FILE_LOCATION,
-                            ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION,
-                            current_time,
-                        )
-                    finally:
-                        _write_in_progress.clear()
-                else:
-                    logger.error("FCD segment mapping update failed")
-            else:
-                logger.warning("No recent FCD data available for mapping update")
-        else:
-            logger.warning("No recent blobs found for segment mapping update")
-    except Exception as e:
-        logger.error(f"Error updating segment mapping after backfill: {e}")
+            if not blobs_to_process:
+                logger.info("No recent blobs found for real-time update")
+                return True
+
+            fcd_data = _process_and_update_blob_list(blobs_to_process, azure_manager)
+            if not fcd_data:
+                logger.info("No processable data in recent blobs")
+                return True
+
+            # Write to InfluxDB
+            with FCDInfluxDBManager(
+                url=INFLUX_DB_URL,
+                token=INFLUX_DB_FCD_TOKEN,
+                org=INFLUX_DB_ORG,
+                bucket=INFLUX_DB_FCD_BUCKET,
+            ) as influx_manager:
+                influx_manager.write_fcd_model(fcd_data)
+
+            # Update segment mapping
+            if update_fcd_segment_mapping(fcd_data):
+                logger.info("FCD segment mapping updated")
+                _write_in_progress.set()
+                try:
+                    FcdUtils.update_segment_changelog(
+                        FCD_MAP_DATA_FILE_LOCATION,
+                        MASTER_SEGMENT_HISTORY_FILE_LOCATION,
+                        ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION,
+                        current_time,
+                    )
+                finally:
+                    _write_in_progress.clear()
+
+            # Update health check timestamp
+            if update_cycle_check:
+                update_cycle_check.update_timestamp()
+
+            return True
+        except Exception as e:
+            logger.error(f"Real-time update cycle error: {e}")
+            if pipeline_check:
+                pipeline_check.record_error(f"Real-time update failed: {e}")
+            return False
+
+    # Start real-time continuous updates via ThreadCoordinator
+    thread_coordinator.start_realtime(
+        update_function=realtime_update_cycle,
+        update_interval_minutes=FCD_UPDATE_FREQUENCY,
+    )
+
+    # Run initial mapping update immediately after backfill
+    realtime_update_cycle()
+
+    # Keep main thread alive — real-time worker handles continuous updates
+    # Service stays alive until SIGTERM triggers handle_shutdown()
+    try:
+        while True:
+            import time
+            time.sleep(60)
+    except KeyboardInterrupt:
+        logger.info("Received keyboard interrupt")
 
     return True
 
@@ -455,6 +482,7 @@ def main():
         timeout=5.0,
         critical=True,
         cache_ttl=300.0,
+        startup_grace_minutes=15,
     )
     health_server.add_check("mapping_integrity", mapping_integrity_check)
 

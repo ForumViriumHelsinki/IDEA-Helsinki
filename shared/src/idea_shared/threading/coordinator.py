@@ -7,7 +7,7 @@ Orchestrates backfill workers, real-time workers, and InfluxDB writer thread.
 import logging
 import threading
 import time
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 
 from idea_shared.lib.Constants.Constants import (
     FCD_MAX_CHUNK_RETRIES,
@@ -263,6 +263,68 @@ class ThreadCoordinator:
 
         self.logger.info("InfluxDB writer thread shutting down")
 
+    def start_realtime(
+        self,
+        update_function,
+        update_interval_minutes: int = 5,
+    ):
+        """Start real-time continuous update worker.
+
+        Launches a daemon-less thread that runs a perpetual update cycle,
+        calling the provided update function each interval. Can run concurrently
+        with backfill workers.
+
+        Args:
+            update_function: Callable that performs one update cycle.
+                Signature: () -> bool (returns True on success)
+            update_interval_minutes: Minutes between update cycles
+        """
+        self._realtime_update_function = update_function
+        self._realtime_interval = update_interval_minutes
+        self._realtime_worker_thread = threading.Thread(
+            target=self._realtime_worker,
+            name="RealTimeWorker",
+            daemon=False,
+        )
+        self._realtime_worker_thread.start()
+        self.logger.info(
+            f"Real-time worker started (interval: {update_interval_minutes}m)"
+        )
+
+    def _realtime_worker(self):
+        """Real-time worker thread that runs continuous update cycles.
+
+        Similar to single-threaded mode's update loop but coordinates
+        shutdown with the ThreadCoordinator's shutdown event.
+        """
+        self.logger.info("Real-time worker running")
+
+        while not self._shutdown_event.is_set():
+            try:
+                success = self._realtime_update_function()
+                if success:
+                    self.logger.info("Real-time update cycle completed successfully")
+                else:
+                    self.logger.warning("Real-time update cycle returned failure")
+
+            except Exception as e:
+                self.logger.error(f"Real-time worker error: {e}")
+
+            # Calculate next aligned cycle time
+            current = datetime.now(UTC)
+            minutes_to_add = self._realtime_interval - (
+                current.minute % self._realtime_interval
+            )
+            next_cycle = (current + timedelta(minutes=minutes_to_add)).replace(
+                second=0, microsecond=0
+            )
+
+            # Sleep until next cycle or shutdown
+            while datetime.now(UTC) < next_cycle and not self._shutdown_event.is_set():
+                time.sleep(1)
+
+        self.logger.info("Real-time worker stopped")
+
     def wait_for_backfill_completion(self, timeout: float | None = None) -> bool:
         """
         Wait for all backfill workers to complete.
@@ -302,8 +364,15 @@ class ThreadCoordinator:
         self.logger.info("Initiating graceful shutdown")
         self._shutdown_event.set()
 
-        # Wait for workers to finish current tasks
+        # Wait for real-time worker to finish current cycle
         start_time = time.time()
+        if hasattr(self, "_realtime_worker_thread") and self._realtime_worker_thread.is_alive():
+            remaining = timeout - (time.time() - start_time)
+            if remaining > 0:
+                self._realtime_worker_thread.join(timeout=remaining)
+                self.logger.info("Real-time worker stopped")
+
+        # Wait for workers to finish current tasks
         for thread in self._worker_threads:
             remaining = timeout - (time.time() - start_time)
             if remaining > 0:
