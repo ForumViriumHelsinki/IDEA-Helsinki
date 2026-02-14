@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.4](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.12.3...traffic-monitor-v0.12.4) (2026-02-13)
+
+
+### Bug Fixes
+
+* address PR [#185](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/185) review feedback ([#190](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/190)) ([311fb60](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/311fb6028e14e1341c39eb8b243b27fac344a699))
+
 ## [0.12.3](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.12.2...traffic-monitor-v0.12.3) (2026-02-13)
 
 
