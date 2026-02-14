@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.5](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.12.4...fcd-manager-v0.12.5) (2026-02-14)
+
+
+### Bug Fixes
+
+* resolve FCD Manager CrashLoopBackOff ([#195](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/195)) ([17ad63f](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/17ad63f547a2de6f687caa23a4c757057534746e))
+
 ## [0.12.4](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.12.3...fcd-manager-v0.12.4) (2026-02-13)
 
 
