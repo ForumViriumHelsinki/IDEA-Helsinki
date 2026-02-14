@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from azure.storage.blob import BlobServiceClient
@@ -377,6 +378,7 @@ class SegmentMappingIntegrityHealthCheck(FileSystemHealthCheck):
         timeout: float = 5.0,
         critical: bool = True,
         cache_ttl: float = 300.0,
+        startup_grace_minutes: int = 15,
     ):
         """Initialize segment mapping integrity health check.
 
@@ -387,6 +389,7 @@ class SegmentMappingIntegrityHealthCheck(FileSystemHealthCheck):
             timeout: Timeout in seconds for the check
             critical: Whether this check is critical for readiness
             cache_ttl: Cache time-to-live in seconds
+            startup_grace_minutes: Grace period in minutes during initial backfill
         """
         super().__init__(
             name=name,
@@ -398,13 +401,30 @@ class SegmentMappingIntegrityHealthCheck(FileSystemHealthCheck):
         )
         self.mapping_file_path = Path(mapping_file_path)
         self.history_file_path = Path(history_file_path)
+        self._startup_time = datetime.now(UTC)
+        self._startup_grace_period = timedelta(minutes=startup_grace_minutes)
 
     async def check(self) -> HealthCheckResult:
         """Check segment mapping file integrity.
 
+        Returns healthy during startup grace period to allow initial backfill
+        to create the mapping file before enforcing validation.
+
         Returns:
             HealthCheckResult indicating mapping file status
         """
+        elapsed = datetime.now(UTC) - self._startup_time
+        if elapsed < self._startup_grace_period:
+            remaining = (self._startup_grace_period - elapsed).total_seconds()
+            return HealthCheckResult(
+                name=self.name,
+                status="healthy",
+                message="Startup grace period - initial backfill in progress",
+                metadata={
+                    "grace_period_remaining_seconds": round(remaining),
+                },
+            )
+
         try:
             loop = asyncio.get_event_loop()
 
