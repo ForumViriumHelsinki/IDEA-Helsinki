@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.6](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.12.5...fcd-manager-v0.12.6) (2026-02-15)
+
+
+### Miscellaneous Chores
+
+* **fcd-manager:** Synchronize idea-helsinki versions
+
 ## [0.12.5](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.12.4...fcd-manager-v0.12.5) (2026-02-14)
 
 

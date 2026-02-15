@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.6](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.12.5...idea-shared-v0.12.6) (2026-02-15)
+
+
+### Bug Fixes
+
+* resolve health check failures blocking fcd-manager and orchestrator readiness ([#206](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/206)) ([aa25fa9](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/aa25fa9263f36679d5e9fbcd5ff8fed433a8270a))
+
 ## [0.12.5](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.12.4...idea-shared-v0.12.5) (2026-02-14)
 
 
