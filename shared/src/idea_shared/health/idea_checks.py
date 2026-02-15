@@ -67,9 +67,10 @@ class AzureBlobStorageHealthCheck(HealthCheck):
                     self.container_name
                 )
 
-                # Try to list blobs (limited to 1 for efficiency)
-                blobs = list(container_client.list_blobs(max_results=1))
-                return len(blobs) >= 0  # Will be >= 0 even if empty
+                # Verify connectivity by fetching a single blob listing
+                for _blob in container_client.list_blobs(results_per_page=1):
+                    break
+                return True
 
             result = await loop.run_in_executor(None, check_blob_storage)
 
