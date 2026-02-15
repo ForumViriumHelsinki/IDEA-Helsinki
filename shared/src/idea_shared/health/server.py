@@ -108,7 +108,7 @@ class HealthServer:
                 try:
                     result = await check.check_with_cache()
                     checks[name] = result.status
-                    if check.critical and result.status != "healthy":
+                    if check.critical and result.status == "unhealthy":
                         all_ready = False
                 except Exception as e:
                     logger.error(f"Health check {name} failed with error: {e}")
