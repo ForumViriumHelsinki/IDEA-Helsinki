@@ -11,10 +11,16 @@ from datetime import UTC, datetime, timedelta
 from idea_shared.classes.IdeaHelsinkiRoadSegment import IdeaHelsinkiRoadSegment
 from idea_shared.classes.Logger import Logger
 from idea_shared.resilience import CircuitBreaker
-from idea_shared.resilience.retry import ErrorTracker
+from idea_shared.resilience.retry import ErrorTracker, calculate_backoff
 
 
 class IdeaHelsinkiManager:
+    """Configuration constants for resilience patterns."""
+
+    # Maximum consecutive errors before escalating worker failure
+    _WORKER_MAX_ERRORS = 10
+    # Maximum consecutive errors before escalating main loop failure
+    _MAIN_LOOP_MAX_ERRORS = 10
     """
     Manages IdeaHelsinkiRoadSegments objects and updates them with the latest traffic disturbance information.
     Creates and removes IdeaHelsinkiRoadSegments objects based on the latest traffic disturbance information.
@@ -212,10 +218,9 @@ class IdeaHelsinkiManager:
         """
         segment_id = segment_instance.segment_id
         consecutive_errors = 0
-        max_consecutive_errors = 10
 
         try:
-            while consecutive_errors < max_consecutive_errors:
+            while consecutive_errors < self._WORKER_MAX_ERRORS:
                 try:
                     await segment_instance.run_lifecycle()
                     # If run_lifecycle exits normally, reset error count
@@ -230,21 +235,23 @@ class IdeaHelsinkiManager:
                     consecutive_errors += 1
                     self.logger.error(
                         f"Worker error for segment {segment_id} "
-                        f"(attempt {consecutive_errors}/{max_consecutive_errors}): {e}",
+                        f"(attempt {consecutive_errors}/{self._WORKER_MAX_ERRORS}): {e}",
                         exc_info=True,
                     )
 
-                    if consecutive_errors >= max_consecutive_errors:
+                    if consecutive_errors >= self._WORKER_MAX_ERRORS:
                         self.logger.error(
                             f"Worker for segment {segment_id} exceeded maximum consecutive errors. "
                             f"Terminating worker."
                         )
                         break
 
-                    # Exponential backoff before retry
-                    backoff = min(consecutive_errors * 5, 60)
+                    # Exponential backoff with jitter before retry
+                    backoff = calculate_backoff(
+                        attempt=consecutive_errors, base_delay=5.0, max_delay=60.0
+                    )
                     self.logger.info(
-                        f"Restarting worker for segment {segment_id} in {backoff}s..."
+                        f"Restarting worker for segment {segment_id} in {backoff:.1f}s..."
                     )
                     await asyncio.sleep(backoff)
         except asyncio.CancelledError:
@@ -284,12 +291,14 @@ class IdeaHelsinkiManager:
                     )
                     raise
 
-                # Adaptive backoff based on error frequency
-                backoff = min(
-                    self.error_tracker.consecutive_errors * 5, 60
+                # Exponential backoff with jitter based on error frequency
+                backoff = calculate_backoff(
+                    attempt=self.error_tracker.consecutive_errors,
+                    base_delay=5.0,
+                    max_delay=60.0,
                 )
                 self.logger.warning(
-                    f"Main loop will retry in {backoff}s "
+                    f"Main loop will retry in {backoff:.1f}s "
                     f"(error count: {self.error_tracker.consecutive_errors})"
                 )
                 await asyncio.sleep(backoff)

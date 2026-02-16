@@ -20,8 +20,9 @@ Example:
 
 import asyncio
 import random
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 from idea_shared.classes.Logger import Logger
 
@@ -119,7 +120,7 @@ def async_retry(
     return decorator
 
 
-async def with_retry(
+async def with_retry[T](
     func: Callable[..., T],
     *args,
     max_attempts: int = 3,

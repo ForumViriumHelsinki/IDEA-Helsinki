@@ -132,7 +132,7 @@ async def _run_worker_with_error_isolation(self, segment_instance):
             raise  # Always propagate cancellation
         except Exception as e:
             consecutive_errors += 1
-            backoff = min(consecutive_errors * 5, 60)
+            backoff = calculate_backoff(attempt=consecutive_errors, base_delay=5.0, max_delay=60.0)
             await asyncio.sleep(backoff)
 ```
 

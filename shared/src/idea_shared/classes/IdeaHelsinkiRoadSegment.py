@@ -6,15 +6,14 @@ from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 
-from idea_shared.classes.FCDInfluxDBManager import FCDInfluxDBManager
-
 # ------------------------------------------------------#
 # -------------- PROJECT CLASS IMPORTS -----------------#
 # ------------------------------------------------------#
+from idea_shared.classes.FCDInfluxDBManager import FCDInfluxDBManager
 from idea_shared.classes.Logger import Logger
 from idea_shared.lib import IdeaHelsinkiDataPreProcessor
 from idea_shared.resilience import CircuitBreaker
-from idea_shared.resilience.retry import ErrorTracker, with_retry
+from idea_shared.resilience.retry import ErrorTracker, calculate_backoff
 
 # ------------------------------------------------------#
 # ------------- PROJECT MODULE IMPORTS -----------------#
@@ -301,12 +300,14 @@ class IdeaHelsinkiRoadSegment:
                         )
                         raise
 
-                    # Adaptive backoff based on error frequency
-                    backoff = min(
-                        self.error_tracker.consecutive_errors * 2, 60
+                    # Exponential backoff with jitter based on error frequency
+                    backoff = calculate_backoff(
+                        attempt=self.error_tracker.consecutive_errors,
+                        base_delay=2.0,
+                        max_delay=60.0,
                     )
                     self.logger.warning(
-                        f"Worker will retry in {backoff}s "
+                        f"Worker will retry in {backoff:.1f}s "
                         f"(error count: {self.error_tracker.consecutive_errors})"
                     )
                     await asyncio.sleep(backoff)

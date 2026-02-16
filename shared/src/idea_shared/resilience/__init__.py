@@ -15,12 +15,13 @@ from idea_shared.resilience.circuit_breaker import (
     CircuitBreakerError,
     CircuitBreakerState,
 )
-from idea_shared.resilience.retry import async_retry, with_retry
+from idea_shared.resilience.retry import ErrorTracker, async_retry, with_retry
 
 __all__ = [
     "CircuitBreaker",
     "CircuitBreakerError",
     "CircuitBreakerState",
+    "ErrorTracker",
     "async_retry",
     "with_retry",
 ]

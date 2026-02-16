@@ -191,7 +191,7 @@ class CircuitBreaker:
 
             if self._state == CircuitBreakerState.HALF_OPEN:
                 self.logger.warning(
-                    f"Failure in HALF_OPEN state, transitioning to OPEN"
+                    "Failure in HALF_OPEN state, transitioning to OPEN"
                 )
                 self._state = CircuitBreakerState.OPEN
                 self._success_count = 0
