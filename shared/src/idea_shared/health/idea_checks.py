@@ -471,14 +471,14 @@ class SegmentMappingIntegrityHealthCheck(FileSystemHealthCheck):
                                     )
                                     break
 
-                # Check history file if it exists
-                if self.history_file_path.exists():
-                    history_data = read_json_with_retry(self.history_file_path)
-                    if isinstance(history_data, dict):
-                        metadata["history_entries"] = len(history_data)
-                    elif history_data is not None:
-                        issues.append("Error reading history file: unexpected type")
+                # Check history file
+                history_data = read_json_with_retry(self.history_file_path)
+                if isinstance(history_data, dict):
+                    metadata["history_entries"] = len(history_data)
+                elif history_data is None:
+                    metadata["history_entries"] = 0
                 else:
+                    issues.append("Error reading history file: unexpected type")
                     metadata["history_entries"] = 0
 
                 return issues, metadata

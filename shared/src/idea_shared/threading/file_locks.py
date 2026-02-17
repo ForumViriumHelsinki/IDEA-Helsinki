@@ -39,14 +39,24 @@ def read_json_with_retry(
     """
     filepath = Path(filepath)
 
-    if not filepath.exists():
-        return None
-
     for attempt in range(max_retries + 1):
         try:
             with open(filepath, encoding="utf-8") as f:
                 data = json.load(f)
             return data
+        except FileNotFoundError:
+            return None
+        except json.JSONDecodeError as e:
+            if attempt < 1:
+                delay = base_delay + random.uniform(0, 0.3)
+                logger.warning(
+                    f"JSONDecodeError reading {filepath}: {e}. "
+                    f"Retrying in {delay:.1f}s (writer may be mid-close)..."
+                )
+                time.sleep(delay)
+                continue
+            logger.warning(f"JSONDecodeError reading {filepath} after retry: {e}")
+            return None
         except OSError as e:
             if e.errno == ESTALE and attempt < max_retries:
                 delay = base_delay * (2**attempt) + random.uniform(0, 0.3)
@@ -62,19 +72,6 @@ def read_json_with_retry(
                 )
                 return None
             raise
-        except json.JSONDecodeError as e:
-            if attempt < 1:
-                delay = base_delay + random.uniform(0, 0.3)
-                logger.warning(
-                    f"JSONDecodeError reading {filepath}: {e}. "
-                    f"Retrying in {delay:.1f}s (writer may be mid-close)..."
-                )
-                time.sleep(delay)
-                continue
-            logger.warning(
-                f"JSONDecodeError reading {filepath} after retry: {e}"
-            )
-            return None
 
 
 def atomic_write_json(

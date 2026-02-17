@@ -551,7 +551,7 @@ class TestSegmentMappingIntegrityHealthCheck:
         result = await check.check()
 
         assert result.status in ["degraded", "unhealthy"]
-        assert "Invalid JSON" in result.message
+        assert "empty or unreadable" in result.message
 
     @pytest.mark.asyncio
     async def test_missing_required_fields(self, tmp_path):
