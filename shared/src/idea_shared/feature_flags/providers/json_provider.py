@@ -4,7 +4,6 @@ This provider reads feature flags from a JSON file on disk.
 Useful for local development and testing.
 """
 
-import json
 import logging
 from pathlib import Path
 from typing import Any
@@ -12,6 +11,8 @@ from typing import Any
 from openfeature.evaluation_context import EvaluationContext
 from openfeature.flag_evaluation import FlagResolutionDetails, Reason
 from openfeature.provider import AbstractProvider, Metadata
+
+from idea_shared.threading.file_locks import read_json_with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -45,42 +46,36 @@ class JsonFileProvider(AbstractProvider):
         self._load_flags()
 
     def _load_flags(self) -> None:
-        """Load flags from the JSON file."""
-        if not self._file_path.exists():
+        """Load flags from the JSON file with ESTALE retry for GCS FUSE mounts."""
+        data = read_json_with_retry(self._file_path)
+
+        if data is None:
             logger.warning(
-                f"Feature flags file not found: {self._file_path}. "
+                f"Feature flags file not found or unreadable: {self._file_path}. "
                 "Using default values."
             )
             return
 
-        try:
-            with open(self._file_path) as f:
-                data = json.load(f)
+        # Validate JSON structure
+        if not isinstance(data, dict):
+            logger.error(
+                f"Invalid feature flags file structure: root must be an object, "
+                f"got {type(data).__name__}. Using default values."
+            )
+            return
 
-                # Validate JSON structure
-                if not isinstance(data, dict):
-                    logger.error(
-                        f"Invalid feature flags file structure: root must be an object, "
-                        f"got {type(data).__name__}. Using default values."
-                    )
-                    return
+        flags = data.get("flags", {})
+        if not isinstance(flags, dict):
+            logger.error(
+                f"Invalid feature flags file structure: 'flags' must be an object, "
+                f"got {type(flags).__name__}. Using default values."
+            )
+            return
 
-                flags = data.get("flags", {})
-                if not isinstance(flags, dict):
-                    logger.error(
-                        f"Invalid feature flags file structure: 'flags' must be an object, "
-                        f"got {type(flags).__name__}. Using default values."
-                    )
-                    return
-
-                self._flags = flags
-                logger.info(
-                    f"Loaded {len(self._flags)} feature flags from {self._file_path}"
-                )
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse feature flags JSON: {e}")
-        except Exception as e:
-            logger.error(f"Failed to load feature flags: {e}")
+        self._flags = flags
+        logger.info(
+            f"Loaded {len(self._flags)} feature flags from {self._file_path}"
+        )
 
     def get_metadata(self) -> Metadata:
         """Get provider metadata."""

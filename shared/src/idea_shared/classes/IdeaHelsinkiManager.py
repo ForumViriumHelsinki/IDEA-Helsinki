@@ -2,7 +2,6 @@
 # ---------------- GENERAL IMPORTS ---------------------#
 # ------------------------------------------------------#
 import asyncio
-import json
 from datetime import UTC, datetime, timedelta
 
 # ------------------------------------------------------#
@@ -12,6 +11,7 @@ from idea_shared.classes.IdeaHelsinkiRoadSegment import IdeaHelsinkiRoadSegment
 from idea_shared.classes.Logger import Logger
 from idea_shared.resilience import CircuitBreaker
 from idea_shared.resilience.retry import ErrorTracker, calculate_backoff
+from idea_shared.threading.file_locks import read_json_with_retry
 
 
 class IdeaHelsinkiManager:
@@ -83,14 +83,18 @@ class IdeaHelsinkiManager:
         returns:
             Dictionary containing the latest validated disturbance data.
         """
-        try:
-            with open(file_path, encoding="utf-8") as f:
-                return json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError) as e:
+        data = read_json_with_retry(file_path)
+        if data is None:
             self.logger.error(
-                f"Could not load disturbance data from '{file_path}': {e}"
+                f"Could not load disturbance data from '{file_path}'"
             )
             return {}
+        if not isinstance(data, dict):
+            self.logger.error(
+                f"Disturbance data from '{file_path}' is not a dict"
+            )
+            return {}
+        return data
 
     async def _wait_for_next_management_cycle(self):
         """
