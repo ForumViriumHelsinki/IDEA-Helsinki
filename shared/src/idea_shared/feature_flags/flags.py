@@ -23,9 +23,6 @@ class FeatureFlag(StrEnum):
     ENABLE_SEGMENT_CACHING = "enable_segment_caching"
     ENABLE_BATCH_PROCESSING = "enable_batch_processing"
 
-    # FCD Manager flags
-    FCD_ENABLE_MULTITHREADING = "fcd_enable_multithreading"
-
     # Logging and debugging flags
     ENABLE_ENHANCED_LOGGING = "enable_enhanced_logging"
     ENABLE_DEBUG_METRICS = "enable_debug_metrics"
@@ -47,7 +44,6 @@ class FlagDefaults:
     ENABLE_PARALLEL_PROCESSING: bool = True
     ENABLE_SEGMENT_CACHING: bool = False
     ENABLE_BATCH_PROCESSING: bool = False
-    FCD_ENABLE_MULTITHREADING: bool = False
     ENABLE_ENHANCED_LOGGING: bool = False
     ENABLE_DEBUG_METRICS: bool = False
 

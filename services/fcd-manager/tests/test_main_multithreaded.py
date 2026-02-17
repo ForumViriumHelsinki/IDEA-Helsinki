@@ -1,8 +1,8 @@
 """
-Tests for multi-threaded mode in main.py.
+Tests for ThreadCoordinator backfill functionality in main.py.
 
-This module tests the multi-threaded backfill functionality, particularly
-focusing on timezone-aware datetime handling.
+This module tests backfill functionality, particularly focusing on
+timezone-aware datetime handling.
 
 Following TDD principles: Tests use REAL ThreadCoordinator execution with
 minimal mocking (only external dependencies like InfluxDB).
@@ -19,9 +19,7 @@ import pytest
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-# Mock external modules that main.py imports but aren't needed for tests
-# These are external dependencies that don't affect the core threading logic we're testing
-sys.modules["pause"] = MagicMock()
+# Mock external modules that aren't needed for tests
 sys.modules["sentry_sdk"] = MagicMock()
 
 # Mock openfeature modules (feature flags library)
@@ -55,7 +53,7 @@ def fast_processing_function(azure_manager, start_date, end_date, batch_size=50)
 
 
 class TestMultithreadedMode:
-    """Tests for multi-threaded mode functionality."""
+    """Tests for ThreadCoordinator backfill functionality."""
 
     def test_naive_datetime_comparison_raises_error(self):
         """

@@ -12,7 +12,6 @@ from datetime import UTC, datetime, timedelta
 # ------------------------------------------------------#
 import idea_shared.lib.FcdUtils as FcdUtils
 import idea_shared.lib.TomTomFcdAggregator as TomTomFcdAggregator
-import pause
 import sentry_sdk
 
 # ------------------------------------------------------#
@@ -20,19 +19,10 @@ import sentry_sdk
 # ------------------------------------------------------#
 from idea_shared.classes.AzureBlobContainerManager import (
     AzureBlobContainerManager,
-    TimePrecision,
 )
 from idea_shared.classes.FCDInfluxDBManager import FCDInfluxDBManager
 from idea_shared.classes.Logger import Logger
-
-# ------------------------------------------------------#
-# ------------- FEATURE FLAGS IMPORTS ------------------#
-# ------------------------------------------------------#
-from idea_shared.feature_flags import (
-    FeatureFlag,
-    get_feature_flags,
-    init_feature_flags,
-)
+from idea_shared.feature_flags import init_feature_flags
 from idea_shared.health.idea_checks import (
     AzureBlobStorageHealthCheck,
     FCDDataFreshnessHealthCheck,
@@ -61,7 +51,6 @@ from idea_shared.lib.Constants.Constants import (
     HEALTH_CHECK_CACHE_TTL_SECONDS,
     HEALTH_CHECK_PORT,
     MASTER_SEGMENT_HISTORY_FILE_LOCATION,
-    MAX_FCD_DATA_BASE_UPDATE_DOWNTIME,
     UPDATE_FRESHNESS_DEGRADED_MINUTES,
     UPDATE_FRESHNESS_HEALTHY_MINUTES,
 )
@@ -97,7 +86,7 @@ health_server = None
 update_cycle_check = None
 pipeline_check = None
 
-# Global thread coordinator (for multi-threaded mode)
+# Global thread coordinator
 thread_coordinator = None
 
 # Write protection: tracks when critical file writes are in progress
@@ -126,7 +115,7 @@ def handle_shutdown(signum, frame):
 
             time.sleep(0.1)
 
-    # Shutdown thread coordinator first (if running in multi-threaded mode)
+    # Shutdown thread coordinator first
     if thread_coordinator:
         logger.info("Shutting down thread coordinator...")
         try:
@@ -143,103 +132,20 @@ def handle_shutdown(signum, frame):
     sys.exit(0)
 
 
-def run_singlethreaded(azure_manager: AzureBlobContainerManager):
+def run(azure_manager: AzureBlobContainerManager):
     """
-    Run FCD synchronization in single-threaded mode (original implementation).
+    Run FCD synchronization with ThreadCoordinator.
 
-    This mode processes data sequentially and is used when FCD_ENABLE_MULTITHREADING=False.
-    Maintains backward compatibility with the original implementation.
-
-    Args:
-        azure_manager: Azure blob container manager instance
-    """
-    logger.info("Running in SINGLE-THREADED mode")
-    logger.info("###########################################")
-    logger.info("Updating FCD database on program start")
-    logger.info("###########################################")
-
-    if not initialize_database_update(azure_manager, update_fcd_mapping=True):
-        logger.error("Program failed to initialize database update, Exiting...")
-        return False
-
-    last_fcd_mapping_done = datetime.now(UTC)
-
-    while True:
-        logger.info("###########################################")
-        logger.info("Update cycle started!")
-        logger.info("###########################################")
-
-        # Get current time
-        current_time = datetime.now(UTC)
-
-        # Determine if the FCD mapping should be updated
-        update_fcd_mapping = (current_time - last_fcd_mapping_done) >= timedelta(
-            minutes=FCD_UPDATE_FREQUENCY
-        )
-
-        if update_fcd_database(
-            azure_manager, current_time, update_fcd_mapping=update_fcd_mapping
-        ):
-            logger.info("FCD database update!")
-            # Update health check timestamp for successful update
-            if update_cycle_check:
-                update_cycle_check.update_timestamp()
-            if update_fcd_mapping:
-                last_fcd_mapping_done = current_time
-                _write_in_progress.set()
-                try:
-                    FcdUtils.update_segment_changelog(
-                        FCD_MAP_DATA_FILE_LOCATION,
-                        MASTER_SEGMENT_HISTORY_FILE_LOCATION,
-                        ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION,
-                        current_time,
-                    )
-                finally:
-                    _write_in_progress.clear()
-        else:
-            logger.error(
-                f"FCD database could not be updated, retrying in {FCD_UPDATE_FREQUENCY} minutes!"
-            )
-            # Record error in pipeline health check
-            if pipeline_check:
-                pipeline_check.record_error("FCD database update failed")
-
-        # Pause the cycle until the next update
-        current_time = datetime.now(UTC)
-
-        # Get the next FCD_UPDATE_FREQUENCY mark
-        minutes_to_add = FCD_UPDATE_FREQUENCY - (
-            current_time.minute % FCD_UPDATE_FREQUENCY
-        )
-        resume_time = current_time + timedelta(minutes=minutes_to_add)
-        resume_time = resume_time.replace(second=0, microsecond=0)
-
-        logger.info("###########################################")
-        logger.info(
-            f"Update cycle finished at {current_time.strftime('%Y-%m-%d %H:%M:%S')}"
-        )
-        logger.info(
-            f"Next update cycle scheduled at {resume_time.strftime('%Y-%m-%d %H:%M:%S')}"
-        )
-        logger.info("###########################################")
-        pause.until(resume_time)
-
-
-def run_multithreaded(azure_manager: AzureBlobContainerManager):
-    """
-    Run FCD synchronization in multi-threaded mode with ThreadCoordinator.
-
-    This mode uses multiple backfill worker threads and a single InfluxDB writer thread
-    to process historical data in parallel. Provides better performance for large
-    date ranges and catches up faster on startup.
+    Uses configurable backfill worker threads (FCD_BACKFILL_WORKER_COUNT) and a single
+    InfluxDB writer thread to process historical data. After backfill completes,
+    transitions to continuous real-time updates.
 
     Args:
         azure_manager: Azure blob container manager instance
     """
     global thread_coordinator
 
-    logger.info("Running in MULTI-THREADED mode")
-    logger.info(f"  - Backfill workers: {FCD_BACKFILL_WORKER_COUNT}")
+    logger.info(f"Starting FCD synchronization with {FCD_BACKFILL_WORKER_COUNT} backfill workers")
     logger.info(f"  - Chunk size: {FCD_BACKFILL_CHUNK_DAYS} days")
     logger.info(f"  - Write queue size: {FCD_WRITE_QUEUE_MAX_SIZE}")
     logger.info(f"  - Max retries: {FCD_MAX_CHUNK_RETRIES}")
@@ -266,7 +172,7 @@ def run_multithreaded(azure_manager: AzureBlobContainerManager):
     )
 
     logger.info("###########################################")
-    logger.info("Starting multi-threaded backfill on program start")
+    logger.info("Starting backfill on program start")
     logger.info("###########################################")
 
     # Determine backfill date range
@@ -322,8 +228,8 @@ def run_multithreaded(azure_manager: AzureBlobContainerManager):
             time.sleep(5)
 
     logger.info("###########################################")
-    logger.info("Multi-threaded backfill completed")
-    logger.info("Starting Phase 2: continuous real-time updates")
+    logger.info("Backfill completed")
+    logger.info("Starting continuous real-time updates")
     logger.info("###########################################")
 
     # Define the real-time update function that the coordinator will call each cycle
@@ -403,18 +309,9 @@ def main():
     """
     Initializes and runs the continuous FCD synchronization service.
 
-    The service can operate in two modes based on the FCD_ENABLE_MULTITHREADING feature flag:
-
-    Single-threaded mode (FCD_ENABLE_MULTITHREADING=False):
-    1. Initial "catch-up" sync on startup, which processes all historical
-       data from the last known timestamp in the database to the present.
-    2. Perpetual 5-minute update cycle that fetches and processes only the
-       newest data, ensuring the database remains up to date.
-
-    Multi-threaded mode (FCD_ENABLE_MULTITHREADING=True):
-    1. Initial backfill using ThreadCoordinator with multiple worker threads
-       to process historical data in parallel.
-    2. TODO: Continuous update cycle (to be implemented in future iteration).
+    Uses ThreadCoordinator with configurable worker count (FCD_BACKFILL_WORKER_COUNT):
+    1. Initial backfill using worker threads to process historical data.
+    2. Continuous real-time update cycle that fetches and processes recent data.
     """
     global health_server, update_cycle_check, pipeline_check
 
@@ -568,44 +465,19 @@ def main():
         AZURE_ACCOUNT_NAME, AZURE_CONTAINER_NAME, AZURE_SAS_TOKEN
     )
 
-    # Route to appropriate execution mode based on feature flag
-    flags = get_feature_flags()
-    multithreading_enabled = flags.is_enabled(
-        FeatureFlag.FCD_ENABLE_MULTITHREADING, default=False
-    )
-
-    if multithreading_enabled:
-        # Multi-threaded mode with ThreadCoordinator
-        logger.info("Multi-threading is ENABLED via feature flag")
-        try:
-            success = run_multithreaded(azure_manager)
-            if not success:
-                logger.error("Multi-threaded execution failed, exiting...")
-                if health_server:
-                    health_server.stop()
-                sys.exit(1)
-        except Exception as e:
-            logger.error(f"Multi-threaded execution error: {e}")
+    # Run FCD synchronization
+    try:
+        success = run(azure_manager)
+        if not success:
+            logger.error("FCD synchronization failed, exiting...")
             if health_server:
                 health_server.stop()
             sys.exit(1)
-    else:
-        # Single-threaded mode (original implementation)
-        logger.info(
-            "Multi-threading is DISABLED via feature flag (using single-threaded mode)"
-        )
-        try:
-            success = run_singlethreaded(azure_manager)
-            if not success:
-                logger.error("Single-threaded execution failed, exiting...")
-                if health_server:
-                    health_server.stop()
-                sys.exit(1)
-        except Exception as e:
-            logger.error(f"Single-threaded execution error: {e}")
-            if health_server:
-                health_server.stop()
-            sys.exit(1)
+    except Exception as e:
+        logger.error(f"FCD synchronization error: {e}")
+        if health_server:
+            health_server.stop()
+        sys.exit(1)
 
 
 def update_fcd_segment_mapping(fcd_segments: dict) -> bool:
@@ -629,203 +501,6 @@ def update_fcd_segment_mapping(fcd_segments: dict) -> bool:
     else:
         return False
 
-
-def initialize_database_update(
-    azure_manager: AzureBlobContainerManager, update_fcd_mapping: bool = False
-) -> bool:
-    """
-    A function that checks the current status of the FCD database and updates it with the missing time (years, months, days).
-    This is meant to be run at the start of the program, before the regular update cycle is started.
-
-    Args:
-        azure_manager: AzureBlobContainerManager class object for downloading FCD blobs
-        update_fcd_mapping: bool, if the fcd mapping should be updated or not.
-    Returns:
-        True if the FCD database is updated, false otherwise.
-    """
-
-    try:
-        with FCDInfluxDBManager(
-            url=INFLUX_DB_URL,
-            token=INFLUX_DB_FCD_TOKEN,
-            org=INFLUX_DB_ORG,
-            bucket=INFLUX_DB_FCD_BUCKET,
-        ) as manager:
-            if manager.check_connection():
-                data_base_last_update = manager.get_last_update_timestamp(
-                    search_all=True
-                )
-                if data_base_last_update is None:
-                    logger.info(
-                        f"FCD data base is empty, updating from FCD history start date : {FCD_HISTORY_START_DATE}"
-                    )
-                    data_base_last_update = datetime.strptime(
-                        FCD_HISTORY_START_DATE, "%Y-%m-%d"
-                    ).replace(tzinfo=UTC)
-                else:
-                    logger.info(
-                        f"FCD data base last updated at {data_base_last_update.date()}"
-                    )
-
-                # Begin the database update loop, this will download to memory, process and update FCD history one day at a time,
-                # beginning from the start of the history (FCD_HISTORY_START_DATE).
-                # This way the program can catch the most recent update during the last update of the cycle (current day).
-
-                # Find if there are any folders in the Azure container.
-                search_prefixes = azure_manager.get_search_prefixes()
-                if not search_prefixes:
-                    logger.error("No search prefixes found. Cannot proceed.")
-                    return False
-
-                # Iinit the datetime iterator
-                date_i = data_base_last_update
-
-                while date_i.date() <= datetime.now(UTC).date():
-                    # An aggregation dictionary used for FCD segments. This is incase there are multiple folders in the container.
-                    daily_aggregated_data = {}
-
-                    for search_prefix in search_prefixes:
-                        # Get the blobs that fall in the time frame (day).
-                        blobs_to_process = azure_manager.get_blobs_by_prefix(
-                            date_i, TimePrecision.DAY, search_prefix
-                        )
-
-                        # Use the helper function to process the blobs.
-                        folder_aggregated_data = _process_and_update_blob_list(
-                            blobs_to_process, azure_manager
-                        )
-
-                        # Update the aggregation dictionary if we have new segment data.
-                        if folder_aggregated_data:
-                            daily_aggregated_data = TomTomFcdAggregator.update_tomtom_json_data_for_aggregation_file(
-                                folder_aggregated_data, daily_aggregated_data
-                            )
-                        else:
-                            logger.info(
-                                f"No processable blobs found for day {date_i.date()} on folder {search_prefix}"
-                            )
-
-                    # Update the FCD database with the current day if we have data from this day.
-                    if daily_aggregated_data:
-                        logger.info(
-                            f"Updating FCD segment data to the database for day {date_i.date()}"
-                        )
-
-                        # Sort the data by date, A "nice to have" function.
-                        final_daily_file = TomTomFcdAggregator.sort_tomtom_data_aggregation_file_by_date(
-                            daily_aggregated_data
-                        )
-
-                        manager.write_fcd_model(final_daily_file)
-
-                    # Update FCD after each day, this way we can catch up changes in the history.
-                    if update_fcd_mapping:
-                        if update_fcd_segment_mapping(final_daily_file):
-                            logger.info("FCD segment mapping updated")
-                            _write_in_progress.set()
-                            try:
-                                FcdUtils.update_segment_changelog(
-                                    FCD_MAP_DATA_FILE_LOCATION,
-                                    MASTER_SEGMENT_HISTORY_FILE_LOCATION,
-                                    ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION,
-                                    date_i,
-                                )
-                            finally:
-                                _write_in_progress.clear()
-                        else:
-                            logger.error("FCD segment mapping update failed")
-
-                    date_i += timedelta(days=1)
-            else:
-                logger.error("FCD data base update failed")
-                return False
-        # If no errors have occurred, return True for a successful update.
-        logger.info("FCD segments updated to the database!")
-        return True
-    except Exception as e:
-        logger.error(f"FCD database update failed: {e}")
-        return False
-
-
-def update_fcd_database(
-    azure_manager: AzureBlobContainerManager,
-    current_time: datetime,
-    update_fcd_mapping: bool = False,
-) -> bool:
-    """ "
-    A function that checks the last update from the FCD database and updates it with the missing time (target frequency: every 5 minutes).
-    This function is not meant to be used for database initialization (use initialize_database_update() for that),
-    because it does not address possible memory limitations of the host machine.
-    This function is meant to be used only in short (less than 24 hours) update cycles.
-
-
-    Args:
-        azure_manager: AzureBlobContainerManager class object for downloading FCD blobs
-        current_time: datetime, current time to compare against the las database update timestamp.
-        update_fcd_mapping: bool, if the fcd mapping should be updated or not.
-    Returns:
-        True if the FCD database is updated, false otherwise.
-    """
-
-    try:
-        with FCDInfluxDBManager(
-            url=INFLUX_DB_URL,
-            token=INFLUX_DB_FCD_TOKEN,
-            org=INFLUX_DB_ORG,
-            bucket=INFLUX_DB_FCD_BUCKET,
-        ) as manager:
-            if manager.check_connection():
-                data_base_last_update = manager.get_last_update_timestamp()
-                if data_base_last_update is None:
-                    logger.info(
-                        "FCD data base is empty! Please run the initialize_database_update() function! Aborting.."
-                    )
-                    return False
-
-                if (current_time - data_base_last_update) >= timedelta(
-                    days=MAX_FCD_DATA_BASE_UPDATE_DOWNTIME
-                ):
-                    logger.info(
-                        f"Last FCD data base update is older than {MAX_FCD_DATA_BASE_UPDATE_DOWNTIME} days! Please run the initialize_database_update() function! Aborting.."
-                    )
-                    return False
-
-                logger.info(
-                    f"FCD data base last updated at {data_base_last_update}, updating to current time {current_time}"
-                )
-
-                # Get the blobs that fall in the last update - current time frame.
-                blobs_to_process = azure_manager.get_blobs_in_range(
-                    data_base_last_update, current_time
-                )
-
-                # Use the helper function to process the blobs.
-                fcd_database_update_file = _process_and_update_blob_list(
-                    blobs_to_process, azure_manager
-                )
-
-                # Update the FCD database if there is dictionary is not empty.
-                if fcd_database_update_file:
-                    manager.write_fcd_model(fcd_database_update_file)
-
-                    # Update the FCD geometry from the last observation batch if it defined in the function argument.
-                    if update_fcd_mapping:
-                        if update_fcd_segment_mapping(fcd_database_update_file):
-                            logger.info("FCD segment mapping updated")
-                        else:
-                            logger.error("FCD segment mapping update failed")
-                else:
-                    logger.info("No new data found for DATA base update.")
-                    return True
-            else:
-                logger.error("FCD data base update failed")
-                return False
-        # If no errors have occurred, return True for a successful update.
-        logger.info("FCD segments updated to the database!")
-        return True
-    except Exception as e:
-        logger.error(f"FCD database update failed: {e}")
-        return False
 
 
 def _process_and_update_blob_list(

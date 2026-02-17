@@ -22,9 +22,6 @@ TRAFFIC_DISTURBANCES_TO_MONITOR = ["Kaivuilmoitus_alue", "Aluevuokraus_alue"]
 # TOMTOM PROVIDER DEFAULTS
 FCD_UPDATE_FREQUENCY = 5  # In minutes
 
-# FCD database update max downtime. How old can the last database update be to be acceptable in the FCD_UPDATE_FREQUENCY update cycle?
-MAX_FCD_DATA_BASE_UPDATE_DOWNTIME = 2  # In days
-
 # FCD segment id and geometry info = segment ids and their location
 FCD_MAP_DATA_FILE_LOCATION = os.path.join(DATA_DIR, "segments_mapping.json")
 FCD_MAP_UPDATE_FREQUENCY = 30  # in minutes
