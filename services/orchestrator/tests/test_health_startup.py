@@ -120,9 +120,9 @@ class TestStartupSpecificChecks:
         try:
             # /startup should pass because it uses startup_only checks
             response = requests.get("http://localhost:18083/startup", timeout=5)
-            assert (
-                response.status_code == 200
-            ), f"Expected 200, got {response.status_code}"
+            assert response.status_code == 200, (
+                f"Expected 200, got {response.status_code}"
+            )
             data = response.json()
             assert data["ready"] is True
 
@@ -149,9 +149,9 @@ class TestStartupSpecificChecks:
         try:
             # /ready should fail because worker_status and orchestrator_loop are unhealthy
             response = requests.get("http://localhost:18083/ready", timeout=5)
-            assert (
-                response.status_code == 503
-            ), f"Expected 503, got {response.status_code}"
+            assert response.status_code == 503, (
+                f"Expected 503, got {response.status_code}"
+            )
             data = response.json()
             assert data["ready"] is False
 
