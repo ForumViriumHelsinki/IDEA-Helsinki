@@ -359,7 +359,7 @@ Contributions are welcome! Please:
 3. Run `just pre-commit` before pushing
 4. Reference any related GitHub issues or tickets
 
-See [CLAUDE.md](CLAUDE.md#git-workflow) for detailed contribution guidelines.
+See [.claude/rules/development.md](.claude/rules/development.md) for detailed contribution guidelines.
 
 ## License
 
