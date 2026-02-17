@@ -1,9 +1,90 @@
-# IDEA-Helsinki
-Repository for the IDEA Helsinki application developed for the TFDS-project.
+<div align="center">
 
-[![Build and push container images](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/actions/workflows/container-build.yml/badge.svg)](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/actions/workflows/container-build.yml)
+# 🚗 IDEA-Helsinki
 
-**ADD: Backsotry = "why-when-where", Project stakeholders, credits for the IDEA algorithm etc.**
+**Traffic validation system for analyzing the impact of traffic disturbances on road segments using real-time floating car data**
+
+[![Build and push container images](https://img.shields.io/github/actions/workflow/status/ForumViriumHelsinki/IDEA-Helsinki/container-build.yml?branch=main&label=CI)](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/actions/workflows/container-build.yml)
+[![Python 3.12+](https://img.shields.io/badge/Python-3.12+-3776AB?logo=python&logoColor=white)]()
+[![Kubernetes](https://img.shields.io/badge/Kubernetes-K8s-326CE5?logo=kubernetes&logoColor=white)]()
+[![Docker](https://img.shields.io/badge/Docker-Containers-2496ED?logo=docker&logoColor=white)]()
+
+</div>
+
+## Features
+
+- **Real-time FCD Processing** - Ingests TomTom floating car data from Azure blob storage and maintains segment geometry mapping with SHA-256 change detection
+- **Traffic Disturbance Integration** - Fetches planned roadworks from Helsinki WFS service and validates against 6-month FCD history requirement
+- **Spatial Analysis** - Automatically detects which road segments are affected by traffic disturbances using geometric intersection detection
+- **IDEA Validation Engine** - Runs independent async workers for segment profiling and compares actual vs. expected traffic patterns
+- **Flexible Configuration** - Runtime feature flags and modular configuration for experimentation without redeployment
+- **Microservices Architecture** - Three independent services (orchestrator, FCD manager, traffic monitor) for scalability and isolation
+
+## Tech Stack
+
+| Category | Technology |
+|----------|------------|
+| Runtime | Python 3.12 |
+| Container Orchestration | Kubernetes (Skaffold) |
+| Time-series Database | InfluxDB |
+| Data Sources | Azure Blob Storage, Helsinki WFS API |
+| Process Manager | asyncio |
+| Package Manager | uv (workspace) |
+| Testing | pytest |
+| Cloud Platform | Google Cloud Platform (GKE) |
+
+## Getting Started
+
+### Prerequisites
+
+Before setting up the local development environment, ensure you have the following tools installed:
+
+- [Python 3.12+](https://www.python.org/downloads/)
+- [uv](https://github.com/astral-sh/uv) - Fast Python package installer
+- [gcloud CLI](https://cloud.google.com/sdk/docs/install) - Google Cloud command-line interface
+- [Skaffold](https://skaffold.dev/docs/install/) - Kubernetes deployment automation
+- [dotenvx](https://dotenvx.com/docs/install) - Environment variable management
+- `envsubst` - Template substitution tool (pre-installed on macOS/Linux)
+- [OrbStack](https://orbstack.dev/) or [Docker Desktop](https://www.docker.com/products/docker-desktop) - Local Kubernetes
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/ForumViriumHelsinki/IDEA-Helsinki.git
+cd IDEA-Helsinki
+
+# Install dependencies using uv
+uv sync --all-packages --all-extras
+
+# Set up environment
+cp .env.example .env
+
+# Start local Kubernetes with all services
+dotenvx run -- skaffold dev
+```
+
+### Development Commands
+
+```bash
+# Run all tests (fast feedback during development)
+just test-unit
+
+# Pre-commit checks (format + lint + unit tests)
+just pre-commit
+
+# Full test suite with coverage
+just test-coverage
+
+# Start local Kubernetes environment with hot-reload
+skaffold dev
+
+# Format code with ruff
+just format
+
+# Run linting checks
+just lint
+```
 
 ## Local Development Setup
 
@@ -110,53 +191,76 @@ All three services mount the local `data/` directory into their containers at `/
 
 This allows real-time updates to feature flags and shared data files without rebuilding containers.
 
-## Testing and Development
+## Project Structure
 
-The project includes a Makefile for simplified testing and code quality management:
-
-```bash
-# Show all available commands
-make help
-
-# Quick test commands
-make test              # Run all tests sequentially
-make test-parallel     # Run all tests in parallel (faster)
-make test-unit         # Run only unit tests (fast, no external dependencies)
-make test-cov          # Run tests with coverage reports
-
-# Code quality
-make lint              # Run linting checks
-make format            # Auto-format code with ruff
-make pre-commit        # Run format + lint + unit tests (recommended before committing)
-
-# Individual service testing
-make test-shared       # Test shared library only
-make test-orchestrator # Test orchestrator service
-make test-fcd-manager  # Test FCD manager service
-make test-traffic-monitor # Test traffic monitor service
-
-# Utilities
-make clean             # Remove test artifacts and cache files
-make ci                # Simulate full CI pipeline (format-check + lint + test-cov)
+```
+IDEA-Helsinki/
+├── shared/                      # Shared library (idea-shared)
+│   ├── src/idea_shared/
+│   │   ├── managers/            # Core orchestration and data management
+│   │   ├── models/              # Data models and structures
+│   │   ├── providers/           # Azure, InfluxDB, WFS clients
+│   │   └── feature_flags/       # Runtime feature toggles
+│   └── tests/                   # Shared library tests
+├── services/                    # Three independent microservices
+│   ├── orchestrator/            # IDEA validation worker orchestration
+│   ├── fcd-manager/             # FCD data synchronization and processing
+│   └── traffic-monitor/         # Traffic disturbance detection
+├── k8s/                         # Kubernetes manifests
+│   ├── orchestrator-deployment.yaml
+│   ├── fcd-manager-deployment.yaml
+│   ├── traffic-monitor-deployment.yaml
+│   ├── influxdb-statefulset.yaml
+│   └── secrets.yaml.tmpl        # Secret template (generated into secrets.yaml)
+├── data/                        # Persistent data files (mounted in K8s)
+│   ├── segments_mapping.json
+│   ├── master_segment_history.json
+│   ├── traffic_disturbance_data.json
+│   └── feature_flags.json
+├── docs/                        # Documentation
+│   ├── blueprint/               # Blueprint development configuration
+│   ├── data_models.md
+│   ├── VERSIONING.md
+│   └── program_schematic.md
+├── justfile                     # Task automation (just --list to see commands)
+├── skaffold.yaml               # Local K8s development configuration
+└── README.md                    # This file
 ```
 
-**Common workflows:**
+## Testing
+
+IDEA-Helsinki uses **pytest** with a uv workspace. Run tests using the Justfile:
+
 ```bash
-# During development - fast feedback
-make test-unit
+# Fast unit tests (no external dependencies)
+just test-unit
 
-# Before committing - ensure code quality
-make pre-commit
+# All tests
+just test
 
-# For comprehensive testing
-make test-cov
+# Parallel testing (faster)
+just test-parallel
+
+# With coverage report
+just test-coverage
+
+# Full CI simulation
+just ci
 ```
 
-For detailed testing documentation and manual test commands, see [CLAUDE.md](CLAUDE.md#testing).
+See [CLAUDE.md](CLAUDE.md#testing) for detailed testing documentation and manual test commands.
 
-## Program process schematic
+## Architecture
 
-*Copy pasted from [program_schematic](/docs/program_schematic.md)*
+### System Overview
+
+IDEA-Helsinki processes traffic data through a three-stage pipeline:
+
+1. **FCD Manager** - Ingests TomTom floating car data from Azure, maintains segment geometry mapping
+2. **Traffic Monitor** - Fetches traffic disturbances from Helsinki WFS, detects affected segments
+3. **Orchestrator** - Runs IDEA validation workers for impact analysis
+
+See [Program Process Schematic](/docs/program_schematic.md) for detailed data flow diagram.
 
 ```mermaid
 graph
@@ -238,19 +342,32 @@ graph
 
 Data models mentioned in the *Program process schematic*, are detailed in the [data models](/docs/data_models.md) documentation.
 
-## HOT Fixes needed
+## Documentation
 
-- **Non critical fixes**
-  - Update segment creation date to the master_segment_history.
-    - This can always be checked from the InfluxDB, but it will be more convenient if found in the master_segment_history file.
+- **[CLAUDE.md](CLAUDE.md)** - Comprehensive project instructions and development guidelines
+- **[VERSIONING.md](docs/VERSIONING.md)** - Unified versioning strategy for all components
+- **[Data Models](docs/data_models.md)** - Detailed specification of FCD and disturbance data structures
+- **[Program Schematic](docs/program_schematic.md)** - Visual data flow diagram
+- **[Feature Flags](shared/src/idea_shared/feature_flags/README.md)** - Runtime configuration documentation
 
-## Next steps in the development
+## Contributing
 
-1. Evaluate the IDEA algorithm and enact modifications for segment validation precision
-   - Constraints:
-     - 6 moths of FCD segment history
-     - 5 minute observation intervals
-2. Determine if data with geometry should be located in a database, instead of local storage.
-   - Note that in Cloud deployment, *local storage* naturally is the default storage container provided.
-2. Methods of handling/managing segment geometry changes and their effect on timeseries history.
-3. Implement IDEA 2.0 modifications, when they are outlined, detailed and algorithms are made available to the project.
+Contributions are welcome! Please:
+
+1. Follow conventional commit messages (feat:, fix:, docs:, etc.)
+2. Write tests for new functionality (TDD workflow: RED → GREEN → REFACTOR)
+3. Run `just pre-commit` before pushing
+4. Reference any related GitHub issues or tickets
+
+See [.claude/rules/development.md](.claude/rules/development.md) for detailed contribution guidelines.
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
+## Acknowledgments
+
+- **IDEA Algorithm**: Traffic impact validation algorithm
+- **TomTom** - Real-time floating car data provider
+- **Helsinki City** - WFS service for traffic disturbances
+- **Forum Virium Helsinki** - Project organization and infrastructure support

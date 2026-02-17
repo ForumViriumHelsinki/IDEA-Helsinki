@@ -190,9 +190,7 @@ class CircuitBreaker:
             self._last_failure_time = datetime.now(UTC)
 
             if self._state == CircuitBreakerState.HALF_OPEN:
-                self.logger.warning(
-                    "Failure in HALF_OPEN state, transitioning to OPEN"
-                )
+                self.logger.warning("Failure in HALF_OPEN state, transitioning to OPEN")
                 self._state = CircuitBreakerState.OPEN
                 self._success_count = 0
             elif (

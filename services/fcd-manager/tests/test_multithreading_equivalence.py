@@ -92,9 +92,7 @@ class TestMultithreadingEquivalence:
                 "segmentId should be dictionary"
             )
 
-    def test_coordinator_vs_direct_streaming_equivalence(
-        self, mock_azure, fixture_dir
-    ):
+    def test_coordinator_vs_direct_streaming_equivalence(self, mock_azure, fixture_dir):
         """
         Core equivalence test: Verify ThreadCoordinator produces same output as direct streaming.
 

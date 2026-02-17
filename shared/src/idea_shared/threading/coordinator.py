@@ -366,7 +366,10 @@ class ThreadCoordinator:
 
         # Wait for real-time worker to finish current cycle
         start_time = time.time()
-        if hasattr(self, "_realtime_worker_thread") and self._realtime_worker_thread.is_alive():
+        if (
+            hasattr(self, "_realtime_worker_thread")
+            and self._realtime_worker_thread.is_alive()
+        ):
             remaining = timeout - (time.time() - start_time)
             if remaining > 0:
                 self._realtime_worker_thread.join(timeout=remaining)

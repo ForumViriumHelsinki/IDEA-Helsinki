@@ -453,13 +453,9 @@ class SegmentMappingIntegrityHealthCheck(FileSystemHealthCheck):
                             issues.append("No segments found in mapping file")
 
                         # Validate structure of a few segments
-                        for segment_id, segment_data in list(mapping_data.items())[
-                            :5
-                        ]:
+                        for segment_id, segment_data in list(mapping_data.items())[:5]:
                             if not isinstance(segment_data, dict):
-                                issues.append(
-                                    f"Invalid segment data for {segment_id}"
-                                )
+                                issues.append(f"Invalid segment data for {segment_id}")
                                 break
 
                             # Check for required fields

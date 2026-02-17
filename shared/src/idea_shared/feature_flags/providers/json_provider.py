@@ -73,9 +73,7 @@ class JsonFileProvider(AbstractProvider):
             return
 
         self._flags = flags
-        logger.info(
-            f"Loaded {len(self._flags)} feature flags from {self._file_path}"
-        )
+        logger.info(f"Loaded {len(self._flags)} feature flags from {self._file_path}")
 
     def get_metadata(self) -> Metadata:
         """Get provider metadata."""
