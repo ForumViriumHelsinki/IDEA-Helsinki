@@ -12,8 +12,6 @@ import pandas as pd
 from idea_shared.classes.FCDInfluxDBManager import FCDInfluxDBManager
 from idea_shared.classes.Logger import Logger
 from idea_shared.lib import IdeaHelsinkiDataPreProcessor
-from idea_shared.resilience import CircuitBreaker
-from idea_shared.resilience.retry import ErrorTracker, calculate_backoff
 
 # ------------------------------------------------------#
 # ------------- PROJECT MODULE IMPORTS -----------------#
@@ -21,6 +19,8 @@ from idea_shared.resilience.retry import ErrorTracker, calculate_backoff
 from idea_shared.lib.idea.exceptions import IDEAError
 from idea_shared.lib.idea.profile.profile import calculate_profile
 from idea_shared.lib.idea.validation.validation import validate_roadwork
+from idea_shared.resilience import CircuitBreaker
+from idea_shared.resilience.retry import ErrorTracker, calculate_backoff
 
 
 class IdeaHelsinkiRoadSegment:

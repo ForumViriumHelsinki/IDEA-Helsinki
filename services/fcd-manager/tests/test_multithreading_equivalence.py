@@ -1,12 +1,12 @@
 """
-Equivalence tests for single-threaded vs multi-threaded FCD processing.
+Equivalence tests for FCD processing with varying worker counts.
 
-This module validates that the multithreaded ThreadCoordinator implementation
-produces identical output to the single-threaded streaming approach.
+This module validates that the ThreadCoordinator produces correct output
+regardless of worker count and blob ordering.
 
 Testing Strategy (Golden Output):
-1. Run single-threaded processor with test fixtures → capture "golden" output
-2. Run multithreaded processor with same fixtures → capture output
+1. Run streaming processor directly with test fixtures → capture "golden" output
+2. Run ThreadCoordinator with same fixtures → capture output
 3. Compare canonicalized outputs (order-agnostic)
 4. Verify diagnostic counters match
 
@@ -29,7 +29,6 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 # Mock external modules before imports
-sys.modules["pause"] = MagicMock()
 sys.modules["sentry_sdk"] = MagicMock()
 
 # Mock openfeature modules
@@ -50,7 +49,7 @@ from fcd_processing import process_date_range_streaming  # noqa: E402
 
 
 class TestMultithreadingEquivalence:
-    """Tests validating single-threaded vs multi-threaded equivalence."""
+    """Tests validating streaming processor vs ThreadCoordinator equivalence."""
 
     @pytest.fixture
     def fixture_dir(self):
@@ -67,16 +66,16 @@ class TestMultithreadingEquivalence:
         """Create mock Azure storage with shuffled blob order."""
         return MockAzureBlobStorage(fixture_dir, seed=42)
 
-    def test_single_threaded_processing(self, mock_azure):
+    def test_streaming_processing_baseline(self, mock_azure):
         """
-        Baseline test: Verify single-threaded processing works.
+        Baseline test: Verify streaming processing works.
 
         This establishes the "golden output" for comparison.
         """
         start_date = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
         end_date = datetime(2024, 1, 1, 12, 15, 0, tzinfo=UTC)
 
-        # Process with single-threaded approach
+        # Process with streaming approach
         batches = list(
             process_date_range_streaming(
                 mock_azure, start_date, end_date, batch_size=50
@@ -93,11 +92,11 @@ class TestMultithreadingEquivalence:
                 "segmentId should be dictionary"
             )
 
-    def test_multithreaded_vs_single_threaded_equivalence(
+    def test_coordinator_vs_direct_streaming_equivalence(
         self, mock_azure, fixture_dir
     ):
         """
-        Core equivalence test: Verify multithreaded produces same output.
+        Core equivalence test: Verify ThreadCoordinator produces same output as direct streaming.
 
         Tests:
         1. Both approaches process same test data
@@ -107,8 +106,8 @@ class TestMultithreadingEquivalence:
         start_date = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
         end_date = datetime(2024, 1, 1, 12, 15, 0, tzinfo=UTC)
 
-        # ===== SINGLE-THREADED (Golden Output) =====
-        single_threaded_batches = list(
+        # ===== DIRECT STREAMING (Golden Output) =====
+        direct_streaming_batches = list(
             process_date_range_streaming(
                 mock_azure, start_date, end_date, batch_size=50
             )
@@ -117,7 +116,7 @@ class TestMultithreadingEquivalence:
         # Reset mock for second run
         mock_azure.reset()
 
-        # ===== MULTI-THREADED =====
+        # ===== THREAD COORDINATOR =====
         mock_influx_config = {
             "url": "http://localhost:8086",
             "token": "test-token",
@@ -156,18 +155,19 @@ class TestMultithreadingEquivalence:
         # ===== COMPARISON =====
         # TODO: Once we wire up output capture from ThreadCoordinator,
         # we'll compare the outputs using canonicalization
-        # is_equal, diff = compare_point_sets(single_output, multi_output)
+        # is_equal, diff = compare_point_sets(direct_output, coordinator_output)
         # assert is_equal, f"Outputs should be identical: {diff}"
 
         # For now, verify both completed successfully
-        assert len(single_threaded_batches) > 0
+        assert len(direct_streaming_batches) > 0
         assert stats["date_queue"]["completed_ranges"] > 0
 
-    def test_multithreaded_with_varying_worker_counts(self, mock_azure):
+    def test_with_varying_worker_counts(self, mock_azure):
         """
-        Test multithreaded processing with different worker counts.
+        Test processing with different worker counts, including single-worker mode.
 
         Verifies that worker count doesn't affect output correctness.
+        Single-worker mode (1) provides sequential processing equivalent.
         """
         start_date = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
         end_date = datetime(2024, 1, 1, 12, 15, 0, tzinfo=UTC)
@@ -180,7 +180,7 @@ class TestMultithreadingEquivalence:
         }
         logger = MagicMock()
 
-        for num_workers in [2, 4]:
+        for num_workers in [1, 2, 4]:
             mock_azure.reset()
 
             coordinator = ThreadCoordinator(
@@ -202,7 +202,7 @@ class TestMultithreadingEquivalence:
 
             coordinator.shutdown()
 
-    def test_multithreaded_with_shuffled_blob_order(self, mock_azure_shuffled):
+    def test_with_shuffled_blob_order(self, mock_azure_shuffled):
         """
         Test that blob processing order doesn't affect output.
 
@@ -227,15 +227,15 @@ class TestMultithreadingEquivalence:
     @pytest.mark.skip(reason="Requires InfluxDB output capture integration")
     def test_detailed_output_comparison(self):
         """
-        Detailed comparison of InfluxDB points between implementations.
+        Detailed comparison of InfluxDB points between worker configurations.
 
         This test will be implemented once we have full output capture
         from ThreadCoordinator integrated with MockInfluxWriter.
 
         Test plan:
-        1. Run single-threaded with MockInfluxWriter
+        1. Run with 1 worker (sequential) with MockInfluxWriter
         2. Capture all points written
-        3. Run multithreaded with MockInfluxWriter
+        3. Run with N workers with MockInfluxWriter
         4. Capture all points written
         5. Use canonicalize_points() for order-agnostic comparison
         6. Assert exact equality of canonical point sets

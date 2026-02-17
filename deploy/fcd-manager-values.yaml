@@ -75,8 +75,6 @@ env:
     value: "/app/data"
   ENVIRONMENT:
     value: "production"
-  FEATURE_FLAG_FCD_ENABLE_MULTITHREADING:
-    value: "true"
   AZURE_ACCOUNT_NAME:
     valueFrom:
       secretKeyRef:
