@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.13.1...idea-shared-v0.13.2) (2026-02-17)
+
+
+### Documentation
+
+* add project rules and improve README documentation ([#222](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/222)) ([0826989](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/0826989b2274f89087eca630c35dbe41f7e43c12))
+
 ## [0.13.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.13.0...idea-shared-v0.13.1) (2026-02-17)
 
 
