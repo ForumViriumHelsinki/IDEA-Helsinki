@@ -1,12 +1,13 @@
 """IDEA-Helsinki specific health check implementations."""
 
 import asyncio
-import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from azure.storage.blob import BlobServiceClient
 from influxdb_client import InfluxDBClient
+
+from idea_shared.threading.file_locks import read_json_with_retry
 
 from .checks import (
     DatabaseHealthCheck,
@@ -438,53 +439,46 @@ class SegmentMappingIntegrityHealthCheck(FileSystemHealthCheck):
                 if not self.mapping_file_path.exists():
                     issues.append(f"Mapping file not found: {self.mapping_file_path}")
                 else:
-                    try:
-                        with open(self.mapping_file_path) as f:
-                            mapping_data = json.load(f)
+                    mapping_data = read_json_with_retry(self.mapping_file_path)
 
-                        if not isinstance(mapping_data, dict):
-                            issues.append("Mapping file is not a valid JSON object")
-                        else:
-                            segment_count = len(mapping_data)
-                            metadata["segment_count"] = segment_count
+                    if mapping_data is None:
+                        issues.append("Mapping file is empty or unreadable")
+                    elif not isinstance(mapping_data, dict):
+                        issues.append("Mapping file is not a valid JSON object")
+                    else:
+                        segment_count = len(mapping_data)
+                        metadata["segment_count"] = segment_count
 
-                            if segment_count == 0:
-                                issues.append("No segments found in mapping file")
+                        if segment_count == 0:
+                            issues.append("No segments found in mapping file")
 
-                            # Validate structure of a few segments
-                            for segment_id, segment_data in list(mapping_data.items())[
-                                :5
-                            ]:
-                                if not isinstance(segment_data, dict):
+                        # Validate structure of a few segments
+                        for segment_id, segment_data in list(mapping_data.items())[
+                            :5
+                        ]:
+                            if not isinstance(segment_data, dict):
+                                issues.append(
+                                    f"Invalid segment data for {segment_id}"
+                                )
+                                break
+
+                            # Check for required fields
+                            required_fields = ["geometry", "properties"]
+                            for field in required_fields:
+                                if field not in segment_data:
                                     issues.append(
-                                        f"Invalid segment data for {segment_id}"
+                                        f"Segment {segment_id} missing '{field}' field"
                                     )
                                     break
 
-                                # Check for required fields
-                                required_fields = ["geometry", "properties"]
-                                for field in required_fields:
-                                    if field not in segment_data:
-                                        issues.append(
-                                            f"Segment {segment_id} missing '{field}' field"
-                                        )
-                                        break
-                    except json.JSONDecodeError as e:
-                        issues.append(f"Invalid JSON in mapping file: {e}")
-                    except Exception as e:
-                        issues.append(f"Error reading mapping file: {e}")
-
-                # Check history file if it exists
-                if self.history_file_path.exists():
-                    try:
-                        with open(self.history_file_path) as f:
-                            history_data = json.load(f)
-
-                        if isinstance(history_data, dict):
-                            metadata["history_entries"] = len(history_data)
-                    except Exception as e:
-                        issues.append(f"Error reading history file: {e}")
+                # Check history file
+                history_data = read_json_with_retry(self.history_file_path)
+                if isinstance(history_data, dict):
+                    metadata["history_entries"] = len(history_data)
+                elif history_data is None:
+                    metadata["history_entries"] = 0
                 else:
+                    issues.append("Error reading history file: unexpected type")
                     metadata["history_entries"] = 0
 
                 return issues, metadata

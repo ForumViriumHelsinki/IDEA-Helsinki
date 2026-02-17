@@ -18,6 +18,62 @@ logger = logging.getLogger(__name__)
 ESTALE = getattr(errno, "ESTALE", 116)
 
 
+def read_json_with_retry(
+    filepath: str | Path,
+    max_retries: int = 3,
+    base_delay: float = 0.5,
+) -> dict | list | None:
+    """Read JSON with ESTALE retry for GCS FUSE mounts.
+
+    Retries on ESTALE (stale file handle) with exponential backoff + jitter.
+    On JSONDecodeError, retries once (writer may have been mid-close), then
+    returns None with a warning.
+
+    Args:
+        filepath: Path to JSON file
+        max_retries: Maximum retry attempts for ESTALE errors
+        base_delay: Base delay in seconds for exponential backoff
+
+    Returns:
+        Parsed JSON data, or None if file is missing, empty, or unreadable
+    """
+    filepath = Path(filepath)
+
+    for attempt in range(max_retries + 1):
+        try:
+            with open(filepath, encoding="utf-8") as f:
+                data = json.load(f)
+            return data
+        except FileNotFoundError:
+            return None
+        except json.JSONDecodeError as e:
+            if attempt < 1:
+                delay = base_delay + random.uniform(0, 0.3)
+                logger.warning(
+                    f"JSONDecodeError reading {filepath}: {e}. "
+                    f"Retrying in {delay:.1f}s (writer may be mid-close)..."
+                )
+                time.sleep(delay)
+                continue
+            logger.warning(f"JSONDecodeError reading {filepath} after retry: {e}")
+            return None
+        except OSError as e:
+            if e.errno == ESTALE and attempt < max_retries:
+                delay = base_delay * (2**attempt) + random.uniform(0, 0.3)
+                logger.warning(
+                    f"ESTALE error reading {filepath}, attempt {attempt + 1}/{max_retries + 1}. "
+                    f"Retrying in {delay:.1f}s..."
+                )
+                time.sleep(delay)
+                continue
+            if e.errno == ESTALE:
+                logger.error(
+                    f"ESTALE error reading {filepath} after {max_retries + 1} attempts"
+                )
+                return None
+            raise
+
+
 def atomic_write_json(
     filepath: str | Path,
     data: dict | list,
@@ -30,7 +86,7 @@ def atomic_write_json(
     Uses tempfile.NamedTemporaryFile with unpredictable names and O_EXCL flag
     to prevent symlink attacks, then renames to target path atomically.
     Implements exponential backoff retry for ESTALE (errno 116) errors that
-    occur with NFS/hostPath mounts.
+    occur with GCS FUSE mounts.
 
     Args:
         filepath: Target file path
@@ -150,21 +206,26 @@ class SegmentMappingFileManager:
 
     def read_mapping_safe(self, file_path: str) -> dict:
         """
-        Thread-safe read of segment mapping file.
+        Thread-safe read of segment mapping file with ESTALE retry for GCS FUSE mounts.
 
         Args:
             file_path: File path to read
 
         Returns:
-            dict: Parsed JSON data
+            dict: Parsed JSON data, or empty dict if unreadable
 
         Raises:
             FileNotFoundError: If file doesn't exist
-            json.JSONDecodeError: If file contains invalid JSON
         """
         with self._lock:
-            with open(file_path) as f:
-                return json.load(f)
+            data = read_json_with_retry(file_path)
+            if data is None:
+                if not Path(file_path).exists():
+                    raise FileNotFoundError(f"File not found: {file_path}")
+                return {}
+            if not isinstance(data, dict):
+                return {}
+            return data
 
     def write_json_safe(self, data: dict | list, file_path: str):
         """

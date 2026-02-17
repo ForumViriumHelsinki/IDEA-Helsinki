@@ -12,7 +12,7 @@ from pathlib import Path
 # -------------- PROJECT CLASS IMPORTS -----------------#
 # ------------------------------------------------------#
 from idea_shared.classes.Logger import Logger
-from idea_shared.threading.file_locks import atomic_write_json
+from idea_shared.threading.file_locks import atomic_write_json, read_json_with_retry
 
 logger = Logger(__name__)
 
@@ -131,7 +131,7 @@ def write_json_records(records: dict, json_file: str) -> bool:
     Function for writing JSON records to a file using atomic writes.
 
     Uses atomic write pattern (temp file + rename) to prevent corruption
-    and includes retry logic for ESTALE errors on NFS/hostPath mounts.
+    and includes retry logic for ESTALE errors on GCS FUSE mounts.
 
     Args:
         records: The records to write.
@@ -170,34 +170,24 @@ def read_existing_json_records(json_file: str) -> dict:
         A dictionary from the JSON file.
     """
     records = {}
-    json_file_path = Path(json_file)
-    if json_file_path.exists() and json_file_path.stat().st_size > 0:
-        try:
-            with open(json_file_path, encoding="utf-8") as f:
-                existing_content = json.load(f)
-            if isinstance(existing_content, dict):
-                segment_ids = existing_content.get("segmentId")
-                if isinstance(segment_ids, dict):
-                    records = existing_content
-                    logger.info(
-                        f"Read {len(segment_ids)} existing segment records from '{json_file_path}'."
-                    )
-                else:
-                    logger.warning(
-                        f"Existing JSON file '{json_file_path}' did not contain a Dictionary for different segments. It will be overwritten."
-                    )
-            else:
-                logger.warning(
-                    f"Existing JSON file '{json_file_path}' did not contain a Dictionary. It will be overwritten."
-                )
-        except json.JSONDecodeError:
+    existing_content = read_json_with_retry(json_file)
+    if existing_content is None:
+        return records
+    if isinstance(existing_content, dict):
+        segment_ids = existing_content.get("segmentId")
+        if isinstance(segment_ids, dict):
+            records = existing_content
+            logger.info(
+                f"Read {len(segment_ids)} existing segment records from '{json_file}'."
+            )
+        else:
             logger.warning(
-                f"Could not decode existing JSON from '{json_file}'. It will be overwritten."
+                f"Existing JSON file '{json_file}' did not contain a Dictionary for different segments. It will be overwritten."
             )
-        except Exception as e:
-            logger.error(
-                f"Error reading or parsing existing JSON file '{json_file}': {e}. It will be overwritten."
-            )
+    else:
+        logger.warning(
+            f"Existing JSON file '{json_file}' did not contain a Dictionary. It will be overwritten."
+        )
     return records
 
 
