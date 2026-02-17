@@ -171,9 +171,9 @@ class TestMultithreadedMode:
 
         # Verify work was actually processed
         stats = coordinator.get_progress_stats()
-        assert (
-            stats["date_queue"]["completed_ranges"] == 2
-        ), "Should complete 2 date ranges (Jan 1-1, Jan 2-2)"
+        assert stats["date_queue"]["completed_ranges"] == 2, (
+            "Should complete 2 date ranges (Jan 1-1, Jan 2-2)"
+        )
 
         # Clean up
         coordinator.shutdown()
