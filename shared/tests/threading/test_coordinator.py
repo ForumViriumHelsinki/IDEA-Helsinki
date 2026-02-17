@@ -223,9 +223,9 @@ class TestThreadCoordinatorBackfill:
 
         # Verify work was actually processed
         stats = coordinator.get_progress_stats()
-        assert stats["date_queue"]["completed_ranges"] == 2, (
-            "Should complete 2 date ranges"
-        )
+        assert (
+            stats["date_queue"]["completed_ranges"] == 2
+        ), "Should complete 2 date ranges"
 
     def test_wait_for_backfill_timeout(self):
         """

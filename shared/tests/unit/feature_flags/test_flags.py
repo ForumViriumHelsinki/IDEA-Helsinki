@@ -90,9 +90,9 @@ class TestFlagDefaults:
 
         for flag, expected_value in test_cases:
             actual = FlagDefaults.get_default(flag)
-            assert actual == expected_value, (
-                f"Expected {flag.value} to have default {expected_value}, got {actual}"
-            )
+            assert (
+                actual == expected_value
+            ), f"Expected {flag.value} to have default {expected_value}, got {actual}"
 
     @pytest.mark.unit
     def test_get_default_raises_for_unknown_flag(self):
