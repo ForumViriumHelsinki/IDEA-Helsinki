@@ -85,14 +85,10 @@ class IdeaHelsinkiManager:
         """
         data = read_json_with_retry(file_path)
         if data is None:
-            self.logger.error(
-                f"Could not load disturbance data from '{file_path}'"
-            )
+            self.logger.error(f"Could not load disturbance data from '{file_path}'")
             return {}
         if not isinstance(data, dict):
-            self.logger.error(
-                f"Disturbance data from '{file_path}' is not a dict"
-            )
+            self.logger.error(f"Disturbance data from '{file_path}' is not a dict")
             return {}
         return data
 
@@ -128,9 +124,7 @@ class IdeaHelsinkiManager:
         # Update cycle time for health monitoring
         self.last_cycle_time = datetime.now(UTC)
 
-        self.logger.info(
-            "Manager starting new cycle: discovering and updating tasks."
-        )
+        self.logger.info("Manager starting new cycle: discovering and updating tasks.")
 
         # Load the latest disturbance data with intersections
         disturbance_data = self._get_disturbance_data(
@@ -146,9 +140,7 @@ class IdeaHelsinkiManager:
                     segment_id in self.target_fcd_segments
                     or not self.target_fcd_segments
                 ):
-                    segments_to_process[segment_id] = data.get(
-                        "detailedCollisions", []
-                    )
+                    segments_to_process[segment_id] = data.get("detailedCollisions", [])
             else:
                 segments_to_process[segment_id] = data.get("detailedCollisions", [])
 

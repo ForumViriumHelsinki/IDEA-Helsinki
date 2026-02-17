@@ -145,7 +145,9 @@ def run(azure_manager: AzureBlobContainerManager):
     """
     global thread_coordinator
 
-    logger.info(f"Starting FCD synchronization with {FCD_BACKFILL_WORKER_COUNT} backfill workers")
+    logger.info(
+        f"Starting FCD synchronization with {FCD_BACKFILL_WORKER_COUNT} backfill workers"
+    )
     logger.info(f"  - Chunk size: {FCD_BACKFILL_CHUNK_DAYS} days")
     logger.info(f"  - Write queue size: {FCD_WRITE_QUEUE_MAX_SIZE}")
     logger.info(f"  - Max retries: {FCD_MAX_CHUNK_RETRIES}")
@@ -298,6 +300,7 @@ def run(azure_manager: AzureBlobContainerManager):
     try:
         while True:
             import time
+
             time.sleep(60)
     except KeyboardInterrupt:
         logger.info("Received keyboard interrupt")
@@ -500,7 +503,6 @@ def update_fcd_segment_mapping(fcd_segments: dict) -> bool:
         )
     else:
         return False
-
 
 
 def _process_and_update_blob_list(

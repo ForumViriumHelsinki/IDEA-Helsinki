@@ -149,9 +149,7 @@ class TestWithRetry:
             call_count += 1
             return "success"
 
-        result = await with_retry(
-            successful_operation, max_attempts=3, base_delay=0.01
-        )
+        result = await with_retry(successful_operation, max_attempts=3, base_delay=0.01)
         assert result == "success"
         assert call_count == 1
 
