@@ -197,9 +197,9 @@ class TestStreamingBlobProcessing:
         # Verify each batch contains valid FCD data
         for i, batch in enumerate(results):
             assert "segmentId" in batch, f"Batch {i} should follow FCD data model"
-            assert len(batch["segmentId"]) == 50, (
-                f"Batch {i} should contain 50 segments"
-            )
+            assert (
+                len(batch["segmentId"]) == 50
+            ), f"Batch {i} should contain 50 segments"
 
             # Verify segment IDs in each batch
             # Batch 0: blobs 0-49 => times 00:00-00:49 => minutes 0-49 => seg0-seg49
@@ -208,12 +208,12 @@ class TestStreamingBlobProcessing:
                 assert "seg0" in batch["segmentId"], "First batch should contain seg0"
                 assert "seg49" in batch["segmentId"], "First batch should contain seg49"
             else:
-                assert "seg50" in batch["segmentId"], (
-                    "Second batch should contain seg50"
-                )
-                assert "seg99" in batch["segmentId"], (
-                    "Second batch should contain seg99"
-                )
+                assert (
+                    "seg50" in batch["segmentId"]
+                ), "Second batch should contain seg50"
+                assert (
+                    "seg99" in batch["segmentId"]
+                ), "Second batch should contain seg99"
 
     def test_process_handles_download_failure(self):
         """
@@ -256,9 +256,9 @@ class TestStreamingBlobProcessing:
 
         # Assert: Should still yield 1 batch (second blob succeeded)
         assert len(results) == 1, "Should process successful blob despite one failure"
-        assert "success_seg" in results[0]["segmentId"], (
-            "Should contain the successful segment"
-        )
+        assert (
+            "success_seg" in results[0]["segmentId"]
+        ), "Should contain the successful segment"
 
     def test_process_handles_parse_failure(self):
         """

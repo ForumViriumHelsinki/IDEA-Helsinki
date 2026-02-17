@@ -90,9 +90,9 @@ class TestMultithreadingEquivalence:
         # Verify structure
         for batch in batches:
             assert "segmentId" in batch, "Batch should have segmentId key"
-            assert isinstance(batch["segmentId"], dict), (
-                "segmentId should be dictionary"
-            )
+            assert isinstance(
+                batch["segmentId"], dict
+            ), "segmentId should be dictionary"
 
     def test_coordinator_vs_direct_streaming_equivalence(self, mock_azure, fixture_dir):
         """

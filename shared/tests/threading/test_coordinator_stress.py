@@ -333,9 +333,9 @@ class TestDataIntegrity:
 
         # Check for duplicates
         unique_submissions = set(write_queue_submissions)
-        assert len(unique_submissions) == len(write_queue_submissions), (
-            "Found duplicate submissions"
-        )
+        assert len(unique_submissions) == len(
+            write_queue_submissions
+        ), "Found duplicate submissions"
 
 
 # ============================================================================
@@ -526,9 +526,9 @@ class TestPerformanceBenchmarks:
         # Note: Conservative threshold accounts for threading overhead and GIL limitations in Python
         # For IO-bound tasks with simulated delays, even modest speedup validates benefit
         speedup = single_threaded_time / multi_threaded_time
-        assert speedup >= 1.1, (
-            f"Expected speedup >= 1.1x, got {speedup:.2f}x ({single_threaded_time:.2f}s vs {multi_threaded_time:.2f}s)"
-        )
+        assert (
+            speedup >= 1.1
+        ), f"Expected speedup >= 1.1x, got {speedup:.2f}x ({single_threaded_time:.2f}s vs {multi_threaded_time:.2f}s)"
 
     def test_throughput_under_load(self):
         """Measure throughput with high worker count and large dataset."""
