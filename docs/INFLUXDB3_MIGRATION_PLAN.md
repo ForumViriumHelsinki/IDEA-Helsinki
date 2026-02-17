@@ -2,126 +2,360 @@
 
 ## Executive Summary
 
-This document outlines the migration plan for IDEA-Helsinki from InfluxDB 2.7 (TSM engine) to InfluxDB 3 Core/Enterprise (Apache Arrow + DataFusion + Parquet engine). The migration is a **breaking change** — InfluxDB 3 drops Flux entirely and replaces the v2 data model (buckets/organizations) with a simplified model (databases/tables).
+Migrate IDEA-Helsinki from InfluxDB 2.7 (self-hosted, TSM engine, Flux) to **InfluxDB 3 Cloud** (managed, Apache Arrow + DataFusion + Parquet, SQL). The migration is **feature-flagged** — both v2 and v3 code paths coexist, controlled by the existing feature flag system, enabling instant rollback.
+
+**Data strategy**: No data migration needed. Historical data will be reprocessed from Azure blob storage into InfluxDB Cloud. The local InfluxDB 2.7 StatefulSet remains available as fallback during the transition.
 
 ### Why Migrate
 
-- **Flux is deprecated**: InfluxDB 3 does not support Flux. All 12+ Flux queries in the codebase must be rewritten to SQL or InfluxQL.
-- **Performance**: InfluxDB 3 eliminates series cardinality limits, offers sub-10ms last-value queries, and handles unlimited cardinality.
-- **Docker tag change**: On **April 7, 2026**, the `latest` Docker tag will point to InfluxDB 3 Core. Our `influxdb:2.7-alpine` image pin protects us, but staying on 2.7 means no further updates.
-- **Architecture**: InfluxDB 3 uses Apache Arrow, DataFusion, and Parquet — a modern columnar storage stack that replaces the TSM engine.
+- **Flux is deprecated**: InfluxDB 3 removes Flux entirely. Our 12+ Flux queries must become SQL.
+- **Performance**: Near-unlimited series cardinality, sub-10ms last-value queries, columnar storage.
+- **Docker tag change**: On **April 7, 2026**, the `latest` Docker tag switches to InfluxDB 3 Core. Our `influxdb:2.7-alpine` pin protects us, but 2.7 receives no further updates.
+- **InfluxDB Cloud**: Managed service eliminates operational burden of the local StatefulSet.
 
-### Key Risks
+### Scope
 
-| Risk | Impact | Mitigation |
-|------|--------|------------|
-| Flux queries not translatable to SQL | High | Pre-map every Flux query before starting |
-| Data loss during migration | High | Export all data before migration; run dual-write during transition |
-| InfluxDB 3 Core lacks compaction | Medium | Evaluate Enterprise (free at-home tier available) |
-| Client library incompatibility | Medium | `influxdb3-python` has different API surface than `influxdb-client` |
-| Health check Flux queries break | High | Rewrite all health checks to use SQL/InfluxQL |
+| In scope | Out of scope |
+|----------|-------------|
+| Client library swap (`influxdb-client` → `influxdb3-python`) | Kubernetes deployment changes |
+| Flux → SQL query rewrite | Data migration/export from v2 |
+| Feature flag to toggle v2/v3 | Multi-region HA setup |
+| Health check migration | InfluxDB Cloud provisioning |
+| New `FCDInfluxDBManagerV3` class | Changes to Azure blob ingestion |
 
 ---
 
-## 1. Conceptual Changes
+## 1. Feature Flag Design
 
-### 1.1 Data Model
+### 1.1 Flag Definition
 
-| Concept | InfluxDB 2.7 (Current) | InfluxDB 3 |
-|---------|------------------------|------------|
-| Data container | **Bucket** (within an Org) | **Database** |
-| Organization | Required (`idea-helsinki`) | **Removed** |
-| Measurement | Measurement | **Table** |
-| Tag | Tag (indexed) | Tag column (string dictionary) |
-| Field | Field | Column (typed) |
-| Retention | Per-bucket | Per-database (optional) |
-| Query language | **Flux** | **SQL** (primary), InfluxQL (compat) |
-| Write protocol | Line Protocol via v2 API | Line Protocol via v3 API (v2 compat available) |
+Add to `shared/src/idea_shared/feature_flags/flags.py`:
 
-### 1.2 Authentication
+```python
+class FeatureFlag(StrEnum):
+    # ... existing flags ...
 
-| Aspect | InfluxDB 2.7 | InfluxDB 3 |
-|--------|-------------|------------|
-| Token model | Org-scoped tokens | Database-scoped tokens |
-| Admin token | Operator token (setup wizard) | `_admin` operator token |
-| CLI tool | `influx` | `influxdb3` |
-| Auth header | `Token <token>` | `Bearer <token>` |
+    # InfluxDB version selection
+    INFLUXDB_VERSION = "influxdb_version"
+```
 
-### 1.3 Client Library
+```python
+class FlagDefaults:
+    # ... existing defaults ...
+
+    INFLUXDB_VERSION: str = "v2"  # Safe default: current behavior
+```
+
+### 1.2 Configuration
+
+**JSON file** (`data/feature_flags.json`):
+```json
+{
+  "flags": {
+    "influxdb_version": {
+      "value": "v2",
+      "description": "InfluxDB client version: 'v2' (self-hosted, Flux) or 'v3' (Cloud, SQL)"
+    }
+  }
+}
+```
+
+**Environment variable** (production):
+```bash
+FEATURE_FLAG_INFLUXDB_VERSION=v3
+```
+
+### 1.3 New Environment Variables for v3
+
+When the flag is set to `v3`, the following env vars are read:
+
+```bash
+# InfluxDB 3 Cloud connection (only used when flag = v3)
+INFLUX_DB_V3_HOST=us-east-1-1.aws.cloud2.influxdata.com  # Cloud host (no http://)
+INFLUX_DB_V3_TOKEN=your-cloud-token
+INFLUX_DB_V3_FCD_DATABASE=fcd-data
+INFLUX_DB_V3_VALIDATION_DATABASE=validation
+```
+
+The existing v2 env vars remain untouched — both sets coexist.
+
+---
+
+## 2. Architecture — Factory + Strategy Pattern
+
+### 2.1 Overview
+
+```
+Callers (IdeaHelsinkiRoadSegment, fcd-manager, health checks)
+    │
+    │  unchanged public interface
+    ▼
+┌──────────────────────────────────┐
+│  create_influxdb_manager()       │  ← factory reads feature flag
+│  (shared/classes/__init__.py)    │
+└───────────┬──────────────────────┘
+            │
+      ┌─────┴──────┐
+      ▼            ▼
+┌───────────┐ ┌───────────┐
+│ FCDInflux  │ │ FCDInflux  │
+│ DBManager  │ │ DBManager  │
+│ (v2/Flux)  │ │ V3 (SQL)   │
+└───────────┘ └───────────┘
+```
+
+### 2.2 Why This Works
+
+The `FCDInfluxDBManager` public interface is **already query-language agnostic**. Callers never touch Flux — they call methods like:
+
+| Method | Return type | Used by |
+|--------|-------------|---------|
+| `check_connection()` | `bool` | All services |
+| `get_last_update_timestamp()` | `datetime \| None` | fcd-manager |
+| `get_last_segment_update_timestamp()` | `datetime \| None` | orchestrator |
+| `get_first_segment_update_timestamp()` | `datetime \| None` | orchestrator |
+| `get_segment_data_dataframe()` | `DataFrame \| None` | orchestrator |
+| `get_segment_data_csv()` | `str \| None` | orchestrator |
+| `write_dataframe()` | `None` | orchestrator |
+| `write_fcd_model()` | `None` | fcd-manager |
+| `close()` | `None` | All services |
+
+Both implementations return identical types. Callers don't change at all.
+
+### 2.3 Factory Function
+
+```python
+# shared/src/idea_shared/classes/influxdb_factory.py
+
+from idea_shared.feature_flags import get_feature_flags, FeatureFlag
+
+def create_influxdb_manager(
+    url: str,
+    token: str,
+    org: str,
+    bucket: str,
+    timeout: int = 300_000,
+):
+    """Create the appropriate InfluxDB manager based on feature flag.
+
+    Callers pass the SAME arguments as today. When v3 is active,
+    the factory maps them to v3 equivalents:
+      - url   → ignored (reads INFLUX_DB_V3_HOST from env)
+      - org   → ignored (not needed in v3)
+      - bucket → mapped to database name
+    """
+    flags = get_feature_flags()
+    version = flags.get_string(FeatureFlag.INFLUXDB_VERSION, default="v2")
+
+    if version == "v3":
+        from idea_shared.classes.FCDInfluxDBManagerV3 import FCDInfluxDBManagerV3
+        import os
+
+        # v3 connection params come from dedicated env vars
+        host = os.getenv("INFLUX_DB_V3_HOST", "localhost:8181")
+        v3_token = os.getenv("INFLUX_DB_V3_TOKEN", token)
+
+        # Map bucket name → database name
+        fcd_db = os.getenv("INFLUX_DB_V3_FCD_DATABASE", "fcd-data")
+        val_db = os.getenv("INFLUX_DB_V3_VALIDATION_DATABASE", "validation")
+
+        # Determine which database based on the bucket being requested
+        database = val_db if "validation" in bucket.lower() else fcd_db
+
+        return FCDInfluxDBManagerV3(
+            host=host,
+            token=v3_token,
+            database=database,
+            timeout=timeout,
+        )
+    else:
+        from idea_shared.classes.FCDInfluxDBManager import FCDInfluxDBManager
+
+        return FCDInfluxDBManager(
+            url=url, token=token, org=org,
+            bucket=bucket, timeout=timeout,
+        )
+```
+
+### 2.4 Call Site Changes
+
+All 13 production call sites change from direct instantiation to the factory. Example:
+
+```python
+# BEFORE (IdeaHelsinkiRoadSegment.py:346)
+with FCDInfluxDBManager(
+    url=self.db_url,
+    token=self.db_validation_token,
+    org=self.db_org,
+    bucket=self.db_validation_bucket,
+) as manager:
+    ...
+
+# AFTER
+from idea_shared.classes.influxdb_factory import create_influxdb_manager
+
+with create_influxdb_manager(
+    url=self.db_url,
+    token=self.db_validation_token,
+    org=self.db_org,
+    bucket=self.db_validation_bucket,
+) as manager:
+    ...
+```
+
+The arguments stay identical — the factory handles the v2/v3 routing internally.
+
+**Complete call site inventory** (13 production locations):
+
+| File | Line | Purpose |
+|------|------|---------|
+| `services/fcd-manager/src/main.py` | ~273 | Backfill init check |
+| `services/fcd-manager/src/main.py` | ~348 | Write FCD data |
+| `services/fcd-manager/src/main.py` | ~648 | Get last update timestamp |
+| `services/fcd-manager/src/main.py` | ~771 | Get last FCD mapping timestamp |
+| `shared/.../IdeaHelsinkiRoadSegment.py` | ~346 | Write validation results |
+| `shared/.../IdeaHelsinkiRoadSegment.py` | ~383 | Get segment FCD data |
+| `shared/.../IdeaHelsinkiRoadSegment.py` | ~419 | Get baseline confidence |
+| `shared/.../IdeaHelsinkiRoadSegment.py` | ~461 | Get baseline speed |
+| `shared/.../IdeaHelsinkiRoadSegment.py` | ~513 | Get impact data |
+| `shared/.../threading/coordinator.py` | ~79 | Writer thread init |
+| `shared/.../health/idea_checks.py` | ~198 | InfluxDB health check |
+| `services/orchestrator/src/health_checks.py` | ~129 | Connection manager |
+| `shared/.../health/utils.py` | ~90 | Backfill mode check |
+
+---
+
+## 3. New Class — `FCDInfluxDBManagerV3`
+
+### 3.1 Module Structure
+
+```
+shared/src/idea_shared/classes/
+├── FCDInfluxDBManager.py        # Existing v2 (unchanged)
+├── FCDInfluxDBManagerV3.py      # New v3 implementation
+└── influxdb_factory.py          # Factory function
+```
+
+### 3.2 Client Library
 
 | Aspect | Current (`influxdb-client`) | New (`influxdb3-python`) |
 |--------|---------------------------|--------------------------|
 | Package | `influxdb-client` | `influxdb3-python` |
 | Import | `from influxdb_client import InfluxDBClient` | `from influxdb_client_3 import InfluxDBClient3` |
-| Query API | `client.query_api().query(flux_query)` | `client.query(sql_query, mode="pandas")` |
-| Query protocol | HTTP + Flux | Apache Arrow Flight + SQL |
-| Write API | `client.write_api(write_options=SYNCHRONOUS)` | `client.write()` (synchronous by default) |
-| DataFrame write | `write_api.write(record=df, data_frame_*)` | `client.write_dataframe(df, measurement, timestamp_column, tag_columns)` |
-| Point write | `Point("m").tag("k","v").field("k",v)` | `Point("m").tag("k","v").field("k",v)` (same) |
-| Connection params | `url`, `token`, `org` | `host`, `token`, `database` |
-| Ping/health | `client.ping()` | HTTP `/health` endpoint |
+| Connection | `InfluxDBClient(url=, token=, org=)` | `InfluxDBClient3(host=, token=, database=)` |
+| Query | `client.query_api().query(flux)` | `client.query(sql, mode="pandas")` |
+| Write DF | `write_api.write(record=df, data_frame_*)` | `client.write_dataframe(df, ...)` |
+| Point write | `Point("m").tag().field()` | Same `Point` API |
+| Ping | `client.ping()` | HTTP `/health` endpoint |
 
-### 1.4 Core vs Enterprise Decision
+### 3.3 Dependencies
 
-For IDEA-Helsinki, two options exist:
+Both libraries coexist in `shared/pyproject.toml` during the transition:
 
-**InfluxDB 3 Core (OSS, MIT/Apache 2)**
-- Single-node only
-- No compaction (performance degrades over time with historical data)
-- Best for recent data (last few days)
-- Limitation: IDEA requires 6 months of FCD history for validation
+```toml
+dependencies = [
+    "influxdb-client",       # v2 — keep until v2 code path removed
+    "influxdb3-python",      # v3 — new
+    # ... rest unchanged
+]
+```
 
-**InfluxDB 3 Enterprise (commercial, free at-home tier)**
-- Compaction engine (critical for 6-month historical queries)
-- Historical query optimization
-- High availability (multi-node)
-- Single-series indexing
+### 3.4 Skeleton Implementation
 
-**Recommendation**: Start with **Enterprise (free at-home tier)** for development due to the 6-month FCD history requirement. Compaction is essential for querying historical data efficiently. Evaluate Core only if the data retention strategy changes.
+```python
+# shared/src/idea_shared/classes/FCDInfluxDBManagerV3.py
+
+import pandas as pd
+from datetime import datetime
+from influxdb_client_3 import InfluxDBClient3
+from idea_shared.classes.Logger import Logger
+
+class FCDInfluxDBManagerV3:
+    """InfluxDB 3 implementation using SQL queries and Arrow Flight protocol.
+
+    Drop-in replacement for FCDInfluxDBManager with identical public interface.
+    """
+
+    def __init__(self, host: str, token: str, database: str, timeout: int = 300_000):
+        self.client = InfluxDBClient3(
+            host=host,
+            token=token,
+            database=database,
+        )
+        self.database = database
+        self.logger = Logger(__name__)
+        self.logger.info(
+            f"FCDInfluxDBManagerV3 initialized - Host: {host}, "
+            f"Database: {database}"
+        )
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    def check_connection(self) -> bool:
+        """Check connectivity via a lightweight SQL query."""
+        try:
+            self.client.query("SELECT 1")
+            return True
+        except Exception as e:
+            self.logger.error(f"InfluxDB 3 connection check failed: {e}")
+            return False
+
+    def get_last_update_timestamp(self, search_all: bool = False) -> datetime | None:
+        ...  # SQL implementation (see Section 4)
+
+    def get_segment_update_timestamp(self, ...) -> datetime | None:
+        ...
+
+    def get_last_segment_update_timestamp(self, ...) -> datetime | None:
+        ...
+
+    def get_first_segment_update_timestamp(self, ...) -> datetime | None:
+        ...
+
+    def get_segment_data_csv(self, ...) -> str | None:
+        ...
+
+    def get_segment_data_dataframe(self, ...) -> pd.DataFrame | None:
+        ...
+
+    def write_dataframe(self, df, segment_id, measurement_name, batch_size=5000):
+        ...  # v3 write implementation (see Section 5)
+
+    def write_fcd_model(self, fcd_data: dict, batch_size: int = 5000):
+        ...
+
+    def close(self):
+        if self.client:
+            self.client.close()
+```
 
 ---
 
-## 2. Impact Assessment — Files Requiring Changes
+## 4. Query Migration — Flux → SQL
 
-### 2.1 Critical Path (Must Change)
+### 4.1 Query Safety: Parameterized Queries
 
-| File | Changes Required |
-|------|-----------------|
-| `shared/pyproject.toml:21` | Replace `influxdb-client` with `influxdb3-python` dependency |
-| `shared/src/idea_shared/classes/FCDInfluxDBManager.py` | **Complete rewrite**: new client, SQL queries, new write API |
-| `shared/src/idea_shared/health/idea_checks.py` | Replace `InfluxDBClient` with `InfluxDBClient3`, rewrite Flux health queries |
-| `shared/src/idea_shared/health/utils.py` | Rewrite `check_backfill_mode()` Flux queries to SQL |
-| `shared/src/idea_shared/lib/Constants/PrivateConstants.py` | Remove `INFLUX_DB_ORG`, rename bucket vars to database vars |
-| `services/orchestrator/src/health_checks.py` | Rewrite `InfluxDBConnectionManager`, `FCDDatabaseHealthCheck`, `ValidationDatabaseHealthCheck` |
-| `k8s/influxdb-deployment.yaml` | New image, new init config, new env vars, remove org/bucket init |
-| `k8s/secrets.yaml.tmpl` | Update variable names (bucket→database, remove org) |
+InfluxDB 3's Python client supports parameterized queries natively, replacing `_sanitize_flux_string()`:
 
-### 2.2 Secondary Changes
+```python
+# v2: Manual string sanitization
+flux = f'... r.segmentId == "{_sanitize_flux_string(segment_id)}" ...'
 
-| File | Changes Required |
-|------|-----------------|
-| `shared/src/idea_shared/classes/IdeaHelsinkiRoadSegment.py` | Update FCDInfluxDBManager usage (if constructor changes) |
-| `shared/src/idea_shared/classes/IdeaHelsinkiManager.py` | Update InfluxDB initialization |
-| `services/fcd-manager/src/main.py` | Update InfluxDB client initialization |
-| `services/orchestrator/src/main.py` | Update InfluxDB client initialization |
-| `shared/src/idea_shared/lib/Constants/Constants.py` | Update health check constant names if needed |
-| `scripts/generate-secrets.sh` | Update env var names |
-| `CLAUDE.md` | Update documentation references |
-| All test files referencing InfluxDB | Update mocks and assertions |
+# v3: Parameterized queries (injection-safe by design)
+sql = "SELECT max(time) FROM segment_data WHERE segmentId = $segment_id"
+result = client.query(sql, query_parameters={"segment_id": segment_id})
+```
 
----
+### 4.2 Complete Query Mapping
 
-## 3. Query Migration — Flux → SQL
+#### Query 1: Last update timestamp (`get_last_update_timestamp`)
 
-### 3.1 Inventory of Flux Queries
-
-Every Flux query in the codebase must be rewritten. Here is the complete mapping:
-
-#### FCDInfluxDBManager.py Queries
-
-**Query 1: Last update timestamp** (`get_last_update_timestamp`)
 ```flux
-# CURRENT (Flux)
+-- CURRENT (Flux)
 from(bucket: "{bucket}")
   |> range(start: {range_start})
   |> filter(fn: (r) => r._measurement == "segment_data")
@@ -134,39 +368,44 @@ SELECT max(time) as last_time
 FROM segment_data
 ```
 
-**Query 2: Segment timestamp (first/last)** (`get_segment_update_timestamp`)
+#### Query 2: Segment timestamp — last (`get_last_segment_update_timestamp`)
+
 ```flux
-# CURRENT (Flux)
+-- CURRENT (Flux)
 from(bucket: "{bucket}")
-  |> range(start: {range_start})
+  |> range(start: -30d)
   |> filter(fn: (r) => r._measurement == "{measurement}" and r.segmentId == "{segment}")
-  |> aggregateWindow(every: {interval}m, fn: last, createEmpty: false)
-  |> {first_or_last}()
+  |> last()
   |> keep(columns: ["_time"])
 ```
 ```sql
--- NEW (SQL) - last timestamp
+-- NEW (SQL)
 SELECT max(time) as last_time
-FROM "{measurement}"
-WHERE "segmentId" = '{segment_id}'
-
--- NEW (SQL) - first timestamp
-SELECT min(time) as first_time
-FROM "{measurement}"
-WHERE "segmentId" = '{segment_id}'
-
--- With interval aggregation (DATE_BIN replaces aggregateWindow)
-SELECT max(time) as last_time
-FROM "{measurement}"
-WHERE "segmentId" = '{segment_id}'
-GROUP BY DATE_BIN(INTERVAL '{interval} minutes', time)
-ORDER BY last_time DESC
-LIMIT 1
+FROM $measurement
+WHERE "segmentId" = $segment_id
 ```
 
-**Query 3: Segment data (CSV/DataFrame)** (`get_segment_data_csv` / `get_segment_data_dataframe`)
+#### Query 3: Segment timestamp — first (`get_first_segment_update_timestamp`)
+
 ```flux
-# CURRENT (Flux)
+-- CURRENT (Flux)
+from(bucket: "{bucket}")
+  |> range(start: 0)
+  |> filter(fn: (r) => r._measurement == "{measurement}" and r.segmentId == "{segment}")
+  |> first()
+  |> keep(columns: ["_time"])
+```
+```sql
+-- NEW (SQL)
+SELECT min(time) as first_time
+FROM $measurement
+WHERE "segmentId" = $segment_id
+```
+
+#### Query 4: Segment data — full range (`get_segment_data_dataframe` / `get_segment_data_csv`)
+
+```flux
+-- CURRENT (Flux) — requires pivot because v2 stores fields row-wise
 from(bucket: "{bucket}")
   |> range(start: {start}, stop: {end})
   |> filter(fn: (r) => r._measurement == "{measurement}")
@@ -177,34 +416,31 @@ from(bucket: "{bucket}")
   |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
 ```
 ```sql
--- NEW (SQL)
--- Note: InfluxDB 3 stores data in columnar format natively,
--- no pivot needed. Fields are already columns.
+-- NEW (SQL) — fields are already columns in v3, no pivot needed
 SELECT time, speed, confidence
-FROM "{measurement}"
-WHERE "segmentId" = '{segment_id}'
-  AND time >= '{start_time}'
-  AND time <= '{end_time}'
+FROM $measurement
+WHERE "segmentId" = $segment_id
+  AND time >= $start_time
+  AND time <= $end_time
 ORDER BY time ASC
 
--- With interval aggregation
+-- With interval aggregation (DATE_BIN replaces aggregateWindow)
 SELECT
-  DATE_BIN(INTERVAL '{interval} minutes', time) as time_bin,
+  DATE_BIN(INTERVAL '5 minutes', time) as time_bin,
   LAST_VALUE(speed) as speed,
   LAST_VALUE(confidence) as confidence
-FROM "{measurement}"
-WHERE "segmentId" = '{segment_id}'
-  AND time >= '{start_time}'
-  AND time <= '{end_time}'
+FROM $measurement
+WHERE "segmentId" = $segment_id
+  AND time >= $start_time
+  AND time <= $end_time
 GROUP BY time_bin
 ORDER BY time_bin ASC
 ```
 
-#### Health Check Queries (utils.py, health_checks.py)
+#### Query 5: Recent data check (`check_backfill_mode` — freshness)
 
-**Query 4: Recent data check** (`check_backfill_mode`)
 ```flux
-# CURRENT (Flux)
+-- CURRENT (Flux)
 from(bucket: "{bucket}")
   |> range(start: -{threshold}m)
   |> filter(fn: (r) => r["_measurement"] == "{measurement}")
@@ -215,14 +451,14 @@ from(bucket: "{bucket}")
 ```sql
 -- NEW (SQL)
 SELECT max(time) as last_time
-FROM "{measurement}"
-WHERE time >= now() - INTERVAL '{threshold} minutes'
-LIMIT 1
+FROM $measurement
+WHERE time >= now() - INTERVAL '$threshold minutes'
 ```
 
-**Query 5: Backfill lookback** (`check_backfill_mode`)
+#### Query 6: Backfill lookback (`check_backfill_mode` — historical)
+
 ```flux
-# CURRENT (Flux)
+-- CURRENT (Flux)
 from(bucket: "{bucket}")
   |> range(start: -{days}d)
   |> filter(fn: (r) => r["_measurement"] == "{measurement}")
@@ -233,14 +469,14 @@ from(bucket: "{bucket}")
 ```sql
 -- NEW (SQL)
 SELECT max(time) as last_time
-FROM "{measurement}"
-WHERE time >= now() - INTERVAL '{days} days'
-LIMIT 1
+FROM $measurement
+WHERE time >= now() - INTERVAL '$days days'
 ```
 
-**Query 6: Validation data check** (`ValidationDatabaseHealthCheck`)
+#### Query 7: Validation data check (`ValidationDatabaseHealthCheck`)
+
 ```flux
-# CURRENT (Flux)
+-- CURRENT (Flux)
 from(bucket: "{bucket}")
   |> range(start: -24h)
   |> filter(fn: (r) => r["_measurement"] == "validation_result")
@@ -256,40 +492,25 @@ ORDER BY time DESC
 LIMIT 1
 ```
 
-### 3.2 Query Safety
-
-Current Flux queries use `_sanitize_flux_string()` to prevent injection. SQL queries should use **parameterized queries** instead:
-
-```python
-# Current (string interpolation with sanitization)
-flux_query = f'... r.segmentId == "{_sanitize_flux_string(segment_id)}" ...'
-
-# New (parameterized SQL via influxdb3-python)
-sql = "SELECT * FROM segment_data WHERE segmentId = $segment_id"
-result = client.query(sql, params={"segment_id": segment_id})
-```
-
-The `influxdb3-python` client supports parameterized queries natively, eliminating the need for manual sanitization.
-
 ---
 
-## 4. Write Migration
+## 5. Write Migration
 
-### 4.1 Line Protocol (Unchanged)
+### 5.1 Line Protocol (Unchanged)
 
-InfluxDB 3 continues to accept Line Protocol for writes. The `Point` class API is identical:
+The `Point` API is identical in both libraries:
 
 ```python
-# This works in both v2 and v3
+# Works in both v2 and v3
 point = Point("segment_data").tag("segmentId", segment_id).time(dt_object)
 point.field("speed", 42.5)
 point.field("confidence", 0.95)
 ```
 
-### 4.2 DataFrame Write
+### 5.2 DataFrame Write
 
 ```python
-# CURRENT (influxdb-client)
+# v2 (current)
 self.write_api.write(
     bucket=self.bucket,
     record=df,
@@ -298,8 +519,8 @@ self.write_api.write(
     data_frame_timestamp_column="time",
 )
 
-# NEW (influxdb3-python)
-client.write_dataframe(
+# v3 (new)
+self.client.write_dataframe(
     df,
     measurement=measurement_name,
     timestamp_column="time",
@@ -307,140 +528,27 @@ client.write_dataframe(
 )
 ```
 
-### 4.3 Write Retry Strategy
+### 5.3 Retry Strategy
 
-The current multi-layer retry strategy (urllib3 Retry + tenacity) needs adaptation:
-
-- **urllib3 Retry**: Not applicable — `influxdb3-python` uses a different HTTP stack
-- **tenacity retry**: Keep the application-level retry decorator, but update exception types
-- **Batch writing**: `influxdb3-python` supports `WriteOptions` with built-in batching and retry
+Keep the application-level tenacity retry decorator, but update exception types for the v3 client:
 
 ```python
-# NEW: Built-in batch writing with retry
-from influxdb_client_3 import WriteOptions, write_client_options
-
-write_options = WriteOptions(
-    batch_size=5000,
-    flush_interval=10_000,
-    retry_interval=5_000,
-    max_retries=5,
-    max_retry_delay=30_000,
-    exponential_base=2,
+# v3 transient exceptions (to be determined during implementation)
+_V3_TRANSIENT_EXCEPTIONS = (
+    ConnectionError,
+    OSError,
+    TimeoutError,
 )
 
-wco = write_client_options(
-    success_callback=on_success,
-    error_callback=on_error,
-    retry_callback=on_retry,
-    write_options=write_options,
-)
-
-client = InfluxDBClient3(
-    host="influxdb:8181",
-    database="fcd-data",
-    token="...",
-    write_client_options=wco,
+_influxdb_v3_retry = retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential_jitter(initial=1, max=15),
+    retry=retry_if_exception_type(_V3_TRANSIENT_EXCEPTIONS),
+    reraise=True,
 )
 ```
 
----
-
-## 5. Infrastructure Migration
-
-### 5.1 Kubernetes Deployment Changes
-
-**Current** (`k8s/influxdb-deployment.yaml`):
-```yaml
-image: influxdb:2.7-alpine
-env:
-  - name: DOCKER_INFLUXDB_INIT_MODE
-    value: "setup"
-  - name: DOCKER_INFLUXDB_INIT_ORG
-    value: "idea-helsinki"
-  - name: DOCKER_INFLUXDB_INIT_BUCKET
-    value: "fcd-data"
-  - name: DOCKER_INFLUXDB_INIT_ADMIN_TOKEN
-    value: "dev-token-changeme"
-ports:
-  - containerPort: 8086
-volumeMounts:
-  - mountPath: /var/lib/influxdb2
-```
-
-**New**:
-```yaml
-image: influxdb:3-core  # or influxdb:3-enterprise
-# InfluxDB 3 does NOT use DOCKER_INFLUXDB_INIT_* env vars.
-# Initialization is done via the influxdb3 CLI or HTTP API after startup.
-# The server is stateless — data stored in object store or local Parquet.
-ports:
-  - containerPort: 8181  # Default HTTP port changed from 8086 to 8181
-# No PVC needed for diskless mode (object store backed)
-# For local Parquet storage:
-volumeMounts:
-  - mountPath: /var/lib/influxdb3
-```
-
-Key differences:
-- **Port**: Default changes from `8086` to `8181`
-- **Storage path**: `/var/lib/influxdb2` → `/var/lib/influxdb3`
-- **Init process**: No `DOCKER_INFLUXDB_INIT_*` env vars. Use `influxdb3` CLI post-startup
-- **StatefulSet → Deployment**: InfluxDB 3 can run stateless (object store backed), making a regular Deployment possible
-- **Init script**: Replace `influx bucket create` with `influxdb3 create database` and `influxdb3 create token`
-
-### 5.2 Database Initialization
-
-```bash
-# Replace init-buckets.sh content:
-#!/bin/sh
-set -e
-
-echo "==> Waiting for InfluxDB 3 to start..."
-sleep 5
-
-# Create databases (replaces bucket creation)
-influxdb3 create database fcd-data
-influxdb3 create database validation --retention "0"
-
-# Create admin token
-influxdb3 create token \
-  --description "IDEA Helsinki admin token" \
-  --read-database fcd-data \
-  --write-database fcd-data \
-  --read-database validation \
-  --write-database validation
-
-echo "==> Initialization complete!"
-echo "==> Available databases: fcd-data, validation"
-```
-
-### 5.3 Environment Variable Changes
-
-```bash
-# REMOVE these variables:
-INFLUX_DB_ORG=idea-helsinki           # Organizations removed in v3
-
-# RENAME these variables:
-INFLUX_DB_FCD_BUCKET → INFLUX_DB_FCD_DATABASE
-INFLUX_DB_VALIDATION_BUCKET → INFLUX_DB_VALIDATION_DATABASE
-
-# UPDATE these variables:
-INFLUX_DB_URL=http://influxdb:8181   # Port change: 8086 → 8181
-
-# KEEP these variables (unchanged):
-INFLUX_DB_FCD_TOKEN
-INFLUX_DB_VALIDATION_TOKEN
-```
-
-### 5.4 Secrets Template Update
-
-```yaml
-# k8s/secrets.yaml.tmpl changes:
-# Remove: INFLUX_DB_ORG
-# Rename: INFLUX_DB_FCD_BUCKET → INFLUX_DB_FCD_DATABASE
-# Rename: INFLUX_DB_VALIDATION_BUCKET → INFLUX_DB_VALIDATION_DATABASE
-# Update: INFLUX_DB_URL default port from 8086 to 8181
-```
+The urllib3-level retry is not applicable — `influxdb3-python` uses a different HTTP stack.
 
 ---
 
@@ -449,178 +557,215 @@ INFLUX_DB_VALIDATION_TOKEN
 ### 6.1 Connection Check
 
 ```python
-# CURRENT
-client = InfluxDBClient(url=self.url, token=self.token, org=self.org)
+# v2: client.ping()
+client = InfluxDBClient(url=url, token=token, org=org)
 result = client.ping()
 
-# NEW — influxdb3-python does not have a built-in ping()
-# Use HTTP health endpoint instead
-import httpx
-
-async def check_health(host: str) -> bool:
-    async with httpx.AsyncClient() as http_client:
-        response = await http_client.get(f"http://{host}/health")
-        return response.status_code == 200
+# v3: lightweight SQL query (no built-in ping)
+client = InfluxDBClient3(host=host, token=token, database=database)
+try:
+    client.query("SELECT 1")
+    return True
+except Exception:
+    return False
 ```
 
-### 6.2 InfluxDBConnectionManager
+### 6.2 `check_backfill_mode()` Refactor
 
-The current `InfluxDBConnectionManager` in `services/orchestrator/src/health_checks.py` manages `InfluxDBClient` instances. It needs to be rewritten for `InfluxDBClient3`:
+The current function in `shared/src/idea_shared/health/utils.py` accepts a v2 `QueryApi` object directly. This needs refactoring to work behind the feature flag:
+
+**Option A (recommended)**: Make `check_backfill_mode()` accept the manager instead of raw query API:
 
 ```python
-# Key change: InfluxDBClient3 uses host+database instead of url+org
-# The connection manager should pool by host+database+token_hash
+# BEFORE: Tightly coupled to v2 QueryApi
+def check_backfill_mode(query_api: QueryApi, org, bucket, measurement, ...):
+    recent_query = f'from(bucket: "{bucket}") |> range(...) ...'
+    tables = query_api.query(query=recent_query, org=org)
+
+# AFTER: Uses manager abstraction
+def check_backfill_mode(manager, measurement, freshness_threshold_minutes, ...):
+    # Manager handles the query language internally
+    last_time = manager.get_recent_timestamp(measurement, freshness_threshold_minutes)
 ```
 
-### 6.3 Query-based Health Checks
+**Option B**: Create a v3-specific `check_backfill_mode_v3()` and select via flag.
 
-All health check queries (FCDDatabaseHealthCheck, ValidationDatabaseHealthCheck, check_backfill_mode) use Flux and must be rewritten to SQL as shown in Section 3.
+### 6.3 `InfluxDBConnectionManager` (Orchestrator)
+
+The connection manager in `services/orchestrator/src/health_checks.py` pools `InfluxDBClient` instances. For v3, either:
+- Create `InfluxDBConnectionManagerV3` pooling `InfluxDBClient3` instances
+- Or simplify: `InfluxDBClient3` may not need pooling (Arrow Flight connections are lighter)
+
+### 6.4 Health Check Classes
+
+`InfluxDBHealthCheck`, `FCDDatabaseHealthCheck`, `FCDDataFreshnessHealthCheck`, and `ValidationDatabaseHealthCheck` all instantiate `InfluxDBClient` directly. These need to check the feature flag and use the appropriate client.
 
 ---
 
-## 7. Data Migration Strategy
+## 7. Files Requiring Changes
 
-### 7.1 Options
+### 7.1 New Files
 
-| Approach | Pros | Cons |
-|----------|------|------|
-| **Line Protocol export/import** | Simple, well-documented | Slow for large datasets |
-| **Quix template** (Kafka-based sync) | Real-time sync, official partner | Complex setup, requires Kafka |
-| **Historian** (Parquet-based) | Clean migration, queryable history | Community tool, less tested |
-| **Dual-write period** | Zero downtime, gradual migration | Doubles write load temporarily |
+| File | Purpose |
+|------|---------|
+| `shared/src/idea_shared/classes/FCDInfluxDBManagerV3.py` | v3 implementation with SQL queries |
+| `shared/src/idea_shared/classes/influxdb_factory.py` | Factory function reading feature flag |
+| `shared/tests/unit/test_fcd_influxdb_manager_v3.py` | Unit tests for v3 manager |
 
-### 7.2 Recommended Approach: Dual-Write + Backfill
+### 7.2 Modified Files
 
-1. **Deploy InfluxDB 3 alongside InfluxDB 2.7** (both running in k8s)
-2. **Implement dual-write** in FCDInfluxDBManager — write to both databases
-3. **Export historical data** from InfluxDB 2.7 using Line Protocol export
-4. **Import historical data** into InfluxDB 3 databases
-5. **Validate** data consistency between both instances
-6. **Switch reads** from InfluxDB 2.7 to InfluxDB 3
-7. **Decommission** InfluxDB 2.7
+| File | Change |
+|------|--------|
+| `shared/pyproject.toml` | Add `influxdb3-python` dependency (keep `influxdb-client`) |
+| `shared/src/idea_shared/feature_flags/flags.py` | Add `INFLUXDB_VERSION` flag + default |
+| `shared/src/idea_shared/lib/Constants/PrivateConstants.py` | Add `INFLUX_DB_V3_*` env var reads |
+| `shared/src/idea_shared/classes/IdeaHelsinkiRoadSegment.py` | Replace `FCDInfluxDBManager(...)` → `create_influxdb_manager(...)` (5 call sites) |
+| `shared/src/idea_shared/threading/coordinator.py` | Replace constructor call (1 call site) |
+| `shared/src/idea_shared/health/idea_checks.py` | Feature-flag health check classes |
+| `shared/src/idea_shared/health/utils.py` | Refactor `check_backfill_mode()` |
+| `services/fcd-manager/src/main.py` | Replace constructor calls (4 call sites) |
+| `services/orchestrator/src/health_checks.py` | Feature-flag connection manager + health checks |
+| `data/feature_flags.example.json` | Add `influxdb_version` flag |
+| `k8s/secrets.yaml.tmpl` | Add `INFLUX_DB_V3_*` variables |
 
-This approach ensures:
-- No data loss
-- Zero-downtime migration
-- Ability to rollback at any point
-- Historical data preserved
+### 7.3 Unchanged Files
 
-### 7.3 Historical Data Export
-
-```bash
-# Export from InfluxDB 2.7
-influx query \
-  'from(bucket: "fcd-data") |> range(start: 0)' \
-  --raw > fcd-data-export.lp
-
-# Import to InfluxDB 3
-influxdb3 write \
-  --database fcd-data \
-  --file fcd-data-export.lp
-```
+- `k8s/influxdb-deployment.yaml` — local v2 remains as fallback
+- `services/orchestrator/src/main.py` — uses health checks, no direct InfluxDB instantiation
+- `services/traffic-monitor/src/main.py` — doesn't use InfluxDB directly
 
 ---
 
 ## 8. Implementation Phases
 
-### Phase 1: Preparation (No Production Changes)
+### Phase 1: Foundation
 
-- [ ] Set up InfluxDB 3 locally for development/testing
-- [ ] Install `influxdb3-python` alongside `influxdb-client` (both can coexist)
-- [ ] Write a prototype `FCDInfluxDBManagerV3` class with SQL queries
-- [ ] Validate all query translations against test data
-- [ ] Write integration tests for the new manager
-- [ ] Document all Flux → SQL query equivalences with test cases
+- [ ] Add `influxdb3-python` to `shared/pyproject.toml` (alongside `influxdb-client`)
+- [ ] Add `INFLUXDB_VERSION` to `FeatureFlag` enum and `FlagDefaults`
+- [ ] Add `INFLUX_DB_V3_*` env vars to `PrivateConstants.py`
+- [ ] Create `FCDInfluxDBManagerV3` with full public interface and SQL queries
+- [ ] Create `influxdb_factory.py` with `create_influxdb_manager()`
+- [ ] Write unit tests for `FCDInfluxDBManagerV3` (mock `InfluxDBClient3`)
+- [ ] Update `data/feature_flags.example.json`
 
-### Phase 2: Abstraction Layer
+### Phase 2: Wire Up
 
-- [ ] Create `InfluxDBAdapter` interface abstracting v2/v3 differences
-- [ ] Implement `InfluxDBV2Adapter` wrapping current `FCDInfluxDBManager`
-- [ ] Implement `InfluxDBV3Adapter` using `influxdb3-python`
-- [ ] Add feature flag `INFLUXDB_VERSION` to switch between adapters
-- [ ] Update health checks to use the adapter pattern
-- [ ] Run both adapters in parallel for validation
+- [ ] Replace all 13 `FCDInfluxDBManager(...)` call sites with `create_influxdb_manager(...)`
+- [ ] Refactor `check_backfill_mode()` to work with both v2 and v3
+- [ ] Feature-flag the health check classes
+- [ ] Feature-flag `InfluxDBConnectionManager`
+- [ ] Update `k8s/secrets.yaml.tmpl` with v3 env vars
+- [ ] Run full test suite with flag=v2 (verify no regression)
 
-### Phase 3: Infrastructure
+### Phase 3: Validate
 
-- [ ] Add InfluxDB 3 deployment to Kubernetes manifests
-- [ ] Update secrets template with new env vars
-- [ ] Create database initialization script for InfluxDB 3
-- [ ] Deploy InfluxDB 3 alongside InfluxDB 2.7 in dev/staging
-- [ ] Implement dual-write capability
-- [ ] Export and import historical data
+- [ ] Set up InfluxDB Cloud databases (`fcd-data`, `validation`)
+- [ ] Set flag=v3 in local dev environment
+- [ ] Reprocess FCD data from Azure into InfluxDB Cloud
+- [ ] Validate all query results match expected output
+- [ ] Run integration tests against InfluxDB Cloud
+- [ ] Performance comparison (v2 local vs v3 Cloud)
 
-### Phase 4: Migration
+### Phase 4: Cleanup (after v3 is stable)
 
-- [ ] Switch reads to InfluxDB 3 (writes still dual)
-- [ ] Validate data consistency and query correctness
-- [ ] Monitor performance metrics
-- [ ] Remove dual-write, write only to InfluxDB 3
-- [ ] Remove InfluxDB 2.7 deployment
-- [ ] Remove `influxdb-client` dependency
-- [ ] Clean up adapter layer (remove v2 adapter)
-- [ ] Update all documentation
-
-### Phase 5: Cleanup
-
-- [ ] Remove deprecated code (Flux sanitization, v2-specific retry logic)
-- [ ] Update `CLAUDE.md` with new architecture details
-- [ ] Update `k8s/secrets.yaml.tmpl`
-- [ ] Update `scripts/generate-secrets.sh`
-- [ ] Run full test suite
-- [ ] Tag release
+- [ ] Remove `influxdb-client` from `pyproject.toml`
+- [ ] Remove `FCDInfluxDBManager.py` (v2)
+- [ ] Remove factory, make v3 the only implementation
+- [ ] Remove `INFLUXDB_VERSION` feature flag
+- [ ] Remove v2 env vars from `PrivateConstants.py` and secrets
+- [ ] Remove local InfluxDB StatefulSet from k8s manifests
+- [ ] Update `CLAUDE.md`
 
 ---
 
 ## 9. Testing Strategy
 
-### 9.1 Unit Tests
+### 9.1 Unit Tests (both versions)
 
-- Mock `InfluxDBClient3` in all tests
-- Verify SQL query construction (parameterized, no injection)
-- Test DataFrame conversion with the new client
+```
+shared/tests/unit/
+├── test_fcd_influxdb_manager.py       # Existing v2 tests (unchanged)
+├── test_fcd_influxdb_manager_v3.py    # New v3 tests
+└── test_influxdb_factory.py           # Factory flag-switching tests
+```
+
+- Mock `InfluxDBClient3` — verify SQL queries are constructed correctly
+- Test parameterized query generation (no injection)
+- Test DataFrame conversion roundtrip
+- Test factory returns correct implementation based on flag
 - Test error handling and retry behavior
 
-### 9.2 Integration Tests
+### 9.2 Run Existing Tests with Flag = v2
 
-- Run InfluxDB 3 in Docker for integration tests
-- Write/read roundtrip tests for all data patterns
-- Validate data type preservation (int, float, str, bool)
-- Test batch writing with 5000+ points
-- Test health check queries against real InfluxDB 3
+After wiring up the factory, the entire existing test suite must pass with the default flag (`v2`). This proves the factory is transparent to callers.
 
-### 9.3 Migration Validation
+```bash
+# Must pass — proves no regression
+FEATURE_FLAG_INFLUXDB_VERSION=v2 just test
+```
 
-- Compare query results between v2 and v3 for identical data
-- Verify timestamp precision is preserved
-- Validate tag/field semantics remain consistent
-- Performance benchmarking (query latency, write throughput)
+### 9.3 Integration Tests (v3)
+
+- Write/read roundtrip against real InfluxDB 3 (Cloud or local Docker)
+- Validate data type preservation (int, float, str, bool, timestamp)
+- Batch writing with 5000+ points
+- Health check queries against live instance
+- Test `check_backfill_mode()` with both fresh and stale data
 
 ---
 
 ## 10. Rollback Plan
 
-At each phase, rollback is straightforward:
+Rollback is a single flag change at any point:
 
-- **Phase 1-2**: No production changes, nothing to rollback
-- **Phase 3**: Remove InfluxDB 3 deployment, revert to InfluxDB 2.7 only
-- **Phase 4**: Switch feature flag back to v2 adapter; InfluxDB 2.7 still has all data (dual-write ensures this)
-- **Phase 5**: Revert the cleanup commit
+```bash
+# Instant rollback — switch back to v2
+FEATURE_FLAG_INFLUXDB_VERSION=v2
+```
 
-The dual-write period in Phase 3-4 is the key safety net. Both databases contain identical data, so switching back is instant.
+Or in `data/feature_flags.json`:
+```json
+{ "flags": { "influxdb_version": { "value": "v2" } } }
+```
+
+| Phase | Rollback action |
+|-------|----------------|
+| Phase 1 | Delete new files, revert `pyproject.toml` |
+| Phase 2 | Set flag=v2 (or revert factory wiring) |
+| Phase 3 | Set flag=v2 (local InfluxDB 2.7 still running) |
+| Phase 4 | Not applicable (v2 code removed — this is the point of no return) |
+
+**Phase 4 should only happen after v3 has been stable in production for a sufficient period.**
+
+---
+
+## Appendix A: Conceptual Changes Reference
+
+### Data Model
+
+| Concept | InfluxDB 2.7 | InfluxDB 3 |
+|---------|-------------|------------|
+| Data container | Bucket (within Org) | Database |
+| Organization | Required | Removed |
+| Measurement | Measurement | Table |
+| Query language | Flux | SQL (primary), InfluxQL |
+| Write protocol | Line Protocol v2 API | Line Protocol v3 API (v2 compat) |
+
+### Authentication
+
+| Aspect | InfluxDB 2.7 | InfluxDB 3 Cloud |
+|--------|-------------|-----------------|
+| Token scope | Org + bucket | Database-scoped |
+| Auth header | `Token <token>` | `Bearer <token>` |
+| CLI tool | `influx` | `influxdb3` |
 
 ---
 
 ## Sources
 
 - [InfluxDB 3 Core Documentation](https://docs.influxdata.com/influxdb3/core/)
-- [InfluxDB 3 Enterprise Migration Guide](https://docs.influxdata.com/influxdb3/enterprise/get-started/)
 - [Migrate from InfluxDB v1 or v2](https://test2.docs.influxdata.com/influxdb3/enterprise/api/migrate-from-influxdb-v1-or-v2/)
 - [influxdb3-python Client Library](https://github.com/InfluxCommunity/influxdb3-python)
-- [influxdb3-python on PyPI](https://pypi.org/project/influxdb3-python/)
 - [Python Client Library Reference](https://docs.influxdata.com/influxdb3/core/reference/client-libraries/v3/python/)
-- [The Future of Flux](https://docs.influxdata.com/flux/v0/future-of-flux/)
 - [InfluxDB 3 Core & Enterprise GA Announcement](https://www.influxdata.com/blog/influxdata-announces-influxdb-3-OSS-GA/)
-- [Quix Migration Tutorial](https://quix.io/docs/tutorials/influxdb-migration/overview.html)
-- [Historian Migration Tool](https://cduser.com/how-to-migrate-influxdb-1-x-2-x-to-3-0-without-losing-your-history-introducing-historian/)
 - [InfluxDB Docker Hub](https://hub.docker.com/_/influxdb)
