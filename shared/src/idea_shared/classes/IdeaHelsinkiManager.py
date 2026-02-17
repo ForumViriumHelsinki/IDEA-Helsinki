@@ -10,9 +10,17 @@ from datetime import UTC, datetime, timedelta
 # ------------------------------------------------------#
 from idea_shared.classes.IdeaHelsinkiRoadSegment import IdeaHelsinkiRoadSegment
 from idea_shared.classes.Logger import Logger
+from idea_shared.resilience import CircuitBreaker
+from idea_shared.resilience.retry import ErrorTracker, calculate_backoff
 
 
 class IdeaHelsinkiManager:
+    """Configuration constants for resilience patterns."""
+
+    # Maximum consecutive errors before escalating worker failure
+    _WORKER_MAX_ERRORS = 10
+    # Maximum consecutive errors before escalating main loop failure
+    _MAIN_LOOP_MAX_ERRORS = 10
     """
     Manages IdeaHelsinkiRoadSegments objects and updates them with the latest traffic disturbance information.
     Creates and removes IdeaHelsinkiRoadSegments objects based on the latest traffic disturbance information.
@@ -56,6 +64,14 @@ class IdeaHelsinkiManager:
         # Health monitoring attributes
         self.last_cycle_time = datetime.now(UTC)
         self.last_discovery_time = None
+        # Resilience infrastructure
+        self.error_tracker = ErrorTracker(max_consecutive=10)
+        self.circuit_breaker = CircuitBreaker(
+            name="manager",
+            failure_threshold=5,
+            recovery_timeout=60.0,
+            half_open_max_calls=3,
+        )
 
     def _get_disturbance_data(self, file_path: str) -> dict:
         """
@@ -100,94 +116,194 @@ class IdeaHelsinkiManager:
         )
         await asyncio.sleep((resume_time - now).total_seconds())
 
+    async def _run_management_cycle_with_error_isolation(self):
+        """
+        Run a single management cycle with error isolation.
+        Wrapped by run_main_loop for resilience.
+        """
+        # Update cycle time for health monitoring
+        self.last_cycle_time = datetime.now(UTC)
+
+        self.logger.info(
+            "Manager starting new cycle: discovering and updating tasks."
+        )
+
+        # Load the latest disturbance data with intersections
+        disturbance_data = self._get_disturbance_data(
+            self.traffic_disturbance_data_file_location
+        )
+
+        # Group disturbances by segment ID, if target_fcd_segments is specified, focuses only on them.
+        segments_to_process = {}
+
+        for segment_id, data in disturbance_data.get("segmentId", {}).items():
+            if self.target_fcd_segments:
+                if (
+                    segment_id in self.target_fcd_segments
+                    or not self.target_fcd_segments
+                ):
+                    segments_to_process[segment_id] = data.get(
+                        "detailedCollisions", []
+                    )
+            else:
+                segments_to_process[segment_id] = data.get("detailedCollisions", [])
+
+        # Update and manage the segment tasks
+        current_ids = set(segments_to_process.keys())
+        active_ids = set(self.active_segments.keys())
+
+        # Deactivate and remove tasks for segments that are no longer listed containing disturbance.
+
+        # RFC: Should this be based on or with the road segment class objects own "active" status?
+        # Program vise there is not that much of a difference, since the object ends its validation cycle once the end date has passed.
+        # This current approach is the one decided on in the preliminary development meeting, when the disturbance is removed from the listing,
+        # the object is terminated (or schwarzeneggered [patent pending...]).
+
+        for segment_id in active_ids - current_ids:
+            self.logger.info(
+                f"Disturbance ended for segment {segment_id}. Deactivating task."
+            )
+            active_segment = self.active_segments.pop(segment_id)
+            active_segment["task"].cancel()  # Stop the asyncio task (worker loop)
+
+        # Create or update tasks for segments that are listed for processing
+        for segment_id, disturbances in segments_to_process.items():
+            if segment_id in self.active_segments:
+                # If already active, update it with the latest disturbance info
+                self.active_segments[segment_id]["instance"].update_segment(
+                    disturbances
+                )
+            else:
+                # If new, create the class instance and start its lifecycle task
+                self.logger.info(
+                    f"New disturbance detected for segment {segment_id}. Starting validation task."
+                )
+                # Track discovery time for health monitoring
+                self.last_discovery_time = datetime.now(UTC)
+                segment_instance = IdeaHelsinkiRoadSegment(
+                    segment_id=segment_id,
+                    reported_disturbances=disturbances,
+                    validation_frequency=self.validation_frequency,
+                    validation_max_age_days=self.validation_max_age_days,
+                    profile_time_frame_weeks=self.profile_time_frame_weeks,
+                    profile_end_lead_time_hours=self.profile_end_lead_time_hours,
+                    db_org=self.db_org,
+                    db_url=self.db_url,
+                    db_fcd_bucket=self.db_fcd_bucket,
+                    db_fcd_token=self.db_fcd_token,
+                    db_validation_bucket=self.db_validation_bucket,
+                    db_validation_token=self.db_validation_token,
+                )
+                # Wrap worker lifecycle with error isolation
+                task = asyncio.create_task(
+                    self._run_worker_with_error_isolation(segment_instance)
+                )
+                self.active_segments[segment_id] = {
+                    "instance": segment_instance,
+                    "task": task,
+                }
+
+        self.logger.info(
+            f"Manager cycle complete. Active tasks: {len(self.active_segments)}."
+        )
+
+    async def _run_worker_with_error_isolation(
+        self, segment_instance: IdeaHelsinkiRoadSegment
+    ):
+        """
+        Run a worker lifecycle with error isolation and retry logic.
+
+        Prevents individual worker failures from affecting the main manager loop.
+        Implements exponential backoff for worker restart on failure.
+        """
+        segment_id = segment_instance.segment_id
+        consecutive_errors = 0
+
+        try:
+            while consecutive_errors < self._WORKER_MAX_ERRORS:
+                try:
+                    await segment_instance.run_lifecycle()
+                    # If run_lifecycle exits normally, reset error count
+                    consecutive_errors = 0
+                except asyncio.CancelledError:
+                    # Always propagate cancellation
+                    self.logger.info(
+                        f"Worker for segment {segment_id} cancelled gracefully"
+                    )
+                    raise
+                except Exception as e:
+                    consecutive_errors += 1
+                    self.logger.error(
+                        f"Worker error for segment {segment_id} "
+                        f"(attempt {consecutive_errors}/{self._WORKER_MAX_ERRORS}): {e}",
+                        exc_info=True,
+                    )
+
+                    if consecutive_errors >= self._WORKER_MAX_ERRORS:
+                        self.logger.error(
+                            f"Worker for segment {segment_id} exceeded maximum consecutive errors. "
+                            f"Terminating worker."
+                        )
+                        break
+
+                    # Exponential backoff with jitter before retry
+                    backoff = calculate_backoff(
+                        attempt=consecutive_errors, base_delay=5.0, max_delay=60.0
+                    )
+                    self.logger.info(
+                        f"Restarting worker for segment {segment_id} in {backoff:.1f}s..."
+                    )
+                    await asyncio.sleep(backoff)
+        except asyncio.CancelledError:
+            # Final cleanup on cancellation
+            self.logger.info(f"Worker cleanup for segment {segment_id} complete")
+            raise
+
     async def run_main_loop(self):
         """
         The main orchestration loop for managing IdeaHelsinkiRoadSegments.
+
+        Includes resilience patterns:
+        - Exception handling to prevent cascade shutdown
+        - Error tracking for adaptive backoff
+        - Circuit breaker integration (future enhancement)
         """
         while True:
-            # Update cycle time for health monitoring
-            self.last_cycle_time = datetime.now(UTC)
-
-            self.logger.info(
-                "Manager starting new cycle: discovering and updating tasks."
-            )
-
-            # Load the latest disturbance data with intersections
-            disturbance_data = self._get_disturbance_data(
-                self.traffic_disturbance_data_file_location
-            )
-
-            # Group disturbances by segment ID, if target_fcd_segments is specified, focuses only on them.
-            segments_to_process = {}
-
-            for segment_id, data in disturbance_data.get("segmentId", {}).items():
-                if self.target_fcd_segments:
-                    if (
-                        segment_id in self.target_fcd_segments
-                        or not self.target_fcd_segments
-                    ):
-                        segments_to_process[segment_id] = data.get(
-                            "detailedCollisions", []
-                        )
-                else:
-                    segments_to_process[segment_id] = data.get("detailedCollisions", [])
-
-            # Update and manage the segment tasks
-            current_ids = set(segments_to_process.keys())
-            active_ids = set(self.active_segments.keys())
-
-            # Deactivate and remove tasks for segments that are no longer listed containing disturbance.
-
-            # RFC: Should this be based on or with the road segment class objects own "active" status?
-            # Program vise there is not that much of a difference, since the object ends its validation cycle once the end date has passed.
-            # This current approach is the one decided on in the preliminary development meeting, when the disturbance is removed from the listing,
-            # the object is terminated (or schwarzeneggered [patent pending...]).
-
-            for segment_id in active_ids - current_ids:
-                self.logger.info(
-                    f"Disturbance ended for segment {segment_id}. Deactivating task."
+            try:
+                await self._run_management_cycle_with_error_isolation()
+                self.error_tracker.record_success()
+            except asyncio.CancelledError:
+                # Always propagate cancellation (from SIGTERM/SIGINT)
+                self.logger.info("Main loop cancelled, shutting down gracefully")
+                raise
+            except Exception as e:
+                self.error_tracker.record_failure()
+                self.logger.error(
+                    f"Main loop error (consecutive: {self.error_tracker.consecutive_errors}): {e}",
+                    exc_info=True,
                 )
-                active_segment = self.active_segments.pop(segment_id)
-                active_segment["task"].cancel()  # Stop the asyncio task (worker loop)
 
-            # Create or update tasks for segments that are listed for processing
-            for segment_id, disturbances in segments_to_process.items():
-                if segment_id in self.active_segments:
-                    # If already active, update it with the latest disturbance info
-                    self.active_segments[segment_id]["instance"].update_segment(
-                        disturbances
+                # Check if we should escalate (systemic failure)
+                if self.error_tracker.should_escalate():
+                    self.logger.critical(
+                        f"Main loop exceeded {self.error_tracker.max_consecutive} consecutive errors. "
+                        f"Exiting to trigger pod restart."
                     )
-                else:
-                    # If new, create the class instance and start its lifecycle task
-                    self.logger.info(
-                        f"New disturbance detected for segment {segment_id}. Starting validation task."
-                    )
-                    # Track discovery time for health monitoring
-                    self.last_discovery_time = datetime.now(UTC)
-                    segment_instance = IdeaHelsinkiRoadSegment(
-                        segment_id=segment_id,
-                        reported_disturbances=disturbances,
-                        validation_frequency=self.validation_frequency,
-                        validation_max_age_days=self.validation_max_age_days,
-                        profile_time_frame_weeks=self.profile_time_frame_weeks,
-                        profile_end_lead_time_hours=self.profile_end_lead_time_hours,
-                        db_org=self.db_org,
-                        db_url=self.db_url,
-                        db_fcd_bucket=self.db_fcd_bucket,
-                        db_fcd_token=self.db_fcd_token,
-                        db_validation_bucket=self.db_validation_bucket,
-                        db_validation_token=self.db_validation_token,
-                    )
-                    # Create and store the task
-                    task = asyncio.create_task(segment_instance.run_lifecycle())
-                    self.active_segments[segment_id] = {
-                        "instance": segment_instance,
-                        "task": task,
-                    }
+                    raise
 
-            self.logger.info(
-                f"Manager cycle complete. Active tasks: {len(self.active_segments)}."
-            )
+                # Exponential backoff with jitter based on error frequency
+                backoff = calculate_backoff(
+                    attempt=self.error_tracker.consecutive_errors,
+                    base_delay=5.0,
+                    max_delay=60.0,
+                )
+                self.logger.warning(
+                    f"Main loop will retry in {backoff:.1f}s "
+                    f"(error count: {self.error_tracker.consecutive_errors})"
+                )
+                await asyncio.sleep(backoff)
+                continue
+
             # Take a break and enjoy the bits and bytes.
             await self._wait_for_next_management_cycle()
 
@@ -205,4 +321,6 @@ class IdeaHelsinkiManager:
             if self.last_cycle_time
             else None,
             "active_segments": list(self.active_segments.keys()),
+            "circuit_breaker": self.circuit_breaker.get_stats(),
+            "error_tracker": self.error_tracker.get_stats(),
         }

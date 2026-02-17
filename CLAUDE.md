@@ -109,6 +109,14 @@ Located in `shared/src/idea_shared/`:
 - `AzureBlobContainerManager` - Azure blob storage interface
 - `HelsinkiWFSClient` - WFS service client for traffic disturbances
 
+#### Resilience Infrastructure (Shared Library)
+Located in `shared/src/idea_shared/resilience/`:
+- `CircuitBreaker` - Prevents cascade failures during service outages (fail-fast pattern)
+- `async_retry` / `with_retry` - Exponential backoff retry with jitter for async operations
+- `ErrorTracker` - Tracks consecutive failures for adaptive error handling
+
+**Purpose**: Prevents CrashLoopBackOff scenarios when InfluxDB or other dependencies become temporarily unavailable. See `shared/src/idea_shared/resilience/README.md` for detailed documentation.
+
 #### Data Models
 - **FCD Segment Mapping**: Current road segment geometries (LineString GeoJSON)
 - **Master Segment History**: Tracks geometry changes over time with SHA-256 hashing
@@ -119,6 +127,28 @@ Located in `shared/src/idea_shared/`:
 1. FCD data ingestion from Azure → geometry mapping → InfluxDB storage
 2. Traffic disturbance fetching → validation against 6-month FCD history → intersection detection
 3. IDEA workers process validated segments → profile analysis → impact validation results
+
+### Error Handling and Resilience
+
+The orchestrator service implements production-grade resilience patterns to prevent cascade failures:
+
+**Four Levels of Exception Handling:**
+1. **Main Loop** (`IdeaHelsinkiManager.run_main_loop`): Catches all errors, implements adaptive backoff, escalates on systemic failure (>10 consecutive errors)
+2. **Worker Wrapper** (`_run_worker_with_error_isolation`): Isolates worker failures, prevents cascade to main loop, implements per-worker retry with backoff
+3. **Worker Lifecycle** (`IdeaHelsinkiRoadSegment.run_lifecycle`): Catches lifecycle errors, implements adaptive backoff, escalates on systemic failure
+4. **Database Operations**: Protected by circuit breaker, retried by tenacity (low-level HTTP retries)
+
+**Key Resilience Components:**
+- **Circuit Breaker**: Prevents thundering herd when InfluxDB is down (fails fast after 5 failures, tests recovery after 60s)
+- **Exponential Backoff**: Delays grow exponentially (1s → 2s → 4s → ...) with jitter to prevent synchronized retries
+- **Error Tracking**: Monitors consecutive failures for adaptive behavior and escalation
+- **CancelledError Propagation**: Always re-raises `CancelledError` to ensure graceful SIGTERM/SIGINT shutdown
+
+**Before vs After:**
+- **Before**: InfluxDB error → worker crashes → main loop crashes → pod restart → CrashLoopBackOff
+- **After**: InfluxDB error → circuit breaker opens (fail fast) → workers retry with backoff → service survives → auto-recovery when InfluxDB returns
+
+See `shared/src/idea_shared/resilience/README.md` for detailed documentation and examples.
 
 ## Configuration
 
