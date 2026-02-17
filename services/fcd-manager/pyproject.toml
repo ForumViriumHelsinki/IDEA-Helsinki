@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fcd-manager"
-version = "0.13.0"
+version = "0.13.1"
 description = "FCD data synchronization service for TomTom data ingestion"
 requires-python = ">=3.12"
 authors = [

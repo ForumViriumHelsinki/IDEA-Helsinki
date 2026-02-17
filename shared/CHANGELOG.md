@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.13.0...idea-shared-v0.13.1) (2026-02-17)
+
+
+### Bug Fixes
+
+* add ESTALE retry to JSON file reads for GCS FUSE ([#217](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/217)) ([0974f2b](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/0974f2b01ef35d2bd00b19027c76020456759494))
+
 ## [0.13.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.12.6...idea-shared-v0.13.0) (2026-02-17)
 
 
