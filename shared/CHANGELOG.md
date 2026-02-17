@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.12.6...idea-shared-v0.13.0) (2026-02-17)
+
+
+### Features
+
+* add production-grade resilience infrastructure to prevent cascade failures ([#211](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/211)) ([8784acc](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/8784acc66b3b0d58098f358345f244c7fc766111))
+
 ## [0.12.6](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.12.5...idea-shared-v0.12.6) (2026-02-15)
 
 
