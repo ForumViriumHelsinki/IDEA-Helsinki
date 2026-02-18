@@ -2,9 +2,15 @@
 
 ## Executive Summary
 
-Migrate IDEA-Helsinki from InfluxDB 2.7 (self-hosted, TSM engine, Flux) to **InfluxDB 3 Cloud** (managed, Apache Arrow + DataFusion + Parquet, SQL). The migration is **feature-flagged** — both v2 and v3 code paths coexist, controlled by the existing feature flag system, enabling instant rollback.
+Migrate IDEA-Helsinki from InfluxDB 2.7 (self-hosted, TSM engine, Flux) to **InfluxDB 3 Cloud** (managed, Apache Arrow + DataFusion + Parquet, SQL). The migration uses a **three-mode feature flag** with a **dual-write validation period**:
 
-**Data strategy**: No data migration needed. Historical data will be reprocessed from Azure blob storage into InfluxDB Cloud. The local InfluxDB 2.7 StatefulSet remains available as fallback during the transition.
+1. **`v2`** — current behavior (default, safe)
+2. **`dual`** — writes to both v2 and v3, reads from v2, shadow-reads from v3 with comparison logging
+3. **`v3`** — reads and writes v3 only (cutover)
+
+This is the [Strangler Fig pattern](https://martinfowler.com/bliki/StranglerFigApplication.html) — the v3 system grows alongside v2 during dual-write, validated by shadow-read comparison, then v2 is removed once confidence is established.
+
+**Data strategy**: Historical data will be reprocessed from Azure blob storage into InfluxDB Cloud. The local InfluxDB 2.7 StatefulSet remains as the trusted source during the dual-write period.
 
 ### Why Migrate
 
@@ -19,15 +25,29 @@ Migrate IDEA-Helsinki from InfluxDB 2.7 (self-hosted, TSM engine, Flux) to **Inf
 |----------|-------------|
 | Client library swap (`influxdb-client` → `influxdb3-python`) | Kubernetes deployment changes |
 | Flux → SQL query rewrite | Data migration/export from v2 |
-| Feature flag to toggle v2/v3 | Multi-region HA setup |
-| Health check migration | InfluxDB Cloud provisioning |
-| New `FCDInfluxDBManagerV3` class | Changes to Azure blob ingestion |
+| Three-mode feature flag (`v2` / `dual` / `v3`) | Multi-region HA setup |
+| Dual-write manager with shadow-read comparison | InfluxDB Cloud provisioning |
+| Health check migration | Changes to Azure blob ingestion |
+| New `FCDInfluxDBManagerV3` class | |
+| New `DualWriteInfluxDBManager` class | |
 
 ---
 
 ## 1. Feature Flag Design
 
-### 1.1 Flag Definition
+### 1.1 Three Migration Modes
+
+| Mode | Writes | Reads | Shadow reads | Purpose |
+|------|--------|-------|-------------|---------|
+| **`v2`** (default) | v2 only | v2 | — | Current production behavior |
+| **`dual`** | v2 + v3 | v2 | v3 (async, logged) | Validate v3 with real traffic |
+| **`v3`** | v3 only | v3 | — | Full cutover |
+
+**Dual mode** implements both dual-write and shadow-read:
+- **Writes**: Every write goes to v2 first (blocking), then v3 (best-effort). A v3 write failure is logged but does **not** fail the operation — v2 remains the source of truth.
+- **Reads**: All reads come from v2 (returned to caller). In the background, the same read is also executed against v3. Results are compared and discrepancies are logged with structured data for analysis.
+
+### 1.2 Flag Definition
 
 Add to `shared/src/idea_shared/feature_flags/flags.py`:
 
@@ -35,7 +55,7 @@ Add to `shared/src/idea_shared/feature_flags/flags.py`:
 class FeatureFlag(StrEnum):
     # ... existing flags ...
 
-    # InfluxDB version selection
+    # InfluxDB migration mode: "v2", "dual", or "v3"
     INFLUXDB_VERSION = "influxdb_version"
 ```
 
@@ -46,7 +66,7 @@ class FlagDefaults:
     INFLUXDB_VERSION: str = "v2"  # Safe default: current behavior
 ```
 
-### 1.2 Configuration
+### 1.3 Configuration
 
 **JSON file** (`data/feature_flags.json`):
 ```json
@@ -54,7 +74,7 @@ class FlagDefaults:
   "flags": {
     "influxdb_version": {
       "value": "v2",
-      "description": "InfluxDB client version: 'v2' (self-hosted, Flux) or 'v3' (Cloud, SQL)"
+      "description": "InfluxDB migration mode: 'v2' (self-hosted only), 'dual' (write both, shadow-read), 'v3' (Cloud only)"
     }
   }
 }
@@ -62,15 +82,18 @@ class FlagDefaults:
 
 **Environment variable** (production):
 ```bash
-FEATURE_FLAG_INFLUXDB_VERSION=v3
+# Migration progression:
+FEATURE_FLAG_INFLUXDB_VERSION=v2    # Step 1: current behavior
+FEATURE_FLAG_INFLUXDB_VERSION=dual  # Step 2: dual-write + shadow-read
+FEATURE_FLAG_INFLUXDB_VERSION=v3    # Step 3: full cutover
 ```
 
-### 1.3 New Environment Variables for v3
+### 1.4 New Environment Variables for v3
 
-When the flag is set to `v3`, the following env vars are read:
+When the flag is set to `dual` or `v3`, the following env vars are read:
 
 ```bash
-# InfluxDB 3 Cloud connection (only used when flag = v3)
+# InfluxDB 3 Cloud connection (used in dual and v3 modes)
 INFLUX_DB_V3_HOST=us-east-1-1.aws.cloud2.influxdata.com  # Cloud host (no http://)
 INFLUX_DB_V3_TOKEN=your-cloud-token
 INFLUX_DB_V3_FCD_DATABASE=fcd-data
@@ -92,16 +115,22 @@ Callers (IdeaHelsinkiRoadSegment, fcd-manager, health checks)
     ▼
 ┌──────────────────────────────────┐
 │  create_influxdb_manager()       │  ← factory reads feature flag
-│  (shared/classes/__init__.py)    │
+│  (shared/classes/influxdb_factory)│
 └───────────┬──────────────────────┘
             │
-      ┌─────┴──────┐
-      ▼            ▼
-┌───────────┐ ┌───────────┐
-│ FCDInflux  │ │ FCDInflux  │
-│ DBManager  │ │ DBManager  │
-│ (v2/Flux)  │ │ V3 (SQL)   │
-└───────────┘ └───────────┘
+      ┌─────┼──────────┐
+      ▼     ▼          ▼
+┌────────┐ ┌─────────┐ ┌────────┐
+│ v2     │ │ Dual    │ │ v3     │
+│ (Flux) │ │ Write   │ │ (SQL)  │
+└────────┘ └────┬────┘ └────────┘
+               │
+          ┌────┴────┐
+          ▼         ▼
+      ┌────────┐ ┌────────┐
+      │ v2     │ │ v3     │   Dual mode delegates
+      │ primary│ │ shadow │   to both implementations
+      └────────┘ └────────┘
 ```
 
 ### 2.2 Why This Works
@@ -120,14 +149,30 @@ The `FCDInfluxDBManager` public interface is **already query-language agnostic**
 | `write_fcd_model()` | `None` | fcd-manager |
 | `close()` | `None` | All services |
 
-Both implementations return identical types. Callers don't change at all.
+All three implementations (v2, dual, v3) return identical types. Callers don't change at all. The `DualWriteInfluxDBManager` is a decorator that composes v2 and v3 — it's invisible to callers.
 
 ### 2.3 Factory Function
 
 ```python
 # shared/src/idea_shared/classes/influxdb_factory.py
 
+import os
 from idea_shared.feature_flags import get_feature_flags, FeatureFlag
+
+def _create_v3_manager(bucket: str, token: str, timeout: int):
+    """Create a v3 manager, mapping v2 bucket names to v3 database names."""
+    from idea_shared.classes.FCDInfluxDBManagerV3 import FCDInfluxDBManagerV3
+
+    host = os.getenv("INFLUX_DB_V3_HOST", "localhost:8181")
+    v3_token = os.getenv("INFLUX_DB_V3_TOKEN", token)
+    fcd_db = os.getenv("INFLUX_DB_V3_FCD_DATABASE", "fcd-data")
+    val_db = os.getenv("INFLUX_DB_V3_VALIDATION_DATABASE", "validation")
+    database = val_db if "validation" in bucket.lower() else fcd_db
+
+    return FCDInfluxDBManagerV3(
+        host=host, token=v3_token, database=database, timeout=timeout,
+    )
+
 
 def create_influxdb_manager(
     url: str,
@@ -138,42 +183,34 @@ def create_influxdb_manager(
 ):
     """Create the appropriate InfluxDB manager based on feature flag.
 
-    Callers pass the SAME arguments as today. When v3 is active,
-    the factory maps them to v3 equivalents:
-      - url   → ignored (reads INFLUX_DB_V3_HOST from env)
-      - org   → ignored (not needed in v3)
-      - bucket → mapped to database name
+    Callers pass the SAME arguments as today. The factory routes to
+    the correct implementation:
+      - "v2":   FCDInfluxDBManager (current behavior)
+      - "dual": DualWriteInfluxDBManager (writes both, reads v2, shadow-reads v3)
+      - "v3":   FCDInfluxDBManagerV3 (Cloud only)
     """
     flags = get_feature_flags()
     version = flags.get_string(FeatureFlag.INFLUXDB_VERSION, default="v2")
 
     if version == "v3":
-        from idea_shared.classes.FCDInfluxDBManagerV3 import FCDInfluxDBManagerV3
-        import os
+        return _create_v3_manager(bucket, token, timeout)
 
-        # v3 connection params come from dedicated env vars
-        host = os.getenv("INFLUX_DB_V3_HOST", "localhost:8181")
-        v3_token = os.getenv("INFLUX_DB_V3_TOKEN", token)
+    elif version == "dual":
+        from idea_shared.classes.FCDInfluxDBManager import FCDInfluxDBManager
+        from idea_shared.classes.DualWriteInfluxDBManager import DualWriteInfluxDBManager
 
-        # Map bucket name → database name
-        fcd_db = os.getenv("INFLUX_DB_V3_FCD_DATABASE", "fcd-data")
-        val_db = os.getenv("INFLUX_DB_V3_VALIDATION_DATABASE", "validation")
-
-        # Determine which database based on the bucket being requested
-        database = val_db if "validation" in bucket.lower() else fcd_db
-
-        return FCDInfluxDBManagerV3(
-            host=host,
-            token=v3_token,
-            database=database,
-            timeout=timeout,
+        primary = FCDInfluxDBManager(
+            url=url, token=token, org=org, bucket=bucket, timeout=timeout,
         )
-    else:
+        shadow = _create_v3_manager(bucket, token, timeout)
+
+        return DualWriteInfluxDBManager(primary=primary, shadow=shadow)
+
+    else:  # "v2" or any unknown value → safe default
         from idea_shared.classes.FCDInfluxDBManager import FCDInfluxDBManager
 
         return FCDInfluxDBManager(
-            url=url, token=token, org=org,
-            bucket=bucket, timeout=timeout,
+            url=url, token=token, org=org, bucket=bucket, timeout=timeout,
         )
 ```
 
@@ -233,7 +270,8 @@ The arguments stay identical — the factory handles the v2/v3 routing internall
 shared/src/idea_shared/classes/
 ├── FCDInfluxDBManager.py        # Existing v2 (unchanged)
 ├── FCDInfluxDBManagerV3.py      # New v3 implementation
-└── influxdb_factory.py          # Factory function
+├── DualWriteInfluxDBManager.py  # Dual-write + shadow-read decorator
+└── influxdb_factory.py          # Factory function (reads feature flag)
 ```
 
 ### 3.2 Client Library
@@ -335,7 +373,297 @@ class FCDInfluxDBManagerV3:
 
 ---
 
-## 4. Query Migration — Flux → SQL
+## 4. `DualWriteInfluxDBManager` — Dual-Write + Shadow-Read
+
+### 4.1 Design Principles
+
+| Principle | Detail |
+|-----------|--------|
+| **v2 is always the source of truth** | All read results returned to callers come from v2 |
+| **v3 write failures are non-fatal** | A v3 write error is logged but does not propagate to the caller |
+| **Shadow reads are fire-and-forget** | v3 reads run in a background thread, results are compared and logged |
+| **Structured comparison logging** | Discrepancies are logged with enough context to diagnose (method, args, v2 result, v3 result, diff) |
+| **No performance impact on the hot path** | v3 operations never block the caller beyond the v2 operation time |
+
+### 4.2 Implementation
+
+```python
+# shared/src/idea_shared/classes/DualWriteInfluxDBManager.py
+
+import concurrent.futures
+import pandas as pd
+from datetime import datetime
+
+from idea_shared.classes.Logger import Logger
+
+# Thread pool for shadow operations — bounded to prevent resource exhaustion
+_shadow_executor = concurrent.futures.ThreadPoolExecutor(
+    max_workers=2, thread_name_prefix="influxdb-shadow"
+)
+
+
+class DualWriteInfluxDBManager:
+    """Dual-write + shadow-read decorator for InfluxDB migration.
+
+    Wraps a primary (v2) and shadow (v3) manager. All operations use
+    the primary as the source of truth. Writes are replicated to the
+    shadow. Reads are shadow-executed in a background thread and results
+    are compared and logged.
+
+    Implements the same public interface as FCDInfluxDBManager.
+    """
+
+    def __init__(self, primary, shadow):
+        self.primary = primary
+        self.shadow = shadow
+        self.logger = Logger(__name__)
+        self.logger.info(
+            "DualWriteInfluxDBManager initialized "
+            f"(primary={type(primary).__name__}, shadow={type(shadow).__name__})"
+        )
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    # ── Writes: primary (blocking) + shadow (best-effort) ──────────
+
+    def write_dataframe(
+        self, df: pd.DataFrame, segment_id: str,
+        measurement_name: str, batch_size: int = 5000,
+    ):
+        """Write to primary, then replicate to shadow (non-blocking)."""
+        # Primary write — must succeed
+        self.primary.write_dataframe(df, segment_id, measurement_name, batch_size)
+
+        # Shadow write — best-effort, log failures
+        self._shadow_write(
+            "write_dataframe", df=df, segment_id=segment_id,
+            measurement_name=measurement_name, batch_size=batch_size,
+        )
+
+    def write_fcd_model(self, fcd_data: dict, batch_size: int = 5000):
+        """Write to primary, then replicate to shadow (non-blocking)."""
+        self.primary.write_fcd_model(fcd_data, batch_size)
+        self._shadow_write(
+            "write_fcd_model", fcd_data=fcd_data, batch_size=batch_size,
+        )
+
+    def _shadow_write(self, method_name: str, **kwargs):
+        """Execute a write on the shadow manager, logging any failure."""
+        try:
+            getattr(self.shadow, method_name)(**kwargs)
+            self.logger.debug(f"Shadow write succeeded: {method_name}")
+        except Exception as e:
+            self.logger.warning(
+                f"Shadow write failed (non-fatal): {method_name} — {e}",
+                extra={"method": method_name, "error": str(e)},
+            )
+
+    # ── Reads: primary (returned) + shadow (async comparison) ──────
+
+    def get_last_update_timestamp(self, search_all: bool = False) -> datetime | None:
+        result = self.primary.get_last_update_timestamp(search_all)
+        self._shadow_read_compare(
+            "get_last_update_timestamp", result, search_all=search_all,
+        )
+        return result
+
+    def get_segment_update_timestamp(self, segment_id, measurement_name,
+                                      first_or_last, interval_minutes=None):
+        result = self.primary.get_segment_update_timestamp(
+            segment_id, measurement_name, first_or_last, interval_minutes,
+        )
+        self._shadow_read_compare(
+            "get_segment_update_timestamp", result,
+            segment_id=segment_id, measurement_name=measurement_name,
+            first_or_last=first_or_last, interval_minutes=interval_minutes,
+        )
+        return result
+
+    def get_last_segment_update_timestamp(self, segment_id, measurement_name,
+                                           interval_minutes=None):
+        result = self.primary.get_last_segment_update_timestamp(
+            segment_id, measurement_name, interval_minutes,
+        )
+        self._shadow_read_compare(
+            "get_last_segment_update_timestamp", result,
+            segment_id=segment_id, measurement_name=measurement_name,
+            interval_minutes=interval_minutes,
+        )
+        return result
+
+    def get_first_segment_update_timestamp(self, segment_id, measurement_name,
+                                            interval_minutes=None):
+        result = self.primary.get_first_segment_update_timestamp(
+            segment_id, measurement_name, interval_minutes,
+        )
+        self._shadow_read_compare(
+            "get_first_segment_update_timestamp", result,
+            segment_id=segment_id, measurement_name=measurement_name,
+            interval_minutes=interval_minutes,
+        )
+        return result
+
+    def get_segment_data_dataframe(self, segment_id, measurement_name,
+                                    start_time=None, end_time=None,
+                                    latest_only=False, query_fields=None,
+                                    interval_minutes=None):
+        result = self.primary.get_segment_data_dataframe(
+            segment_id, measurement_name, start_time, end_time,
+            latest_only, query_fields, interval_minutes,
+        )
+        self._shadow_read_compare(
+            "get_segment_data_dataframe", result,
+            segment_id=segment_id, measurement_name=measurement_name,
+            start_time=start_time, end_time=end_time,
+            latest_only=latest_only, query_fields=query_fields,
+            interval_minutes=interval_minutes,
+        )
+        return result
+
+    def get_segment_data_csv(self, segment_id, measurement_name,
+                              start_time=None, end_time=None,
+                              latest_only=False, query_fields=None,
+                              interval_minutes=None):
+        result = self.primary.get_segment_data_csv(
+            segment_id, measurement_name, start_time, end_time,
+            latest_only, query_fields, interval_minutes,
+        )
+        self._shadow_read_compare(
+            "get_segment_data_csv", result,
+            segment_id=segment_id, measurement_name=measurement_name,
+            start_time=start_time, end_time=end_time,
+            latest_only=latest_only, query_fields=query_fields,
+            interval_minutes=interval_minutes,
+        )
+        return result
+
+    # ── Shadow read comparison engine ──────────────────────────────
+
+    def _shadow_read_compare(self, method_name: str, primary_result, **kwargs):
+        """Fire-and-forget: execute the same read on shadow, compare results."""
+
+        def _compare():
+            try:
+                shadow_result = getattr(self.shadow, method_name)(**kwargs)
+                self._log_comparison(method_name, kwargs, primary_result, shadow_result)
+            except Exception as e:
+                self.logger.warning(
+                    f"Shadow read failed: {method_name} — {e}",
+                    extra={"method": method_name, "error": str(e)},
+                )
+
+        _shadow_executor.submit(_compare)
+
+    def _log_comparison(self, method_name, kwargs, primary_result, shadow_result):
+        """Compare primary and shadow results, log discrepancies."""
+        match = False
+
+        if primary_result is None and shadow_result is None:
+            match = True
+        elif isinstance(primary_result, pd.DataFrame) and isinstance(shadow_result, pd.DataFrame):
+            # DataFrame comparison: check shape and values
+            if primary_result.shape == shadow_result.shape:
+                try:
+                    match = primary_result.equals(shadow_result)
+                except Exception:
+                    match = False
+        elif isinstance(primary_result, datetime) and isinstance(shadow_result, datetime):
+            # Allow 1-second tolerance for timestamp comparison
+            match = abs((primary_result - shadow_result).total_seconds()) < 1.0
+        elif isinstance(primary_result, str) and isinstance(shadow_result, str):
+            match = primary_result == shadow_result
+        else:
+            match = primary_result == shadow_result
+
+        if match:
+            self.logger.debug(f"Shadow read match: {method_name}")
+        else:
+            # Structured log for analysis — grep "SHADOW_MISMATCH" to find all
+            self.logger.warning(
+                f"SHADOW_MISMATCH: {method_name}",
+                extra={
+                    "method": method_name,
+                    "kwargs": str(kwargs),
+                    "primary_type": type(primary_result).__name__,
+                    "shadow_type": type(shadow_result).__name__,
+                    "primary_summary": _summarize(primary_result),
+                    "shadow_summary": _summarize(shadow_result),
+                },
+            )
+
+    # ── Delegation ─────────────────────────────────────────────────
+
+    def check_connection(self) -> bool:
+        """Check primary connection (shadow connectivity is best-effort)."""
+        primary_ok = self.primary.check_connection()
+        shadow_ok = self.shadow.check_connection()
+        if not shadow_ok:
+            self.logger.warning("Shadow InfluxDB connection check failed (non-fatal)")
+        return primary_ok
+
+    def close(self):
+        self.primary.close()
+        try:
+            self.shadow.close()
+        except Exception as e:
+            self.logger.warning(f"Shadow close failed (non-fatal): {e}")
+
+
+def _summarize(value) -> str:
+    """Create a short summary of a result for logging."""
+    if value is None:
+        return "None"
+    if isinstance(value, pd.DataFrame):
+        return f"DataFrame(shape={value.shape})"
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, str) and len(value) > 100:
+        return f"str(len={len(value)})"
+    return str(value)
+```
+
+### 4.3 Shadow Read Behavior Details
+
+**Threading model**: Shadow reads use a bounded `ThreadPoolExecutor(max_workers=2)`. This is intentionally small — shadow reads are observational, not critical. If the pool is saturated, new shadow reads are queued rather than spawning unbounded threads.
+
+**Why threads (not async)?** The callers in `IdeaHelsinkiRoadSegment` already use `asyncio.to_thread()` to call the synchronous InfluxDB manager. Adding another async layer inside the manager would create complexity. A simple thread pool is transparent to both sync and async callers.
+
+**Comparison tolerance**:
+- **Timestamps**: 1-second tolerance (clock differences between v2 local and v3 Cloud)
+- **DataFrames**: Exact shape + value comparison via `pandas.DataFrame.equals()`
+- **CSV strings**: Exact string match
+- **None values**: Both None = match
+
+**Log analysis**: All mismatches are tagged `SHADOW_MISMATCH`. To review:
+
+```bash
+# Find all mismatches
+grep "SHADOW_MISMATCH" /var/log/idea-helsinki/*.log
+
+# Count mismatches by method
+grep "SHADOW_MISMATCH" /var/log/idea-helsinki/*.log | sort | uniq -c | sort -rn
+```
+
+### 4.4 Performance Impact
+
+| Operation | v2 mode | Dual mode | Overhead |
+|-----------|---------|-----------|----------|
+| Write (blocking) | v2 write | v2 write + v3 write (sequential) | v3 write time added |
+| Read (returned) | v2 read | v2 read (returned immediately) | None |
+| Shadow read | — | v3 read (background thread) | None to caller |
+| Connection check | v2 ping | v2 ping + v3 ping | v3 ping time added |
+
+The only caller-visible overhead is on **writes** (v3 write is sequential after v2 to keep things simple) and **connection checks**. All reads return at v2 speed.
+
+> **Note**: If the v3 write latency becomes a concern (e.g., network round-trip to Cloud), the `_shadow_write` can be moved to the thread pool to make writes fully non-blocking on the v3 side. This is a one-line change.
+
+---
+
+## 5. Query Migration — Flux → SQL (unchanged from previous plan)
 
 ### 4.1 Query Safety: Parameterized Queries
 
@@ -494,7 +822,7 @@ LIMIT 1
 
 ---
 
-## 5. Write Migration
+## 6. Write Migration
 
 ### 5.1 Line Protocol (Unchanged)
 
@@ -552,7 +880,7 @@ The urllib3-level retry is not applicable — `influxdb3-python` uses a differen
 
 ---
 
-## 6. Health Check Migration
+## 7. Health Check Migration
 
 ### 6.1 Connection Check
 
@@ -602,17 +930,20 @@ The connection manager in `services/orchestrator/src/health_checks.py` pools `In
 
 ---
 
-## 7. Files Requiring Changes
+## 8. Files Requiring Changes
 
-### 7.1 New Files
+### 8.1 New Files
 
 | File | Purpose |
 |------|---------|
 | `shared/src/idea_shared/classes/FCDInfluxDBManagerV3.py` | v3 implementation with SQL queries |
+| `shared/src/idea_shared/classes/DualWriteInfluxDBManager.py` | Dual-write + shadow-read decorator |
 | `shared/src/idea_shared/classes/influxdb_factory.py` | Factory function reading feature flag |
 | `shared/tests/unit/test_fcd_influxdb_manager_v3.py` | Unit tests for v3 manager |
+| `shared/tests/unit/test_dual_write_influxdb_manager.py` | Unit tests for dual-write behavior |
+| `shared/tests/unit/test_influxdb_factory.py` | Factory flag-switching tests |
 
-### 7.2 Modified Files
+### 8.2 Modified Files
 
 | File | Change |
 |------|--------|
@@ -628,7 +959,7 @@ The connection manager in `services/orchestrator/src/health_checks.py` pools `In
 | `data/feature_flags.example.json` | Add `influxdb_version` flag |
 | `k8s/secrets.yaml.tmpl` | Add `INFLUX_DB_V3_*` variables |
 
-### 7.3 Unchanged Files
+### 8.3 Unchanged Files
 
 - `k8s/influxdb-deployment.yaml` — local v2 remains as fallback
 - `services/orchestrator/src/main.py` — uses health checks, no direct InfluxDB instantiation
@@ -636,19 +967,20 @@ The connection manager in `services/orchestrator/src/health_checks.py` pools `In
 
 ---
 
-## 8. Implementation Phases
+## 9. Implementation Phases
 
-### Phase 1: Foundation
+### Phase 1: Foundation (flag = `v2`, no production impact)
 
 - [ ] Add `influxdb3-python` to `shared/pyproject.toml` (alongside `influxdb-client`)
 - [ ] Add `INFLUXDB_VERSION` to `FeatureFlag` enum and `FlagDefaults`
 - [ ] Add `INFLUX_DB_V3_*` env vars to `PrivateConstants.py`
 - [ ] Create `FCDInfluxDBManagerV3` with full public interface and SQL queries
-- [ ] Create `influxdb_factory.py` with `create_influxdb_manager()`
-- [ ] Write unit tests for `FCDInfluxDBManagerV3` (mock `InfluxDBClient3`)
+- [ ] Create `DualWriteInfluxDBManager` with shadow-read comparison
+- [ ] Create `influxdb_factory.py` with three-mode routing
+- [ ] Write unit tests for all three new classes
 - [ ] Update `data/feature_flags.example.json`
 
-### Phase 2: Wire Up
+### Phase 2: Wire Up (flag = `v2`, no production impact)
 
 - [ ] Replace all 13 `FCDInfluxDBManager(...)` call sites with `create_influxdb_manager(...)`
 - [ ] Refactor `check_backfill_mode()` to work with both v2 and v3
@@ -657,19 +989,28 @@ The connection manager in `services/orchestrator/src/health_checks.py` pools `In
 - [ ] Update `k8s/secrets.yaml.tmpl` with v3 env vars
 - [ ] Run full test suite with flag=v2 (verify no regression)
 
-### Phase 3: Validate
+### Phase 3: Dual-Write Validation (flag = `dual`)
 
 - [ ] Set up InfluxDB Cloud databases (`fcd-data`, `validation`)
-- [ ] Set flag=v3 in local dev environment
-- [ ] Reprocess FCD data from Azure into InfluxDB Cloud
-- [ ] Validate all query results match expected output
-- [ ] Run integration tests against InfluxDB Cloud
-- [ ] Performance comparison (v2 local vs v3 Cloud)
+- [ ] Configure `INFLUX_DB_V3_*` env vars pointing to Cloud
+- [ ] Reprocess historical FCD data from Azure into InfluxDB Cloud
+- [ ] Set flag=`dual` — production writes go to both, reads from v2
+- [ ] Monitor `SHADOW_MISMATCH` logs for read comparison discrepancies
+- [ ] Investigate and fix any mismatches between v2 and v3 results
+- [ ] Run dual mode for sufficient period to build confidence (target: all query patterns exercised with 0 mismatches)
 
-### Phase 4: Cleanup (after v3 is stable)
+### Phase 4: Cutover (flag = `v3`)
+
+- [ ] Set flag=`v3` — all reads and writes go to InfluxDB Cloud
+- [ ] Monitor for errors, verify all services healthy
+- [ ] Keep v2 running but idle as rollback safety net
+- [ ] After stable period, proceed to cleanup
+
+### Phase 5: Cleanup (after v3 is stable in production)
 
 - [ ] Remove `influxdb-client` from `pyproject.toml`
 - [ ] Remove `FCDInfluxDBManager.py` (v2)
+- [ ] Remove `DualWriteInfluxDBManager.py`
 - [ ] Remove factory, make v3 the only implementation
 - [ ] Remove `INFLUXDB_VERSION` feature flag
 - [ ] Remove v2 env vars from `PrivateConstants.py` and secrets
@@ -678,24 +1019,41 @@ The connection manager in `services/orchestrator/src/health_checks.py` pools `In
 
 ---
 
-## 9. Testing Strategy
+## 10. Testing Strategy
 
-### 9.1 Unit Tests (both versions)
+### 10.1 Unit Tests
 
 ```
 shared/tests/unit/
-├── test_fcd_influxdb_manager.py       # Existing v2 tests (unchanged)
-├── test_fcd_influxdb_manager_v3.py    # New v3 tests
-└── test_influxdb_factory.py           # Factory flag-switching tests
+├── test_fcd_influxdb_manager.py           # Existing v2 tests (unchanged)
+├── test_fcd_influxdb_manager_v3.py        # New v3 tests
+├── test_dual_write_influxdb_manager.py    # Dual-write + shadow-read tests
+└── test_influxdb_factory.py               # Factory flag-switching tests
 ```
 
+**v3 manager tests**:
 - Mock `InfluxDBClient3` — verify SQL queries are constructed correctly
 - Test parameterized query generation (no injection)
 - Test DataFrame conversion roundtrip
-- Test factory returns correct implementation based on flag
 - Test error handling and retry behavior
 
-### 9.2 Run Existing Tests with Flag = v2
+**Dual-write manager tests**:
+- Verify writes go to both primary and shadow
+- Verify shadow write failure does not propagate to caller
+- Verify reads return primary result (not shadow)
+- Verify shadow reads execute in background thread
+- Verify `SHADOW_MISMATCH` logging when results differ
+- Verify matching results produce debug log (not warning)
+- Verify shadow `close()` failure does not propagate
+- Test thread pool saturation behavior
+
+**Factory tests**:
+- Test factory returns `FCDInfluxDBManager` when flag=`v2`
+- Test factory returns `DualWriteInfluxDBManager` when flag=`dual`
+- Test factory returns `FCDInfluxDBManagerV3` when flag=`v3`
+- Test factory defaults to v2 on unknown flag value
+
+### 10.2 Run Existing Tests with Flag = v2
 
 After wiring up the factory, the entire existing test suite must pass with the default flag (`v2`). This proves the factory is transparent to callers.
 
@@ -704,22 +1062,30 @@ After wiring up the factory, the entire existing test suite must pass with the d
 FEATURE_FLAG_INFLUXDB_VERSION=v2 just test
 ```
 
-### 9.3 Integration Tests (v3)
+### 10.3 Integration Tests (v3 and dual mode)
 
 - Write/read roundtrip against real InfluxDB 3 (Cloud or local Docker)
 - Validate data type preservation (int, float, str, bool, timestamp)
 - Batch writing with 5000+ points
 - Health check queries against live instance
 - Test `check_backfill_mode()` with both fresh and stale data
+- Dual-write integration: verify data appears in both v2 and v3 after write
+- Shadow-read integration: verify comparison runs and logs correctly
 
 ---
 
-## 10. Rollback Plan
+## 11. Rollback Plan
 
 Rollback is a single flag change at any point:
 
 ```bash
-# Instant rollback — switch back to v2
+# Instant rollback from dual → v2
+FEATURE_FLAG_INFLUXDB_VERSION=v2
+
+# Instant rollback from v3 → dual (if v2 data still fresh)
+FEATURE_FLAG_INFLUXDB_VERSION=dual
+
+# Instant rollback from v3 → v2 (if v2 data still fresh)
 FEATURE_FLAG_INFLUXDB_VERSION=v2
 ```
 
@@ -728,14 +1094,17 @@ Or in `data/feature_flags.json`:
 { "flags": { "influxdb_version": { "value": "v2" } } }
 ```
 
-| Phase | Rollback action |
-|-------|----------------|
-| Phase 1 | Delete new files, revert `pyproject.toml` |
-| Phase 2 | Set flag=v2 (or revert factory wiring) |
-| Phase 3 | Set flag=v2 (local InfluxDB 2.7 still running) |
-| Phase 4 | Not applicable (v2 code removed — this is the point of no return) |
+| Phase | Flag | Rollback action |
+|-------|------|----------------|
+| Phase 1 | `v2` | Delete new files, revert `pyproject.toml` |
+| Phase 2 | `v2` | Set flag=`v2` (or revert factory wiring) |
+| Phase 3 | `dual` | Set flag=`v2` — v2 was receiving all writes, no data loss |
+| Phase 4 | `v3` | Set flag=`dual` or `v2` — v2 still running, but data since cutover only in v3 |
+| Phase 5 | — | Not applicable (v2 code removed — point of no return) |
 
-**Phase 4 should only happen after v3 has been stable in production for a sufficient period.**
+**Key safety property of dual mode**: Since v2 receives all writes during Phase 3, rolling back to `v2` loses nothing. The v3 Cloud instance can be wiped and repopulated at any time.
+
+**Phase 5 should only happen after v3 has been stable in production for a sufficient period.**
 
 ---
 
