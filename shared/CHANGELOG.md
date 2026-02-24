@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.13.2...idea-shared-v0.14.0) (2026-02-24)
+
+
+### Features
+
+* add segment buffering and improve validation initialization from dev branch ([#231](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/231)) ([bbbc33a](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/bbbc33ab324f0b3dedd16a8c1b34607c46743ea3))
+
 ## [0.13.2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.13.1...idea-shared-v0.13.2) (2026-02-17)
 
 
