@@ -247,13 +247,10 @@ class IdeaHelsinkiRoadSegment:
                         )
                     )
 
-                    valid_segment = (
-                        segment_history_start_date is not None
-                        and (
-                            segment_history_start_date
-                            + timedelta(weeks=self.profile_time_frame_weeks)
-                            <= current_date
-                        )
+                    valid_segment = segment_history_start_date is not None and (
+                        segment_history_start_date
+                        + timedelta(weeks=self.profile_time_frame_weeks)
+                        <= current_date
                     )
 
                     if valid_segment:

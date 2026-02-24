@@ -308,7 +308,10 @@ def main():
                 )
 
                 # Restore original LineString geometries before processing the final data model
-                if intersecting_features is not None and not intersecting_features.empty:
+                if (
+                    intersecting_features is not None
+                    and not intersecting_features.empty
+                ):
                     intersecting_features = detector.restore_original_geometries(
                         intersecting_features
                     )

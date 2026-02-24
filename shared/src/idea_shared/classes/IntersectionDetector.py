@@ -118,9 +118,7 @@ class IntersectionDetector:
             )
             return None
 
-    def load_fcd_segment_data(
-        self, segment_json: str
-    ) -> geopandas.GeoDataFrame | None:
+    def load_fcd_segment_data(self, segment_json: str) -> geopandas.GeoDataFrame | None:
         """
         Loads the aggregated segment data mapping JSON into a GeoDataFrame. Check docs/data_models.md for detailed information.
         The input JSON is expected to be a dictionary of objects, where each object has
