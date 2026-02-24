@@ -27,7 +27,7 @@ class IntersectionDetectorError(Exception):
 class IntersectionDetector:
     """
     A class to perform collision detection on map features,
-    specifically finding intersections between WFS MultiPolygon features and aggregated TomTom road segment LineString data.
+    specifically finding intersections between WFS MultiPolygon features and aggregated FCD road segment LineString data.
     """
 
     def __init__(
@@ -118,9 +118,7 @@ class IntersectionDetector:
             )
             return None
 
-    def load_tomtom_segment_data(
-        self, segment_json: str
-    ) -> geopandas.GeoDataFrame | None:
+    def load_fcd_segment_data(self, segment_json: str) -> geopandas.GeoDataFrame | None:
         """
         Loads the aggregated segment data mapping JSON into a GeoDataFrame. Check docs/data_models.md for detailed information.
         The input JSON is expected to be a dictionary of objects, where each object has
@@ -387,3 +385,103 @@ class IntersectionDetector:
             return False
 
         return True
+
+    def buffer_segments(
+        self,
+        gdf: geopandas.GeoDataFrame,
+        buffer_distance: float,
+        buffering_crs: str | None = None,
+    ) -> geopandas.GeoDataFrame:
+        """
+        Buffers the geometry of the GeoDataFrame by a specified distance.
+        The buffer uses a 'flat' cap style (cap_style=2) to preserve the length of the segment, only widening it.
+
+        If 'buffering_crs' is provided, the data is projected to that CRS for the buffering operation
+        (useful for metric buffering on WGS84 data) and then projected back to the original CRS.
+
+        IMPORTANT:
+        - The 'buffer_distance' is in the units of the GeoDataFrame's CRS. This should be done in meters, example using CRS EPSG:3879.
+
+        The original geometry is preserved in a new column 'geometry_original'.
+
+        Args:
+            gdf: The GeoDataFrame containing road segments (LineStrings).
+            buffer_distance: The distance to buffer (width) in METERS.
+            buffering_crs: The CRS to use for the buffering operation (e.g., "EPSG:3879").
+        Returns:
+            GeoDataFrame with buffered geometries (Polygons) and the original geometries stored.
+        """
+        if not self.validate_data_frame(gdf):
+            return gdf
+
+        # Create a copy to avoid modifying the original dataframe reference
+        buffered_gdf = gdf.copy()
+        # Copy the original CRS
+        original_crs = buffered_gdf.crs
+
+        # Save original geometry (in original CRS)
+        buffered_gdf["geometry_original"] = buffered_gdf["geometry"]
+
+        # Project to buffering CRS if defined and different
+        if buffering_crs and original_crs != buffering_crs:
+            self.logger.info(
+                f"Projecting data from {original_crs} to {buffering_crs} for buffering..."
+            )
+            buffered_gdf = buffered_gdf.to_crs(buffering_crs)
+
+        # Check CRS for warning if we are still geographic (no buffering CRS provided or it was geographic)
+        if buffered_gdf.crs and buffered_gdf.crs.is_geographic:
+            self.logger.warning(
+                f"Buffering performed on geographic CRS ({buffered_gdf.crs}). "
+                f"'buffer_distance' {buffer_distance} is treated as degrees."
+            )
+
+        # Apply buffering
+        buffered_gdf["geometry"] = buffered_gdf.geometry.buffer(
+            buffer_distance, cap_style="flat"
+        )
+
+        # Project back to original CRS if needed.
+        if buffering_crs and original_crs != buffering_crs:
+            self.logger.info(
+                f"Projecting data back to {original_crs} after buffering..."
+            )
+            buffered_gdf = buffered_gdf.to_crs(original_crs)
+
+        self.logger.info(
+            f"Buffered {len(buffered_gdf)} segments by {buffer_distance}. Original geometries backed up."
+        )
+
+        return buffered_gdf
+
+    def restore_original_geometries(
+        self, gdf: geopandas.GeoDataFrame
+    ) -> geopandas.GeoDataFrame:
+        """
+        Restores the original geometries from the 'geometry_original' column,
+        reverting the effects of the 'buffer_segments' method.
+        Removes the 'geometry_original' column after restoration.
+
+        Args:
+            gdf: The GeoDataFrame to restore.
+
+        Returns:
+            GeoDataFrame with original LineString geometries.
+        """
+        if not self.validate_data_frame(gdf):
+            return gdf
+
+        restored_gdf = gdf.copy()
+
+        if "geometry_original" in restored_gdf.columns:
+            restored_gdf["geometry"] = restored_gdf["geometry_original"]
+            restored_gdf = restored_gdf.drop(columns=["geometry_original"])
+            # Ensure the GeoDataFrame recognizes the restored column as the geometry
+            restored_gdf = restored_gdf.set_geometry("geometry")
+            self.logger.info("Restored original geometries.")
+        else:
+            self.logger.warning(
+                "Column 'geometry_original' not found. Cannot restore geometries."
+            )
+
+        return restored_gdf

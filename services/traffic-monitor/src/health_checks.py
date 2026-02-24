@@ -620,7 +620,7 @@ class DetectorHealthCheck(HealthCheck):
                 # Check if detector can access required methods
                 required_methods = [
                     "load_wfs_geojson",
-                    "load_tomtom_segment_data",
+                    "load_fcd_segment_data",
                     "find_intersecting_features",
                     "process_intersections_to_new_model",
                     "write_json_records",

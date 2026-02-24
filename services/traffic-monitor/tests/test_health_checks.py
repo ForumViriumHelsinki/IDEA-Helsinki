@@ -329,7 +329,7 @@ class TestDetectorHealthCheck:
         """Test detector when properly initialized."""
         mock_detector = Mock()
         mock_detector.load_wfs_geojson = Mock()
-        mock_detector.load_tomtom_segment_data = Mock()
+        mock_detector.load_fcd_segment_data = Mock()
         mock_detector.find_intersecting_features = Mock()
         mock_detector.process_intersections_to_new_model = Mock()
         mock_detector.write_json_records = Mock()
@@ -346,7 +346,7 @@ class TestDetectorHealthCheck:
         """Test detector when required methods are missing."""
         # Create a mock with limited methods using spec
         # Only these two methods exist, missing the other three required methods
-        mock_detector = Mock(spec=["load_wfs_geojson", "load_tomtom_segment_data"])
+        mock_detector = Mock(spec=["load_wfs_geojson", "load_fcd_segment_data"])
 
         check = DetectorHealthCheck(detector=mock_detector, cache_ttl=0)
 

@@ -247,27 +247,25 @@ class IdeaHelsinkiRoadSegment:
                         )
                     )
 
-                    # self.last_validation_update variable can be None if this is the first run after object init, or the last influxDB query returned None.
-                    # Otherwise, the variable is incremented (datetime) after each validation.
-                    if self.last_validation_update is None:
-                        self.last_validation_update = (
-                            await self.__get_segment_last_timestamp_from_influxdb(
-                                segment_id=self.segment_id
-                            )
-                        )
-
-                    valid_segment = (
-                        segment_history_start_date is not None
-                        and self.last_validation_update is not None
-                        and (
-                            segment_history_start_date
-                            + timedelta(weeks=self.profile_time_frame_weeks)
-                            <= current_date
-                        )
+                    valid_segment = segment_history_start_date is not None and (
+                        segment_history_start_date
+                        + timedelta(weeks=self.profile_time_frame_weeks)
+                        <= current_date
                     )
 
                     if valid_segment:
                         if self.profiling_end_date.date() <= current_date.date():
+                            # self.last_validation_update variable can be None if this is the first run after object init, or the last influxDB query returned None.
+                            # Otherwise, the variable is incremented (datetime) after each validation.
+                            if self.last_validation_update is None:
+                                if self.profiling_end_date.date() < current_date.date():
+                                    # Increment one day to avoid overlapping with the segment profiling.
+                                    self.last_validation_update = (
+                                        self.profiling_end_date + timedelta(days=1)
+                                    )
+                                else:
+                                    self.last_validation_update = current_date
+
                             await self.__validate_segment(current_date)
                         else:
                             self.logger.info(
@@ -275,7 +273,7 @@ class IdeaHelsinkiRoadSegment:
                             )
                     else:
                         self.logger.warning(
-                            f"Segment is not valid for profiling and validation!!! Segment history start date: {segment_history_start_date}, Last segment update date: {self.last_validation_update}"
+                            f"Segment is not valid for profiling and validation!!! Segment history start date: {segment_history_start_date}"
                         )
 
                     # Successful cycle, reset error tracker
