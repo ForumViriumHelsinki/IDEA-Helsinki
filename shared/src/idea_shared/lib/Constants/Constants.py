@@ -22,9 +22,14 @@ TRAFFIC_DISTURBANCES_TO_MONITOR = ["Kaivuilmoitus_alue", "Aluevuokraus_alue"]
 # TOMTOM PROVIDER DEFAULTS
 FCD_UPDATE_FREQUENCY = 5  # In minutes
 
+# FCD mapping freshness threshold
+FCD_MAPPING_MAX_AGE_MINUTES = (
+    15  # FCD mapping file should be updated at least every 15 minutes
+)
+
 # FCD segment id and geometry info = segment ids and their location
 FCD_MAP_DATA_FILE_LOCATION = os.path.join(DATA_DIR, "segments_mapping.json")
-FCD_MAP_UPDATE_FREQUENCY = 30  # in minutes
+
 MASTER_SEGMENT_HISTORY_FILE_LOCATION = os.path.join(
     DATA_DIR, "master_segment_history.json"
 )
@@ -38,11 +43,12 @@ ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION = os.path.join(
 ## In Helsinki's case the FCD CRS is EPSG:4326 and the metric conversion is to EPSG:3879
 BUFFERING_FCD_CRS = "EPSG:3879"
 # Buffering variable is in meters
-BUFFERING_DISTANCE = 5.0
+BUFFERING_DISTANCE = 20.0
 
 # FCD HISTORY DEFAULTS
 ## Start date for the FCD history, or the defined start date for it. format YYYY-MM-DD
-FCD_HISTORY_START_DATE = "2024-12-05"
+# The previous start date "2024-12-05" is being updated because data from that period may be inconsistent with current routes.
+FCD_HISTORY_START_DATE = "2025-01-01"
 
 # FCD MULTI-THREADING CONFIGURATION
 ## Number of parallel backfill worker threads for historical data processing
@@ -120,11 +126,6 @@ HEALTH_CHECK_VALIDATION_DATABASE = "validation_database"
 UPDATE_FRESHNESS_HEALTHY_MINUTES = 90  # Consider healthy if last update < 90 minutes
 UPDATE_FRESHNESS_DEGRADED_MINUTES = (
     180  # Consider degraded if < 180 minutes, unhealthy if > 180
-)
-
-# FCD mapping freshness threshold
-FCD_MAPPING_MAX_AGE_MINUTES = (
-    15  # FCD mapping file should be updated at least every 15 minutes
 )
 
 # WFS API health check settings
