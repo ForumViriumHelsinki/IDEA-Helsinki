@@ -269,7 +269,9 @@ def main():
 
             # If we get data, validate the reported disturbances.
             # This checks what disturbances we can check based on the FCD history (FCD history start date + minimum time for IDEA profile)
-            history_start_date = datetime.strptime(FCD_HISTORY_START_DATE, "%Y-%m-%d").replace(tzinfo=UTC)
+            history_start_date = datetime.strptime(
+                FCD_HISTORY_START_DATE, "%Y-%m-%d"
+            ).replace(tzinfo=UTC)
             validation_date = history_start_date + timedelta(
                 weeks=PROFILE_TIME_FRAME_WEEKS
             )
