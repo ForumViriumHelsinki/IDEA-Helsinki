@@ -47,7 +47,7 @@ BUFFERING_DISTANCE = 20.0
 
 # FCD HISTORY DEFAULTS
 ## Start date for the FCD history, or the defined start date for it. format YYYY-MM-DD
-#FCD_HISTORY_START_DATE = "2024-12-05" => This is the "Official date" for the first FCD download but the data might be inconsistent, since there were changes to the routes.
+# The previous start date "2024-12-05" is being updated because data from that period may be inconsistent with current routes.
 FCD_HISTORY_START_DATE = "2025-01-01"
 
 # FCD MULTI-THREADING CONFIGURATION
