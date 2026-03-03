@@ -37,10 +37,10 @@ podAnnotations:
   gke-gcsfuse/ephemeral-storage-limit: "2Gi"
 resources:
   limits:
-    cpu: "1500m"
-    memory: "2.0Gi"
+    cpu: "2000m"
+    memory: "4.0Gi"
   requests:
-    cpu: "250m"
+    cpu: "1000m"
     memory: "256Mi"
 service:
   type: ClusterIP
