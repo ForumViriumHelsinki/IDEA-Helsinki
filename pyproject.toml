@@ -8,3 +8,26 @@ members = ["shared", "services/orchestrator", "services/fcd-manager", "services/
 
 [tool.uv.sources]
 idea-shared = { workspace = true }
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+fix = true
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by line-length)
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

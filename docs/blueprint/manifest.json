@@ -1,0 +1,48 @@
+{
+  "format_version": "3.1.0",
+  "created_at": "2026-02-17T00:00:00Z",
+  "updated_at": "2026-02-17T00:00:00Z",
+  "created_by": {
+    "blueprint_plugin": "3.16.6"
+  },
+  "project": {
+    "name": "idea-helsinki",
+    "detected_stack": [
+      "python3.12",
+      "uv-workspace",
+      "docker",
+      "kubernetes",
+      "skaffold",
+      "influxdb",
+      "argocd"
+    ]
+  },
+  "structure": {
+    "has_prds": false,
+    "has_adrs": false,
+    "has_prps": false,
+    "has_work_orders": true,
+    "has_ai_docs": false,
+    "has_modular_rules": true,
+    "has_feature_tracker": true,
+    "has_document_detection": true,
+    "claude_md_mode": "modular"
+  },
+  "feature_tracker": {
+    "file": "docs/blueprint/feature-tracker.json",
+    "source_document": "README.md",
+    "sync_targets": []
+  },
+  "generated": {
+    "rules": {
+      "development.md": "Development workflow and TDD practices",
+      "testing.md": "Testing requirements and patterns",
+      "document-management.md": "Document organization and detection"
+    },
+    "commands": {}
+  },
+  "custom_overrides": {
+    "skills": [],
+    "commands": []
+  }
+}

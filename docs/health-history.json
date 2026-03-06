@@ -1,0 +1,37 @@
+{
+  "snapshots": [
+    {
+      "date": "2026-03-05",
+      "overall_score": 59,
+      "grade": "F",
+      "category_scores": {
+        "docs": 18,
+        "tests": 10,
+        "security": 9,
+        "quality": 2,
+        "ci": 20
+      },
+      "notes": "Initial maintenance run. Pre-computed quality score (2/20) was inaccurate — ruff is configured per-service. Adjusted effective quality ~12/20.",
+      "fixed_count": 5,
+      "fixed_items": [
+        "Added MIT LICENSE file",
+        "Added [tool.ruff] config to root pyproject.toml",
+        "Added permissions: {contents: read} to lint.yml workflow",
+        "Added permissions: {contents: read} to test.yml workflow",
+        "Enhanced renovate.json with vulnerability alerts and patch automerge"
+      ],
+      "remaining_count": 9,
+      "remaining_items": [
+        "CRITICAL: k8s/secrets.yaml tracked with real Azure SAS token — needs git history scrub",
+        "HIGH: No security scanning in CI (no pip-audit, CodeQL, or gitleaks)",
+        "HIGH: Overly broad permissions in claude.yml workflow",
+        "MEDIUM: Code duplication across services (Sentry init, wait_for_next_cycle, Flux queries)",
+        "MEDIUM: Anti-patterns (raise e instead of raise, print instead of logger, asyncio.get_event_loop deprecated)",
+        "MEDIUM: Service test coverage gaps (core main.py business logic untested)",
+        "LOW: Two log files in repo root (not tracked, cleanup recommended)",
+        "LOW: No SECURITY.md vulnerability disclosure policy",
+        "LOW: ~30% type annotation coverage, mypy/pyright not enabled"
+      ]
+    }
+  ]
+}
