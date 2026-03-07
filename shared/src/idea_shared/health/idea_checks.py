@@ -57,7 +57,7 @@ class AzureBlobStorageHealthCheck(HealthCheck):
         """
         try:
             # Run sync operations in executor to avoid blocking
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
 
             def check_blob_storage():
                 """Synchronous blob storage check."""
@@ -192,7 +192,7 @@ class InfluxDBHealthCheck(DatabaseHealthCheck):
         """
         try:
             # Run sync operations in executor
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
 
             def check_influx():
                 """Synchronous InfluxDB check."""
@@ -290,7 +290,7 @@ class FCDDataFreshnessHealthCheck(DatabaseHealthCheck):
             HealthCheckResult indicating data freshness status
         """
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
 
             def check_freshness():
                 """Check data freshness synchronously."""
@@ -428,7 +428,7 @@ class SegmentMappingIntegrityHealthCheck(FileSystemHealthCheck):
             )
 
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
 
             def validate_files():
                 """Validate segment mapping files synchronously."""

@@ -585,7 +585,7 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
                     metadata={"file_path": str(self.path)},
                 )
 
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
 
             def _check_file():
                 # Check file modification time

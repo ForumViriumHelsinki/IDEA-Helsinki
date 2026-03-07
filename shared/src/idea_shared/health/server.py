@@ -279,12 +279,7 @@ class HealthServer:
                 )
                 self._server = uvicorn.Server(config)
 
-                # Set up signal handlers for the thread
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-
-                # Run the server
-                loop.run_until_complete(self._server.serve())
+                asyncio.run(self._server.serve())
             except OSError as e:
                 if "Address already in use" in str(e) or "bind" in str(e).lower():
                     logger.error(
