@@ -202,7 +202,7 @@ class SegmentMappingFileManager:
                         os.remove(temp_file)
                     except Exception:
                         pass
-                raise e
+                raise
 
     def read_mapping_safe(self, file_path: str) -> dict:
         """

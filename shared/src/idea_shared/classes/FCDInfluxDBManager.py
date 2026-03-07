@@ -523,7 +523,7 @@ class FCDInfluxDBManager:
             return self._query_to_csv(flux_query)
         except Exception as e:
             self.logger.error(f"An error occurred during segment data query. {e}")
-            raise e
+            raise
 
     @_influxdb_retry
     def get_segment_data_dataframe(
@@ -602,7 +602,7 @@ class FCDInfluxDBManager:
             return df
         except Exception as e:
             self.logger.error(f"An error occurred during segment data query. {e}")
-            raise e
+            raise
 
     def _query_to_csv(self, query: str) -> str | None:
         """
@@ -616,7 +616,7 @@ class FCDInfluxDBManager:
             return output.getvalue()
         except Exception as e:
             self.logger.error(f"Error executing query.{e} ")
-            raise e
+            raise
 
     def close(self):
         """
