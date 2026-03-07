@@ -2,7 +2,6 @@
 # ---------------- GENERAL IMPORTS ---------------------#
 # ------------------------------------------------------#
 import json
-import os
 import signal
 import sys
 from datetime import UTC, datetime, timedelta
@@ -13,7 +12,6 @@ from pathlib import Path
 # ------------------------------------------------------#
 import idea_shared.lib.DisturbanceValidator as DisturbanceValidator
 import pause
-import sentry_sdk
 
 # ------------------------------------------------------#
 # -------------- PROJECT CLASS IMPORTS -----------------#
@@ -385,19 +383,9 @@ def update_cycle_pause(pause_time: int) -> None:
 
 
 if __name__ == "__main__":
-    # Initialize Sentry if DSN is provided
-    sentry_dsn = os.getenv("SENTRY_DSN", "").strip()
-    if sentry_dsn and sentry_dsn != "":
-        sentry_sdk.init(
-            dsn=sentry_dsn,
-            sample_rate=0.1,
-            traces_sample_rate=1.0,
-            profiles_sample_rate=1.0,
-            environment=os.getenv("ENVIRONMENT", "production"),
-        )
-        logger.info("Sentry initialized for error tracking")
-    else:
-        logger.info("SENTRY_DSN not set, running without Sentry error tracking")
+    from idea_shared.observability.sentry import configure_sentry
+
+    configure_sentry("traffic-monitor")
 
     logger.info("Starting program!.")
     main()

@@ -1,7 +1,6 @@
 # ------------------------------------------------------#
 # ---------------- GENERAL IMPORTS ---------------------#
 # ------------------------------------------------------#
-import os
 import signal
 import sys
 import threading
@@ -12,7 +11,6 @@ from datetime import UTC, datetime, timedelta
 # ------------------------------------------------------#
 import idea_shared.lib.FcdUtils as FcdUtils
 import idea_shared.lib.TomTomFcdAggregator as TomTomFcdAggregator
-import sentry_sdk
 
 # ------------------------------------------------------#
 # -------------- PROJECT CLASS IMPORTS -----------------#
@@ -578,19 +576,9 @@ def _process_and_update_blob_list(
 
 
 if __name__ == "__main__":
-    # Initialize Sentry if DSN is provided
-    sentry_dsn = os.getenv("SENTRY_DSN", "").strip()
-    if sentry_dsn and sentry_dsn != "":
-        sentry_sdk.init(
-            dsn=sentry_dsn,
-            sample_rate=0.1,
-            traces_sample_rate=1.0,
-            profiles_sample_rate=1.0,
-            environment=os.getenv("ENVIRONMENT", "production"),
-        )
-        logger.info("Sentry initialized for error tracking")
-    else:
-        logger.info("SENTRY_DSN not set, running without Sentry error tracking")
+    from idea_shared.observability.sentry import configure_sentry
+
+    configure_sentry("fcd-manager")
 
     logger.info("Starting program!.")
     main()
