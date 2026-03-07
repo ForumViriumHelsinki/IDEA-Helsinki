@@ -31,3 +31,13 @@ ignore = [
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+reportMissingImports = false
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.408",
+]
