@@ -393,9 +393,7 @@ def apply_momentum(
         k, coverage, current_minutes_no_low, previous_minutes_no_low, decay_window
     )
 
-    echo = 0.0
-    if decay_window > 0:
-        echo = max(0.0, (decay_window - current_minutes_no_low) / decay_window)
+    echo = max(0.0, (decay_window - current_minutes_no_low) / decay_window)
 
     alpha = math.exp(-k * echo)
     return running_mean * alpha, k
