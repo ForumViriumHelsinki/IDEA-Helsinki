@@ -1,7 +1,6 @@
 """Signal handler setup for graceful service shutdown."""
 
 import signal
-import sys
 
 from idea_shared.classes.Logger import Logger
 
