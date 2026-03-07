@@ -1,7 +1,6 @@
 # ------------------------------------------------------#
 # ---------------- GENERAL IMPORTS ---------------------#
 # ------------------------------------------------------#
-import signal
 import sys
 import threading
 from datetime import UTC, datetime, timedelta
@@ -321,8 +320,9 @@ def main():
     init_feature_flags(data_dir=DATA_DIR, service_name="fcd-manager")
 
     # Setup signal handlers for graceful shutdown
-    signal.signal(signal.SIGTERM, handle_shutdown)
-    signal.signal(signal.SIGINT, handle_shutdown)
+    from idea_shared.lifecycle.signals import setup_sync_signal_handlers
+
+    setup_sync_signal_handlers(handle_shutdown)
 
     # Initialize health server
     logger.info(f"Starting health server on port {HEALTH_CHECK_PORT}")

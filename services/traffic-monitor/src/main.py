@@ -2,7 +2,6 @@
 # ---------------- GENERAL IMPORTS ---------------------#
 # ------------------------------------------------------#
 import json
-import signal
 import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -176,8 +175,9 @@ def main():
         sys.exit(0)
 
     # Register signal handlers
-    signal.signal(signal.SIGTERM, handle_shutdown)
-    signal.signal(signal.SIGINT, handle_shutdown)
+    from idea_shared.lifecycle.signals import setup_sync_signal_handlers
+
+    setup_sync_signal_handlers(handle_shutdown)
 
     # Start health server in background thread
     health_server.start_background()
