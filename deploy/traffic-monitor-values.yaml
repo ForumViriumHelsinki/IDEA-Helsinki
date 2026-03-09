@@ -46,6 +46,8 @@ service:
   type: ClusterIP
   port: 8080
   targetPort: 8080
+gateway:
+  enabled: true
 livenessProbe:
   httpGet:
     path: /healthz
