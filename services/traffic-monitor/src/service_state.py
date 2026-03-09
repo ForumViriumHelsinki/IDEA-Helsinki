@@ -25,7 +25,10 @@ class ServiceState:
         self.detector = None
 
     def update_wfs_fetch(
-        self, success: bool, disturbance_count: int = None, error: str = None
+        self,
+        success: bool,
+        disturbance_count: int | None = None,
+        error: str | None = None,
     ):
         """Update WFS fetch status.
 
@@ -176,7 +179,7 @@ class ServiceState:
             self.last_intersection_calc = datetime.now(UTC)
             self.current_intersection_count = intersection_count
 
-    def update_file_write(self, success: bool, error: str = None):
+    def update_file_write(self, success: bool, error: str | None = None):
         """Update file write status.
 
         Args:

@@ -26,8 +26,8 @@ from idea_shared.lib.Constants.Constants import (
     INFLUXDB_PING_CACHE_TTL_SECONDS,
     WORKER_HEALTH_THRESHOLD_PERCENT,
 )
-from influxdb_client import InfluxDBClient
 from influxdb_client.client.exceptions import InfluxDBError
+from influxdb_client.client.influxdb_client import InfluxDBClient
 
 # Initialize logger for health checks
 logger = Logger(__name__, level=logging.INFO)
@@ -269,7 +269,7 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
                     )
 
                     if has_data:
-                        if backfill_timestamp:
+                        if backfill_timestamp and age_minutes is not None:
                             # Backfill mode - data exists but is historical
                             data_age_hours = age_minutes / 60
                             backfill_msg = f"FCD database is healthy (backfilling from {backfill_timestamp.strftime('%Y-%m-%d %H:%M')})"
@@ -585,7 +585,7 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
                     metadata={"file_path": str(self.path)},
                 )
 
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
 
             def _check_file():
                 # Check file modification time

@@ -2,8 +2,6 @@
 # ---------------- GENERAL IMPORTS ---------------------#
 # ------------------------------------------------------#
 import json
-import os
-import signal
 import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -13,7 +11,6 @@ from pathlib import Path
 # ------------------------------------------------------#
 import idea_shared.lib.DisturbanceValidator as DisturbanceValidator
 import pause
-import sentry_sdk
 
 # ------------------------------------------------------#
 # -------------- PROJECT CLASS IMPORTS -----------------#
@@ -178,8 +175,9 @@ def main():
         sys.exit(0)
 
     # Register signal handlers
-    signal.signal(signal.SIGTERM, handle_shutdown)
-    signal.signal(signal.SIGINT, handle_shutdown)
+    from idea_shared.lifecycle.signals import setup_sync_signal_handlers
+
+    setup_sync_signal_handlers(handle_shutdown)
 
     # Start health server in background thread
     health_server.start_background()
@@ -276,6 +274,14 @@ def main():
                 weeks=PROFILE_TIME_FRAME_WEEKS
             )
 
+            if not isinstance(allu_wfs_data, dict):
+                logger.error(
+                    f"Unexpected WFS data type: {type(allu_wfs_data).__name__}, expected dict"
+                )
+                service_state.set_processing(False)
+                update_cycle_pause(TRAFFIC_DISTURBANCE_UPDATE_FREQUENCY)
+                continue
+
             validated_allu_data = DisturbanceValidator.validate_disturbance_dates(
                 validation_date, allu_wfs_data
             )
@@ -294,6 +300,14 @@ def main():
                     FCD_MAP_DATA_FILE_LOCATION
                 )
 
+                if fcd_segments_gdf is None:
+                    logger.error(
+                        "Failed to load FCD segment data, skipping intersection detection"
+                    )
+                    service_state.set_processing(False)
+                    update_cycle_pause(TRAFFIC_DISTURBANCE_UPDATE_FREQUENCY)
+                    continue
+
                 # Buffer segments for better intersection detection (addresses precision/alignment issues)
                 logger.info(
                     f"Buffering road segments by {BUFFERING_DISTANCE} meters using CRS {BUFFERING_FCD_CRS}..."
@@ -303,6 +317,14 @@ def main():
                     buffer_distance=BUFFERING_DISTANCE,
                     buffering_crs=BUFFERING_FCD_CRS,
                 )
+
+                if allu_wfs_gdf is None:
+                    logger.error(
+                        "Failed to load WFS GeoJSON data, skipping intersection detection"
+                    )
+                    service_state.set_processing(False)
+                    update_cycle_pause(TRAFFIC_DISTURBANCE_UPDATE_FREQUENCY)
+                    continue
 
                 # Find intersections
                 intersecting_features = detector.find_intersecting_features(
@@ -317,6 +339,12 @@ def main():
                     intersecting_features = detector.restore_original_geometries(
                         intersecting_features
                     )
+
+                if intersecting_features is None:
+                    logger.info("No intersecting features found")
+                    service_state.set_processing(False)
+                    update_cycle_pause(TRAFFIC_DISTURBANCE_UPDATE_FREQUENCY)
+                    continue
 
                 # Process intersections to an intersection data model
                 # Note that usually there is a numerical difference between the "intersecting_features" and the "final_model_data".
@@ -385,19 +413,9 @@ def update_cycle_pause(pause_time: int) -> None:
 
 
 if __name__ == "__main__":
-    # Initialize Sentry if DSN is provided
-    sentry_dsn = os.getenv("SENTRY_DSN", "").strip()
-    if sentry_dsn and sentry_dsn != "":
-        sentry_sdk.init(
-            dsn=sentry_dsn,
-            sample_rate=0.1,
-            traces_sample_rate=1.0,
-            profiles_sample_rate=1.0,
-            environment=os.getenv("ENVIRONMENT", "production"),
-        )
-        logger.info("Sentry initialized for error tracking")
-    else:
-        logger.info("SENTRY_DSN not set, running without Sentry error tracking")
+    from idea_shared.observability.sentry import configure_sentry
+
+    configure_sentry("traffic-monitor")
 
     logger.info("Starting program!.")
     main()

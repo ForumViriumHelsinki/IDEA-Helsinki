@@ -44,7 +44,9 @@ class TestAzureBlobStorageHealthCheck:
             result = await check.check()
 
             assert result.status == "healthy"
+            assert result.message is not None
             assert "testcontainer" in result.message
+            assert result.metadata is not None
             assert result.metadata["account"] == "testaccount"
             assert result.metadata["container"] == "testcontainer"
 
@@ -70,7 +72,9 @@ class TestAzureBlobStorageHealthCheck:
             result = await check.check()
 
             assert result.status == "unhealthy"
+            assert result.message is not None
             assert "Authentication failed" in result.message
+            assert result.metadata is not None
             assert result.metadata["error"] == "Authentication failed"
 
 
@@ -112,7 +116,9 @@ class TestWFSServiceHealthCheck:
             result = await check.check()
 
             assert result.status == "healthy"
+            assert result.message is not None
             assert "WFS service is available" in result.message
+            assert result.metadata is not None
             assert result.metadata["service"] == "WFS"
 
     @pytest.mark.asyncio
@@ -162,7 +168,9 @@ class TestInfluxDBHealthCheck:
             result = await check.check()
 
             assert result.status == "healthy"
+            assert result.message is not None
             assert "InfluxDB is accessible" in result.message
+            assert result.metadata is not None
             assert result.metadata["org"] == "test_org"
             assert result.metadata["bucket"] == "test_bucket"
 
@@ -192,6 +200,7 @@ class TestInfluxDBHealthCheck:
             result = await check.check()
 
             assert result.status == "unhealthy"
+            assert result.message is not None
             assert "InfluxDB ping failed" in result.message
 
 
@@ -232,7 +241,9 @@ class TestFCDDataFreshnessHealthCheck:
             result = await check.check()
 
             assert result.status == "healthy"
+            assert result.message is not None
             assert "FCD data is fresh" in result.message
+            assert result.metadata is not None
             assert result.metadata["max_age_minutes"] == 30
 
     @pytest.mark.asyncio
@@ -264,6 +275,7 @@ class TestFCDDataFreshnessHealthCheck:
             result = await check.check()
 
             assert result.status == "degraded"
+            assert result.message is not None
             assert "No recent FCD data found" in result.message
 
     @pytest.mark.asyncio
@@ -305,7 +317,9 @@ class TestFCDDataFreshnessHealthCheck:
             result = await check.check()
 
             assert result.status == "healthy"
+            assert result.message is not None
             assert "backfilling" in result.message.lower()
+            assert result.metadata is not None
             assert result.metadata["mode"] == "backfill"
             assert "latest_data_timestamp" in result.metadata
             assert "backfill_progress" in result.metadata
@@ -347,6 +361,7 @@ class TestFCDDataFreshnessHealthCheck:
 
             # Should be in backfill mode since data_age > max_age_minutes
             assert result.status == "healthy"
+            assert result.metadata is not None
             assert result.metadata["mode"] == "backfill"
 
     @pytest.mark.asyncio
@@ -384,6 +399,7 @@ class TestFCDDataFreshnessHealthCheck:
             result = await check.check()
 
             assert result.status == "healthy"
+            assert result.metadata is not None
             assert result.metadata["mode"] == "backfill"
             assert (
                 result.metadata["latest_data_timestamp"]
@@ -425,7 +441,9 @@ class TestFCDDataFreshnessHealthCheck:
             result = await check.check()
 
             assert result.status == "healthy"
+            assert result.message is not None
             assert "fresh" in result.message.lower()
+            assert result.metadata is not None
             assert result.metadata["mode"] == "real_time"
             assert result.metadata["data_age_minutes"] < 30
 
@@ -504,7 +522,9 @@ class TestSegmentMappingIntegrityHealthCheck:
         result = await check.check()
 
         assert result.status == "healthy"
+        assert result.message is not None
         assert "valid" in result.message
+        assert result.metadata is not None
         assert result.metadata["segment_count"] == 1
         assert result.metadata["history_entries"] == 1
 
@@ -528,6 +548,7 @@ class TestSegmentMappingIntegrityHealthCheck:
         result = await check.check()
 
         assert result.status == "degraded"
+        assert result.message is not None
         assert "not found" in result.message
 
     @pytest.mark.asyncio
@@ -551,6 +572,7 @@ class TestSegmentMappingIntegrityHealthCheck:
         result = await check.check()
 
         assert result.status in ["degraded", "unhealthy"]
+        assert result.message is not None
         assert "empty or unreadable" in result.message
 
     @pytest.mark.asyncio
@@ -582,4 +604,5 @@ class TestSegmentMappingIntegrityHealthCheck:
         result = await check.check()
 
         assert result.status in ["degraded", "unhealthy"]
+        assert result.metadata is not None
         assert "geometry" in str(result.metadata.get("issues", []))

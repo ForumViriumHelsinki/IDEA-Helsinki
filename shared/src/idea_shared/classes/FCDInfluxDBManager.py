@@ -4,7 +4,8 @@ from datetime import UTC, datetime
 from http.client import IncompleteRead, RemoteDisconnected
 
 import pandas as pd
-from influxdb_client import InfluxDBClient, Point
+from influxdb_client.client.influxdb_client import InfluxDBClient
+from influxdb_client.client.write.point import Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 from influxdb_client.rest import ApiException
 from tenacity import (
@@ -159,8 +160,9 @@ class FCDInfluxDBManager:
         """
         self.logger.info(f"Writing batch {batch_number} ({len(points)} points)...")
         self.write_api.write(bucket=self.bucket, org=self.org, record=points)
+        client_url = self.client.url if self.client else "N/A"
         self.logger.info(
-            f"Successfully wrote batch {batch_number} - URL: {self.client.url}, "
+            f"Successfully wrote batch {batch_number} - URL: {client_url}, "
             f"Org: {self.org}, Bucket: {self.bucket}"
         )
 
@@ -241,7 +243,7 @@ class FCDInfluxDBManager:
         # Final summary log
         self.logger.info(
             f"Completed: {total_rows} rows written to measurement '{measurement_name}' "
-            f"for segmentId '{segment_id}' - URL: {self.client.url}, Org: {self.org}, Bucket: {self.bucket}"
+            f"for segmentId '{segment_id}' - URL: {self.client.url if self.client else 'N/A'}, Org: {self.org}, Bucket: {self.bucket}"
         )
 
     def write_fcd_model(self, fcd_data: dict, batch_size: int = 5000):
@@ -455,8 +457,8 @@ class FCDInfluxDBManager:
         self,
         segment_id: str,
         measurement_name: str,
-        start_time: datetime = None,
-        end_time: datetime = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
         latest_only: bool = False,
         query_fields: list | None = None,
         interval_minutes: int | None = None,
@@ -523,15 +525,15 @@ class FCDInfluxDBManager:
             return self._query_to_csv(flux_query)
         except Exception as e:
             self.logger.error(f"An error occurred during segment data query. {e}")
-            raise e
+            raise
 
     @_influxdb_retry
     def get_segment_data_dataframe(
         self,
         segment_id: str,
         measurement_name: str,
-        start_time: datetime = None,
-        end_time: datetime = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
         latest_only: bool = False,
         query_fields: list | None = None,
         interval_minutes: int | None = None,
@@ -595,14 +597,21 @@ class FCDInfluxDBManager:
         flux_query = "".join(query_body_parts)
 
         try:
-            df = self.query_api.query_data_frame(flux_query)
+            result = self.query_api.query_data_frame(flux_query)
+            # query_data_frame returns DataFrame or list[DataFrame]
+            if isinstance(result, list):
+                if not result:
+                    return None
+                df = pd.concat(result, ignore_index=True)
+            else:
+                df = result
             if df is not None and not df.empty and query_fields:
                 query_fields.insert(0, "_time")
                 df = df[query_fields]
-            return df
+            return df  # type: ignore[reportReturnType] - df[list] always returns DataFrame
         except Exception as e:
             self.logger.error(f"An error occurred during segment data query. {e}")
-            raise e
+            raise
 
     def _query_to_csv(self, query: str) -> str | None:
         """
@@ -616,7 +625,7 @@ class FCDInfluxDBManager:
             return output.getvalue()
         except Exception as e:
             self.logger.error(f"Error executing query.{e} ")
-            raise e
+            raise
 
     def close(self):
         """

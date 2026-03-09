@@ -121,7 +121,7 @@ class TestAsyncRetry:
 
         @async_retry(max_attempts=3, base_delay=0.1, jitter=False)
         async def failing_operation():
-            call_times.append(asyncio.get_event_loop().time())
+            call_times.append(asyncio.get_running_loop().time())
             raise RuntimeError("Test failure")
 
         with pytest.raises(RuntimeError):

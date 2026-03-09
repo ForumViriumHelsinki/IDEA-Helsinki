@@ -302,6 +302,7 @@ class TestThreadCoordinatorShutdown:
             assert not thread.is_alive(), (
                 f"Worker thread {thread.name} should be stopped"
             )
+        assert coordinator._writer_thread is not None
         assert not coordinator._writer_thread.is_alive(), (
             "Writer thread should be stopped"
         )
