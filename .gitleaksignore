@@ -1,0 +1,6 @@
+# Ignore findings from the now-deleted .secrets.baseline file (detect-secrets allowlist).
+# These are hashed known false positives, not real secrets.
+b90f486659f62f444245379a049329cb6e49a607:.secrets.baseline:generic-api-key:134
+b90f486659f62f444245379a049329cb6e49a607:.secrets.baseline:generic-api-key:141
+b90f486659f62f444245379a049329cb6e49a607:.secrets.baseline:generic-api-key:148
+b90f486659f62f444245379a049329cb6e49a607:.secrets.baseline:generic-api-key:155
