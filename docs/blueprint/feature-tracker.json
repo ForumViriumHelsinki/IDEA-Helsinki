@@ -1,0 +1,247 @@
+{
+  "metadata": {
+    "format_version": "2.0.0",
+    "source_document": "README.md",
+    "last_synced": "2026-02-17T00:00:00Z",
+    "description": "Feature tracking for IDEA-Helsinki project requirements"
+  },
+  "project": "idea-helsinki",
+  "current_phase": "phase-1",
+  "phases": [
+    {
+      "id": "phase-0",
+      "name": "Foundation",
+      "status": "complete",
+      "description": "Core infrastructure and data pipeline"
+    },
+    {
+      "id": "phase-1",
+      "name": "Core Features",
+      "status": "in_progress",
+      "description": "Active development and improvements"
+    },
+    {
+      "id": "phase-2",
+      "name": "IDEA Algorithm Evolution",
+      "status": "not_started",
+      "description": "Algorithm improvements and IDEA 2.0"
+    }
+  ],
+  "features": [
+    {
+      "id": "FR1",
+      "name": "FCD Data Pipeline",
+      "phase": "phase-0",
+      "status": "complete",
+      "children": [
+        {
+          "id": "FR1.1",
+          "name": "Azure Blob Storage ingestion",
+          "status": "complete",
+          "description": "Process TomTom FCD data from Azure blob storage"
+        },
+        {
+          "id": "FR1.2",
+          "name": "Segment geometry mapping",
+          "status": "complete",
+          "description": "Maintain FCD segment geometry mapping with SHA-256 change detection"
+        },
+        {
+          "id": "FR1.3",
+          "name": "InfluxDB timeseries storage",
+          "status": "complete",
+          "description": "Store speed/confidence timeseries in InfluxDB fcd-data bucket"
+        },
+        {
+          "id": "FR1.4",
+          "name": "Segment history tracking",
+          "status": "complete",
+          "description": "Track segment geometry changes in master and archive history files"
+        }
+      ]
+    },
+    {
+      "id": "FR2",
+      "name": "Traffic Disturbance Processing",
+      "phase": "phase-0",
+      "status": "complete",
+      "children": [
+        {
+          "id": "FR2.1",
+          "name": "Helsinki WFS integration",
+          "status": "complete",
+          "description": "Fetch traffic disturbance data from Helsinki WFS service"
+        },
+        {
+          "id": "FR2.2",
+          "name": "Disturbance validation",
+          "status": "complete",
+          "description": "Validate disturbances against 6-month FCD history requirement"
+        },
+        {
+          "id": "FR2.3",
+          "name": "Spatial intersection detection",
+          "status": "complete",
+          "description": "Detect FCD segments affected by traffic disturbances"
+        }
+      ]
+    },
+    {
+      "id": "FR3",
+      "name": "IDEA Validation Engine",
+      "phase": "phase-0",
+      "status": "complete",
+      "children": [
+        {
+          "id": "FR3.1",
+          "name": "Worker-based validation",
+          "status": "complete",
+          "description": "Async workers for independent segment profiling and validation"
+        },
+        {
+          "id": "FR3.2",
+          "name": "Validation results storage",
+          "status": "complete",
+          "description": "Store validation results in InfluxDB validation bucket"
+        }
+      ]
+    },
+    {
+      "id": "FR4",
+      "name": "Infrastructure & DevOps",
+      "phase": "phase-0",
+      "status": "complete",
+      "children": [
+        {
+          "id": "FR4.1",
+          "name": "Microservices architecture",
+          "status": "complete",
+          "description": "Three independent services (orchestrator, fcd-manager, traffic-monitor)"
+        },
+        {
+          "id": "FR4.2",
+          "name": "Kubernetes deployment",
+          "status": "complete",
+          "description": "Skaffold-based local development with K8s manifests"
+        },
+        {
+          "id": "FR4.3",
+          "name": "Secrets management",
+          "status": "complete",
+          "description": "Template-based secrets generation with envsubst and dotenvx"
+        },
+        {
+          "id": "FR4.4",
+          "name": "Feature flags system",
+          "status": "complete",
+          "description": "Runtime feature toggles via JSON files and environment variables"
+        },
+        {
+          "id": "FR4.5",
+          "name": "CI/CD pipeline",
+          "status": "complete",
+          "description": "GitHub Actions for container builds and automated testing"
+        }
+      ]
+    },
+    {
+      "id": "FR5",
+      "name": "Fixes & Improvements",
+      "phase": "phase-1",
+      "status": "in_progress",
+      "children": [
+        {
+          "id": "FR5.1",
+          "name": "Segment creation date in master history",
+          "status": "not_started",
+          "description": "Add segment creation date to master_segment_history for convenience (currently only in InfluxDB)"
+        },
+        {
+          "id": "FR5.2",
+          "name": "Segment geometry change handling",
+          "status": "not_started",
+          "description": "Methods for handling/managing segment geometry changes and their effect on timeseries history"
+        }
+      ]
+    },
+    {
+      "id": "FR6",
+      "name": "Data Storage Evolution",
+      "phase": "phase-1",
+      "status": "not_started",
+      "children": [
+        {
+          "id": "FR6.1",
+          "name": "Evaluate database for geometry data",
+          "status": "not_started",
+          "description": "Determine if geometry data should be in a database instead of local storage (note: cloud deployment uses default storage container)"
+        }
+      ]
+    },
+    {
+      "id": "FR7",
+      "name": "IDEA Algorithm Improvements",
+      "phase": "phase-2",
+      "status": "not_started",
+      "children": [
+        {
+          "id": "FR7.1",
+          "name": "Algorithm evaluation and precision tuning",
+          "status": "not_started",
+          "description": "Evaluate IDEA algorithm for segment validation precision (constraints: 6 months history, 5-min intervals)"
+        },
+        {
+          "id": "FR7.2",
+          "name": "IDEA 2.0 implementation",
+          "status": "not_started",
+          "description": "Implement IDEA 2.0 modifications when algorithms are made available to the project"
+        }
+      ]
+    }
+  ],
+  "statistics": {
+    "total_features": 18,
+    "complete": 13,
+    "partial": 0,
+    "in_progress": 0,
+    "not_started": 5,
+    "blocked": 0,
+    "completion_percentage": 72.2
+  },
+  "tasks": {
+    "in_progress": [],
+    "pending": [
+      {
+        "id": "FR5.1",
+        "description": "Add segment creation date to master_segment_history",
+        "source": "README.md (HOT Fixes)",
+        "added": "2026-02-17"
+      },
+      {
+        "id": "FR5.2",
+        "description": "Handle segment geometry changes and timeseries history impact",
+        "source": "README.md (Next steps)",
+        "added": "2026-02-17"
+      },
+      {
+        "id": "FR6.1",
+        "description": "Evaluate database vs local storage for geometry data",
+        "source": "README.md (Next steps)",
+        "added": "2026-02-17"
+      },
+      {
+        "id": "FR7.1",
+        "description": "Evaluate and tune IDEA algorithm for validation precision",
+        "source": "README.md (Next steps)",
+        "added": "2026-02-17"
+      },
+      {
+        "id": "FR7.2",
+        "description": "Implement IDEA 2.0 modifications",
+        "source": "README.md (Next steps)",
+        "added": "2026-02-17"
+      }
+    ],
+    "completed": []
+  }
+}

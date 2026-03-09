@@ -129,6 +129,8 @@ class TestFCDDatabaseHealthCheck:
             result = await check.check()
 
             assert result.status == "healthy"
+            assert result.message is not None
+            assert result.metadata is not None
             assert "recent data" in result.message.lower()
             assert result.metadata["has_recent_data"] is True
 
@@ -166,6 +168,8 @@ class TestFCDDatabaseHealthCheck:
             result = await check.check()
 
             assert result.status == "degraded"
+            assert result.message is not None
+            assert result.metadata is not None
             assert "no data" in result.message.lower()
             assert result.metadata["has_recent_data"] is False
 
@@ -216,6 +220,8 @@ class TestFCDDatabaseHealthCheck:
             result = await check.check()
 
             assert result.status == "healthy"
+            assert result.message is not None
+            assert result.metadata is not None
             assert "backfilling" in result.message.lower()
             assert result.metadata["mode"] == "backfill"
             assert "latest_data_timestamp" in result.metadata
@@ -265,6 +271,7 @@ class TestFCDDatabaseHealthCheck:
 
             # Should fall through to degraded status
             assert result.status == "degraded"
+            assert result.message is not None
             assert "no data" in result.message.lower()
 
     @pytest.mark.asyncio
@@ -313,6 +320,7 @@ class TestFCDDatabaseHealthCheck:
 
             # Should be in backfill mode since data_age_hours > self.data_freshness_hours
             assert result.status == "healthy"
+            assert result.metadata is not None
             assert result.metadata["mode"] == "backfill"
 
     @pytest.mark.asyncio
@@ -353,6 +361,7 @@ class TestFCDDatabaseHealthCheck:
 
             # Should return unhealthy status with error details
             assert result.status == "unhealthy"
+            assert result.metadata is not None
             assert "InfluxDBError" in result.metadata["error_type"]
 
     @pytest.mark.asyncio
@@ -400,6 +409,7 @@ class TestFCDDatabaseHealthCheck:
             result = await check.check()
 
             assert result.status == "healthy"
+            assert result.metadata is not None
             assert result.metadata["mode"] == "backfill"
             assert (
                 result.metadata["latest_data_timestamp"]
@@ -430,6 +440,7 @@ class TestFCDDatabaseHealthCheck:
             result = await check.check()
 
             assert result.status == "unhealthy"
+            assert result.message is not None
             assert "Failed to ping" in result.message
 
 
@@ -525,6 +536,8 @@ class TestDisturbanceDataHealthCheck:
                 result = await check.check()
 
                 assert result.status == "healthy"
+                assert result.message is not None
+                assert result.metadata is not None
                 assert "available and fresh" in result.message
                 assert result.metadata["segment_count"] == 2
             finally:
@@ -557,6 +570,8 @@ class TestDisturbanceDataHealthCheck:
                 result = await check.check()
 
                 assert result.status == "degraded"
+                assert result.message is not None
+                assert result.metadata is not None
                 assert "stale" in result.message.lower()
                 assert (
                     result.metadata["file_age_minutes"]
@@ -581,6 +596,7 @@ class TestDisturbanceDataHealthCheck:
                 result = await check.check()
 
                 assert result.status == "unhealthy"
+                assert result.message is not None
                 assert "Invalid JSON" in result.message
             finally:
                 os.unlink(f.name)
@@ -603,6 +619,8 @@ class TestWorkerStatusHealthCheck:
         result = await check.check()
 
         assert result.status == "healthy"
+        assert result.message is not None
+        assert result.metadata is not None
         assert "no disturbances" in result.message.lower()
         assert result.metadata["total_workers"] == 0
 
@@ -630,6 +648,8 @@ class TestWorkerStatusHealthCheck:
         result = await check.check()
 
         assert result.status == "healthy"
+        assert result.message is not None
+        assert result.metadata is not None
         assert "2/2 workers are healthy" in result.message
         assert result.metadata["health_percentage"] == 100.0
 
@@ -661,6 +681,8 @@ class TestWorkerStatusHealthCheck:
         result = await check.check()
 
         assert result.status == "degraded"
+        assert result.message is not None
+        assert result.metadata is not None
         assert "2/3 workers are healthy" in result.message
         assert result.metadata["health_percentage"] == pytest.approx(66.67, 0.1)
 
@@ -686,11 +708,13 @@ class TestWorkerStatusHealthCheck:
 
         # First check - should retrieve exception
         result1 = await check.check()
+        assert result1.metadata is not None
         assert result1.metadata["failed_workers"] == 1
         assert task.exception.call_count == 1
 
         # Second check - should not retrieve exception again (already checked)
         result2 = await check.check()
+        assert result2.metadata is not None
         assert result2.metadata["failed_workers"] == 1
         # Exception should only be called once, not twice
         assert task.exception.call_count == 1
@@ -846,6 +870,7 @@ class TestOrchestratorHealthCheck:
         result = await check.check()
 
         assert result.status == "healthy"
+        assert result.message is not None
         assert "initialized" in result.message.lower()
         assert hasattr(mock_manager, "last_cycle_time")
 
@@ -865,6 +890,8 @@ class TestOrchestratorHealthCheck:
         result = await check.check()
 
         assert result.status == "healthy"
+        assert result.message is not None
+        assert result.metadata is not None
         assert "functioning normally" in result.message
         assert result.metadata["minutes_since_last_cycle"] < 90
 
@@ -884,6 +911,8 @@ class TestOrchestratorHealthCheck:
         result = await check.check()
 
         assert result.status == "degraded"
+        assert result.message is not None
+        assert result.metadata is not None
         assert "slow" in result.message.lower()
         assert 90 < result.metadata["minutes_since_last_cycle"] < 180
 
@@ -903,6 +932,8 @@ class TestOrchestratorHealthCheck:
         result = await check.check()
 
         assert result.status == "unhealthy"
+        assert result.message is not None
+        assert result.metadata is not None
         assert "deadlocked" in result.message.lower()
         assert result.metadata["minutes_since_last_cycle"] > 180
 
@@ -960,7 +991,7 @@ class TestInfluxDBConnectionManager:
         # Store original max connections
         original_max = InfluxDBConnectionManager.MAX_CONNECTIONS
         test_limit = 3
-        InfluxDBConnectionManager.MAX_CONNECTIONS = test_limit
+        InfluxDBConnectionManager.MAX_CONNECTIONS = test_limit  # type: ignore[assignment]
 
         try:
             url = "http://localhost:8086"
@@ -979,7 +1010,7 @@ class TestInfluxDBConnectionManager:
 
         finally:
             # Restore and clean up
-            InfluxDBConnectionManager.MAX_CONNECTIONS = original_max
+            InfluxDBConnectionManager.MAX_CONNECTIONS = original_max  # type: ignore[assignment]
             await InfluxDBConnectionManager.cleanup_all()
 
     @pytest.mark.asyncio
@@ -987,7 +1018,7 @@ class TestInfluxDBConnectionManager:
         """Test that stale connections are cleaned up."""
         # Store original TTL
         original_ttl = InfluxDBConnectionManager.CONNECTION_TTL_SECONDS
-        InfluxDBConnectionManager.CONNECTION_TTL_SECONDS = 0.001  # Very short TTL
+        InfluxDBConnectionManager.CONNECTION_TTL_SECONDS = 0.001  # type: ignore[assignment]  # Very short TTL
 
         try:
             url = "http://localhost:8086"
@@ -1010,7 +1041,7 @@ class TestInfluxDBConnectionManager:
 
         finally:
             # Restore and clean up
-            InfluxDBConnectionManager.CONNECTION_TTL_SECONDS = original_ttl
+            InfluxDBConnectionManager.CONNECTION_TTL_SECONDS = original_ttl  # type: ignore[assignment]
             await InfluxDBConnectionManager.cleanup_all()
 
     @pytest.mark.asyncio

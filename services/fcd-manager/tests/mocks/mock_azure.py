@@ -69,7 +69,7 @@ class MockAzureBlobStorage:
 
         return blobs
 
-    def download_blob_content(self, blob_name: str) -> bytes:
+    def download_blob_content(self, blob_name: str) -> bytes | None:
         """
         Download blob content by name.
 

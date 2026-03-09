@@ -30,6 +30,8 @@ class TestUpdateCycleHealthCheck:
 
         result = await check.check()
 
+        assert result.message is not None
+        assert result.metadata is not None
         assert result.status == "healthy"
         assert "grace period" in result.message.lower()
         assert "startup_time" in result.metadata
@@ -46,6 +48,7 @@ class TestUpdateCycleHealthCheck:
 
         result = await check.check()
 
+        assert result.message is not None
         assert result.status == "unhealthy"
         assert "no update cycles completed" in result.message.lower()
 
@@ -61,6 +64,8 @@ class TestUpdateCycleHealthCheck:
 
         result = await check.check()
 
+        assert result.message is not None
+        assert result.metadata is not None
         assert result.status == "healthy"
         # During startup, grace period message is expected
         assert (
@@ -84,6 +89,8 @@ class TestUpdateCycleHealthCheck:
 
         result = await check.check()
 
+        assert result.message is not None
+        assert result.metadata is not None
         assert result.status == "degraded"
         assert "delayed" in result.message.lower()
         assert 14 < result.metadata["minutes_since_update"] < 16
@@ -101,6 +108,8 @@ class TestUpdateCycleHealthCheck:
 
         result = await check.check()
 
+        assert result.message is not None
+        assert result.metadata is not None
         assert result.status == "unhealthy"
         assert "has not run" in result.message.lower()
         assert result.metadata["minutes_since_update"] > 40
@@ -119,6 +128,8 @@ class TestSegmentMappingFreshnessHealthCheck:
 
         result = await check.check()
 
+        assert result.message is not None
+        assert result.metadata is not None
         assert result.status == "unhealthy"
         assert "not found" in result.message.lower()
         assert result.metadata["exists"] is False
@@ -138,6 +149,8 @@ class TestSegmentMappingFreshnessHealthCheck:
 
             result = await check.check()
 
+            assert result.message is not None
+            assert result.metadata is not None
             assert result.status == "healthy"
             assert "fresh" in result.message.lower()
             assert result.metadata["age_minutes"] < 1
@@ -166,6 +179,8 @@ class TestSegmentMappingFreshnessHealthCheck:
 
             result = await check.check()
 
+            assert result.message is not None
+            assert result.metadata is not None
             assert result.status == "degraded"
             assert "stale" in result.message.lower()
             assert result.metadata["age_minutes"] > 25
@@ -183,6 +198,8 @@ class TestProcessingPipelineHealthCheck:
 
         result = await check.check()
 
+        assert result.message is not None
+        assert result.metadata is not None
         assert result.status == "healthy"
         assert "not yet started" in result.message.lower()
         assert result.metadata["total_blobs_processed"] == 0
@@ -195,6 +212,7 @@ class TestProcessingPipelineHealthCheck:
 
         result = await check.check()
 
+        assert result.message is not None
         assert result.status == "healthy"
         assert "currently running" in result.message.lower()
 
@@ -206,6 +224,8 @@ class TestProcessingPipelineHealthCheck:
 
         result = await check.check()
 
+        assert result.message is not None
+        assert result.metadata is not None
         assert result.status == "degraded"
         assert "taking longer than expected" in result.message.lower()
         assert result.metadata["processing_duration_minutes"] > 10
@@ -219,6 +239,8 @@ class TestProcessingPipelineHealthCheck:
 
         result = await check.check()
 
+        assert result.message is not None
+        assert result.metadata is not None
         assert result.status == "healthy"
         assert "healthy" in result.message.lower()
         assert result.metadata["total_blobs_processed"] == 10
@@ -232,6 +254,8 @@ class TestProcessingPipelineHealthCheck:
 
         result = await check.check()
 
+        assert result.message is not None
+        assert result.metadata is not None
         assert result.status == "degraded"
         assert "Connection timeout" in result.message
         assert result.metadata["last_error"] == "Connection timeout"
@@ -248,6 +272,7 @@ class TestProcessingPipelineHealthCheck:
 
         result = await check.check()
 
+        assert result.metadata is not None
         assert result.status == "healthy"
         assert result.metadata["minutes_since_error"] > 9
 
@@ -266,6 +291,7 @@ class TestProcessingPipelineHealthCheck:
 
         result = await check.check()
 
+        assert result.metadata is not None
         assert result.status == "healthy"
         assert result.metadata["total_blobs_processed"] == 12
 

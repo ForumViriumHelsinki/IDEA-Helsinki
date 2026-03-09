@@ -1,8 +1,6 @@
 # ------------------------------------------------------#
 # ---------------- GENERAL IMPORTS ---------------------#
 # ------------------------------------------------------#
-import os
-import signal
 import sys
 import threading
 from datetime import UTC, datetime, timedelta
@@ -12,7 +10,6 @@ from datetime import UTC, datetime, timedelta
 # ------------------------------------------------------#
 import idea_shared.lib.FcdUtils as FcdUtils
 import idea_shared.lib.TomTomFcdAggregator as TomTomFcdAggregator
-import sentry_sdk
 
 # ------------------------------------------------------#
 # -------------- PROJECT CLASS IMPORTS -----------------#
@@ -165,7 +162,7 @@ def run(azure_manager: AzureBlobContainerManager):
         num_backfill_workers=FCD_BACKFILL_WORKER_COUNT,
         azure_manager=azure_manager,
         influx_config=influx_config,
-        logger=logger,
+        logger=logger.logger,
         processing_function=process_date_range_streaming,
         max_write_queue_size=FCD_WRITE_QUEUE_MAX_SIZE,
         max_retries=FCD_MAX_CHUNK_RETRIES,
@@ -323,8 +320,9 @@ def main():
     init_feature_flags(data_dir=DATA_DIR, service_name="fcd-manager")
 
     # Setup signal handlers for graceful shutdown
-    signal.signal(signal.SIGTERM, handle_shutdown)
-    signal.signal(signal.SIGINT, handle_shutdown)
+    from idea_shared.lifecycle.signals import setup_sync_signal_handlers
+
+    setup_sync_signal_handlers(handle_shutdown)
 
     # Initialize health server
     logger.info(f"Starting health server on port {HEALTH_CHECK_PORT}")
@@ -578,19 +576,9 @@ def _process_and_update_blob_list(
 
 
 if __name__ == "__main__":
-    # Initialize Sentry if DSN is provided
-    sentry_dsn = os.getenv("SENTRY_DSN", "").strip()
-    if sentry_dsn and sentry_dsn != "":
-        sentry_sdk.init(
-            dsn=sentry_dsn,
-            sample_rate=0.1,
-            traces_sample_rate=1.0,
-            profiles_sample_rate=1.0,
-            environment=os.getenv("ENVIRONMENT", "production"),
-        )
-        logger.info("Sentry initialized for error tracking")
-    else:
-        logger.info("SENTRY_DSN not set, running without Sentry error tracking")
+    from idea_shared.observability.sentry import configure_sentry
+
+    configure_sentry("fcd-manager")
 
     logger.info("Starting program!.")
     main()

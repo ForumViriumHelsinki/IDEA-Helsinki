@@ -4,6 +4,7 @@ import asyncio
 import tempfile
 import time
 from pathlib import Path
+from typing import Literal
 from unittest.mock import AsyncMock, patch
 
 import aiohttp
@@ -65,6 +66,7 @@ class TestHealthCheck:
         check = SlowHealthCheck(name="slow", timeout=0.1)
         result = await check.check_with_cache()
         assert result.status == "unhealthy"
+        assert result.message is not None
         assert "timed out" in result.message
 
     @pytest.mark.asyncio
@@ -83,6 +85,7 @@ class TestHealthCheck:
         check = FailingHealthCheck(name="failing", timeout=1.0)
         result = await check.check_with_cache()
         assert result.status == "unhealthy"
+        assert result.message is not None
         assert "Test error" in result.message
 
     @pytest.mark.asyncio
@@ -153,6 +156,7 @@ class TestFileSystemHealthCheck:
             check = FileSystemHealthCheck(name="dir_check", path=tmpdir)
             result = await check.check()
             assert result.status == "healthy"
+            assert result.message is not None
             assert tmpdir in result.message
 
     @pytest.mark.asyncio
@@ -179,6 +183,7 @@ class TestFileSystemHealthCheck:
         check = FileSystemHealthCheck(name="missing", path="/non/existent/path/test123")
         result = await check.check()
         assert result.status == "unhealthy"
+        assert result.message is not None
         assert "does not exist" in result.message
 
     @pytest.mark.asyncio
@@ -195,6 +200,7 @@ class TestFileSystemHealthCheck:
             )
             result = await check.check()
             assert result.status == "healthy"
+            assert result.metadata is not None
             assert result.metadata["writable"] is True
 
     @pytest.mark.asyncio
@@ -257,7 +263,9 @@ class TestExternalAPIHealthCheck:
             result = await check.check()
 
             assert result.status == "healthy"
+            assert result.message is not None
             assert "200" in result.message
+            assert result.metadata is not None
             assert result.metadata["status_code"] == 200
 
     @pytest.mark.asyncio
@@ -290,7 +298,9 @@ class TestExternalAPIHealthCheck:
             result = await check.check()
 
             assert result.status == "unhealthy"
+            assert result.message is not None
             assert "500" in result.message
+            assert result.metadata is not None
             assert result.metadata["status_code"] == 500
             assert result.metadata["expected"] == 200
 
@@ -320,6 +330,7 @@ class TestExternalAPIHealthCheck:
             result = await check.check()
 
             assert result.status == "unhealthy"
+            assert result.message is not None
             assert "Connection failed" in result.message
 
     @pytest.mark.asyncio
@@ -365,6 +376,7 @@ class TestExternalAPIHealthCheck:
             # Third attempt - circuit is open
             result3 = await check.check()
             assert result3.status == "degraded"
+            assert result3.message is not None
             assert "Circuit breaker is open" in result3.message
 
     @pytest.mark.asyncio
@@ -548,10 +560,17 @@ class TestConcurrentHealthChecks:
         results_list = []
 
         class DelayedHealthCheck(HealthCheck):
-            def __init__(self, delay: float, result_status: str, **kwargs):
+            def __init__(
+                self,
+                delay: float,
+                result_status: Literal["healthy", "unhealthy", "degraded"],
+                **kwargs,
+            ):
                 super().__init__(**kwargs)
                 self.delay = delay
-                self.result_status = result_status
+                self.result_status: Literal["healthy", "unhealthy", "degraded"] = (
+                    result_status
+                )
 
             async def check(self) -> HealthCheckResult:
                 await asyncio.sleep(self.delay)
@@ -648,4 +667,7 @@ class TestConcurrentHealthChecks:
 
             # All should succeed without conflicts
             assert all(r.status == "healthy" for r in results)
-            assert all(r.metadata["writable"] is True for r in results)
+            assert all(
+                r.metadata is not None and r.metadata["writable"] is True
+                for r in results
+            )

@@ -101,11 +101,7 @@ class HealthCheck(ABC):
             HealthCheckResult indicating the status of the check
         """
         try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(self.check_with_cache())
-            loop.close()
-            return result
+            return asyncio.run(self.check_with_cache())
         except Exception as e:
             return HealthCheckResult(
                 name=self.name,
@@ -204,12 +200,12 @@ class FileSystemHealthCheck(HealthCheck):
                 )
                 try:
                     # Use async file operations
-                    await asyncio.get_event_loop().run_in_executor(
+                    await asyncio.get_running_loop().run_in_executor(
                         None,
                         lambda: test_file.write_text("test"),
                     )
                     try:
-                        await asyncio.get_event_loop().run_in_executor(
+                        await asyncio.get_running_loop().run_in_executor(
                             None,
                             test_file.unlink,
                         )

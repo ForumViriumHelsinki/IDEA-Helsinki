@@ -20,7 +20,7 @@ class TestJsonFileProvider:
         # Should use default value
         result = provider.resolve_boolean_details("some_flag", default_value=True)
         assert result.value is True
-        assert result.reason.value == "DEFAULT"
+        assert result.reason == "DEFAULT"
 
     @pytest.mark.unit
     def test_empty_json_file(self):
@@ -33,7 +33,7 @@ class TestJsonFileProvider:
             provider = JsonFileProvider(filepath)
             result = provider.resolve_boolean_details("flag", default_value=False)
             assert result.value is False
-            assert result.reason.value == "DEFAULT"
+            assert result.reason == "DEFAULT"
         finally:
             Path(filepath).unlink()
 
@@ -49,7 +49,7 @@ class TestJsonFileProvider:
             provider = JsonFileProvider(filepath)
             result = provider.resolve_boolean_details("test_flag", default_value=False)
             assert result.value is True
-            assert result.reason.value == "STATIC"
+            assert result.reason == "STATIC"
             assert result.variant == "enabled"
         finally:
             Path(filepath).unlink()
@@ -66,7 +66,7 @@ class TestJsonFileProvider:
             provider = JsonFileProvider(filepath)
             result = provider.resolve_boolean_details("test_flag", default_value=True)
             assert result.value is False
-            assert result.reason.value == "STATIC"
+            assert result.reason == "STATIC"
             assert result.variant == "disabled"
         finally:
             Path(filepath).unlink()
@@ -83,7 +83,7 @@ class TestJsonFileProvider:
             provider = JsonFileProvider(filepath)
             result = provider.resolve_string_details("log_level", default_value="info")
             assert result.value == "debug"
-            assert result.reason.value == "STATIC"
+            assert result.reason == "STATIC"
         finally:
             Path(filepath).unlink()
 
@@ -101,7 +101,7 @@ class TestJsonFileProvider:
                 "max_connections", default_value=10
             )
             assert result.value == 100
-            assert result.reason.value == "STATIC"
+            assert result.reason == "STATIC"
         finally:
             Path(filepath).unlink()
 
@@ -119,7 +119,7 @@ class TestJsonFileProvider:
                 "max_connections", default_value=10
             )
             assert result.value == 50
-            assert result.reason.value == "STATIC"
+            assert result.reason == "STATIC"
         finally:
             Path(filepath).unlink()
 
@@ -137,7 +137,7 @@ class TestJsonFileProvider:
                 "max_connections", default_value=10
             )
             assert result.value == 10
-            assert result.reason.value == "ERROR"
+            assert result.reason == "ERROR"
         finally:
             Path(filepath).unlink()
 
@@ -153,7 +153,7 @@ class TestJsonFileProvider:
             provider = JsonFileProvider(filepath)
             result = provider.resolve_float_details("threshold", default_value=0.5)
             assert result.value == 0.75
-            assert result.reason.value == "STATIC"
+            assert result.reason == "STATIC"
         finally:
             Path(filepath).unlink()
 
@@ -169,7 +169,7 @@ class TestJsonFileProvider:
             provider = JsonFileProvider(filepath)
             result = provider.resolve_object_details("config", default_value={})
             assert result.value == {"key1": "value1", "key2": 42}
-            assert result.reason.value == "STATIC"
+            assert result.reason == "STATIC"
         finally:
             Path(filepath).unlink()
 
@@ -186,7 +186,7 @@ class TestJsonFileProvider:
             default = {"default": "config"}
             result = provider.resolve_object_details("config", default_value=default)
             assert result.value == default
-            assert result.reason.value == "ERROR"
+            assert result.reason == "ERROR"
         finally:
             Path(filepath).unlink()
 
@@ -237,7 +237,7 @@ class TestJsonFileProvider:
             # Should use default since file couldn't be parsed
             result = provider.resolve_boolean_details("flag", default_value=True)
             assert result.value is True
-            assert result.reason.value == "DEFAULT"
+            assert result.reason == "DEFAULT"
         finally:
             Path(filepath).unlink()
 
@@ -277,7 +277,7 @@ class TestJsonFileProvider:
             # Should fall back to default value
             result = provider.resolve_boolean_details("test_flag", default_value=True)
             assert result.value is True
-            assert result.reason.value == "DEFAULT"
+            assert result.reason == "DEFAULT"
         finally:
             Path(filepath).unlink()
 
@@ -295,6 +295,6 @@ class TestJsonFileProvider:
             # Should fall back to default value
             result = provider.resolve_boolean_details("test_flag", default_value=False)
             assert result.value is False
-            assert result.reason.value == "DEFAULT"
+            assert result.reason == "DEFAULT"
         finally:
             Path(filepath).unlink()

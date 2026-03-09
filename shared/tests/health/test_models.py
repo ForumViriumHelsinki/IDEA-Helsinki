@@ -40,7 +40,7 @@ class TestHealthCheckResult:
     def test_invalid_status(self):
         """Test that invalid status values are rejected."""
         with pytest.raises(ValidationError) as exc_info:
-            HealthCheckResult(name="test", status="invalid")
+            HealthCheckResult(name="test", status="invalid")  # type: ignore[arg-type]
 
         errors = exc_info.value.errors()
         assert any(
@@ -52,7 +52,7 @@ class TestHealthCheckResult:
         """Test all valid status values."""
         valid_statuses = ["healthy", "unhealthy", "degraded"]
         for status in valid_statuses:
-            result = HealthCheckResult(name="test", status=status)
+            result = HealthCheckResult(name="test", status=status)  # type: ignore[arg-type]
             assert result.status == status
 
 

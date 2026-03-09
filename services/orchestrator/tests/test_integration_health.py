@@ -84,12 +84,12 @@ class TestHealthServerIntegration:
         )
 
         # Verify all checks are registered
-        assert len(health_server.readiness_checks) == 5
-        assert "influxdb_fcd" in health_server.readiness_checks
-        assert "influxdb_validation" in health_server.readiness_checks
-        assert "disturbance_data" in health_server.readiness_checks
-        assert "worker_status" in health_server.readiness_checks
-        assert "orchestrator_loop" in health_server.readiness_checks
+        assert len(health_server.readiness_checks) == 5  # type: ignore[attr-defined]
+        assert "influxdb_fcd" in health_server.readiness_checks  # type: ignore[attr-defined]
+        assert "influxdb_validation" in health_server.readiness_checks  # type: ignore[attr-defined]
+        assert "disturbance_data" in health_server.readiness_checks  # type: ignore[attr-defined]
+        assert "worker_status" in health_server.readiness_checks  # type: ignore[attr-defined]
+        assert "orchestrator_loop" in health_server.readiness_checks  # type: ignore[attr-defined]
 
     @pytest.mark.skip(
         reason="Test uses private API (_run_checks method) that was refactored. "
@@ -131,7 +131,7 @@ class TestHealthServerIntegration:
         import time
 
         start = time.time()
-        results = await health_server._run_checks(health_server.readiness_checks)
+        results = await health_server._run_checks(health_server.readiness_checks)  # type: ignore[attr-defined]
         duration = time.time() - start
 
         # Should complete in roughly the time of the slowest check, not the sum
@@ -157,11 +157,11 @@ class TestHealthServerIntegration:
         )
 
         # Test shutdown sequence
-        await health_server.mark_shutting_down()
-        assert health_server.is_shutting_down is True
+        await health_server.mark_shutting_down()  # type: ignore[attr-defined]
+        assert health_server.is_shutting_down is True  # type: ignore[attr-defined]
 
         # After shutdown, health checks should indicate not ready
-        status = await health_server._check_readiness()
+        status = await health_server._check_readiness()  # type: ignore[attr-defined]
         assert status["status"] == "not_ready"
         assert "shutting down" in status["message"].lower()
 
@@ -184,7 +184,7 @@ class TestHealthServerIntegration:
         health_server.add_check("failing_check", mock_check)
 
         # Run checks - should handle the exception
-        results = await health_server._run_checks({"failing_check": mock_check})
+        results = await health_server._run_checks({"failing_check": mock_check})  # type: ignore[attr-defined]
 
         assert "failing_check" in results
         assert results["failing_check"]["status"] == "unhealthy"
@@ -218,13 +218,13 @@ class TestHealthServerIntegration:
         mock_non_critical.cache_ttl = 0
 
         # Test with only non-critical unhealthy
-        health_server.readiness_checks = {"non_critical": mock_non_critical}
-        status = await health_server._check_readiness()
+        health_server.readiness_checks = {"non_critical": mock_non_critical}  # type: ignore[attr-defined]
+        status = await health_server._check_readiness()  # type: ignore[attr-defined]
         assert status["status"] == "ready"  # Should still be ready
 
         # Test with critical unhealthy
-        health_server.readiness_checks = {"critical": mock_critical}
-        status = await health_server._check_readiness()
+        health_server.readiness_checks = {"critical": mock_critical}  # type: ignore[attr-defined]
+        status = await health_server._check_readiness()  # type: ignore[attr-defined]
         assert status["status"] == "not_ready"  # Should not be ready
 
 

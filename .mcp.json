@@ -2,11 +2,17 @@
   "mcpServers": {
     "context7": {
       "command": "bunx",
-      "args": ["-y", "@upstash/context7-mcp"]
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ]
     },
     "sequential-thinking": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ]
     },
     "pal-mcp-server": {
       "command": "uvx",
@@ -21,14 +27,15 @@
       "url": "https://mcp.sentry.dev/mcp"
     },
     "github": {
-      "type": "stdio",
       "command": "go",
       "args": [
         "run",
         "github.com/github/github-mcp-server/cmd/github-mcp-server@latest",
         "stdio"
       ],
-      "env": {}
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_PERSONAL_ACCESS_TOKEN"
+      }
     }
   }
 }

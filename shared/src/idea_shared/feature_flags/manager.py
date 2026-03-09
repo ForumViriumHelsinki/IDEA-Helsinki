@@ -75,20 +75,23 @@ class FeatureFlagManager:
         """
         flag_key = flag.value if isinstance(flag, FeatureFlag) else flag
 
-        if default is None:
+        default_value: bool
+        if default is not None:
+            default_value = default
+        else:
             try:
-                default = FlagDefaults.get_default(
-                    FeatureFlag(flag_key) if isinstance(flag_key, str) else flag
-                )
+                flag_enum = FeatureFlag(flag_key) if isinstance(flag, str) else flag
+                raw_default = FlagDefaults.get_default(flag_enum)
+                default_value = bool(raw_default) if raw_default is not None else False
             except (AttributeError, ValueError):
-                default = False
+                default_value = False
                 logger.warning(
                     f"No default found for flag {flag_key}, using False as default"
                 )
 
         return self._client.get_boolean_value(
             flag_key=flag_key,
-            default_value=default,
+            default_value=default_value,
             evaluation_context=context,
         )
 
@@ -169,7 +172,7 @@ class FeatureFlagManager:
         flag: FeatureFlag | str,
         default: dict,
         context: EvaluationContext | None = None,
-    ) -> dict:
+    ) -> dict | list:
         """Get a dict/object feature flag value.
 
         Args:

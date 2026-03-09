@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fcd-manager"
-version = "0.14.0"
+version = "0.14.1"
 description = "FCD data synchronization service for TomTom data ingestion"
 requires-python = ">=3.12"
 authors = [
@@ -24,8 +24,8 @@ dependencies = [
     "pandas",
     "pause",
     "sentry-sdk",
-    "openfeature-sdk>=0.6.0,<0.8.0",  # Required by idea-shared feature flags
-    "trio>=0.33.0,<0.34.0",  # Python 3.13 compatibility (via sentry-sdk → httpcore → trio), exclude 0.32.0 due to incompatibility
+    "openfeature-sdk>=0.8.4,<0.9.0",  # Required by idea-shared feature flags
+    "trio>=0.33.0,<0.34.0"  # Python 3.13 compatibility (via sentry-sdk → httpcore → trio), exclude 0.32.0 due to incompatibility
 ]
 
 [project.optional-dependencies]

@@ -105,4 +105,4 @@ class TestFlagDefaults:
         fake_flag = FakeFlag()
 
         with pytest.raises(AttributeError):
-            FlagDefaults.get_default(fake_flag)
+            FlagDefaults.get_default(fake_flag)  # type: ignore[arg-type]

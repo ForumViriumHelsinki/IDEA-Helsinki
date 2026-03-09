@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.14.0...fcd-manager-v0.14.1) (2026-03-09)
+
+
+### Documentation
+
+* improve documentation and apply formatting corrections ([#255](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/255)) ([385edae](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/385edaefe62c030c5254fb32f24d9557ab6e803d)), closes [#13](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/13)
+
 ## [0.14.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.13.2...fcd-manager-v0.14.0) (2026-02-24)
 
 

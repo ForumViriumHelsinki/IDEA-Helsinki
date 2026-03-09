@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "idea-shared"
-version = "0.14.0"
+version = "0.14.1"
 description = "Shared code for IDEA Helsinki services"
 requires-python = ">=3.12"
 authors = [
@@ -30,7 +30,7 @@ dependencies = [
     "pydantic>=2.0.0",
     "aiohttp>=3.9.0",
     "httpx>=0.27.0",
-    "openfeature-sdk>=0.6.0,<0.8.0",
+    "openfeature-sdk>=0.8.4,<0.9.0",
     "gofeatureflag-python-provider>=0.5.0",
     "tenacity>=8.2.0",
 ]

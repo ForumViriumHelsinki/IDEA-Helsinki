@@ -87,16 +87,10 @@ class WFSAPIHealthCheck(ExternalAPIHealthCheck):
 
     @classmethod
     def close_session_sync(cls):
-        """Close the shared session from a synchronous context.
-
-        Safe to call from signal handlers — creates a new event loop
-        to avoid conflicts with the running asyncio loop.
-        """
+        """Close the shared session from a synchronous context."""
         if cls._session and not cls._session.closed:
             try:
-                loop = asyncio.new_event_loop()
-                loop.run_until_complete(cls.close_session())
-                loop.close()
+                asyncio.run(cls.close_session())
             except Exception as e:
                 logger.error(f"Error closing WFS session: {e}")
 
@@ -201,7 +195,7 @@ class FCDMappingHealthCheck(FileSystemHealthCheck):
     def __init__(
         self,
         name: str = "fcd_mapping",
-        file_path: str = None,
+        file_path: str | None = None,
         max_age_minutes: int = 15,
         timeout: float = 5.0,
         critical: bool = True,
@@ -244,7 +238,7 @@ class FCDMappingHealthCheck(FileSystemHealthCheck):
             return base_result
 
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
 
             def check_file():
                 """Synchronous file validation."""
@@ -340,7 +334,7 @@ class OutputFileHealthCheck(FileSystemHealthCheck):
     def __init__(
         self,
         name: str = "output_file",
-        file_path: str = None,
+        file_path: str | None = None,
         timeout: float = 5.0,
         critical: bool = False,
         cache_ttl: float = 5.0,
@@ -386,7 +380,7 @@ class OutputFileHealthCheck(FileSystemHealthCheck):
             return base_result
 
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
 
             def check_output():
                 """Check output file specific conditions."""
@@ -611,7 +605,7 @@ class DetectorHealthCheck(HealthCheck):
             )
 
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
 
             def check_detector():
                 """Check detector capabilities."""

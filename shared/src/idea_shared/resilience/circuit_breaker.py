@@ -42,7 +42,7 @@ class CircuitBreakerState(Enum):
 class CircuitBreakerError(Exception):
     """Raised when circuit breaker is open."""
 
-    def __init__(self, name: str, message: str = None):
+    def __init__(self, name: str, message: str | None = None):
         self.name = name
         self.message = message or f"Circuit breaker '{name}' is OPEN"
         super().__init__(self.message)
@@ -65,7 +65,9 @@ class CircuitBreaker:
         failure_threshold: int = 5,
         recovery_timeout: float = 60.0,
         half_open_max_calls: int = 3,
-        excluded_exceptions: tuple[type[Exception], ...] = (asyncio.CancelledError,),
+        excluded_exceptions: tuple[type[BaseException], ...] = (
+            asyncio.CancelledError,
+        ),
     ):
         """
         Initialize circuit breaker.

@@ -63,12 +63,11 @@ class HealthServer:
         self._server: uvicorn.Server | None = None
         self._thread: threading.Thread | None = None
         self._shutdown_event = threading.Event()
-        self._app: FastAPI | None = None
         self._startup_complete = False
-        self._setup_app()
+        self._app: FastAPI = self._create_app()
 
-    def _setup_app(self):
-        """Set up the FastAPI application."""
+    def _create_app(self) -> FastAPI:
+        """Create the FastAPI application."""
 
         @asynccontextmanager
         async def lifespan(app: FastAPI):
@@ -78,13 +77,13 @@ class HealthServer:
             # Shutdown
             logger.info(f"Shutting down health check server for {self.app_name}")
 
-        self._app = FastAPI(
+        app = FastAPI(
             title=f"{self.app_name} Health Check",
             lifespan=lifespan,
         )
 
         # Liveness probe endpoint
-        @self._app.get("/healthz", response_model=LivenessResponse)
+        @app.get("/healthz", response_model=LivenessResponse)
         async def liveness(response: Response):
             """Liveness probe endpoint.
 
@@ -94,7 +93,7 @@ class HealthServer:
             return LivenessResponse()
 
         # Readiness probe endpoint
-        @self._app.get("/ready", response_model=ReadinessResponse)
+        @app.get("/ready", response_model=ReadinessResponse)
         async def readiness(response: Response):
             """Readiness probe endpoint.
 
@@ -129,7 +128,7 @@ class HealthServer:
             )
 
         # Startup probe endpoint
-        @self._app.get("/startup", response_model=ReadinessResponse)
+        @app.get("/startup", response_model=ReadinessResponse)
         async def startup(response: Response):
             """Startup probe endpoint for Kubernetes 1.16+.
 
@@ -176,7 +175,7 @@ class HealthServer:
         # Optional metrics endpoint
         if self.enable_metrics:
 
-            @self._app.get("/metrics", response_model=MetricsResponse)
+            @app.get("/metrics", response_model=MetricsResponse)
             async def metrics():
                 """Metrics endpoint for Prometheus (placeholder).
 
@@ -191,7 +190,7 @@ class HealthServer:
                 )
 
         # Detailed health endpoint for debugging
-        @self._app.get("/health/detail")
+        @app.get("/health/detail")
         async def health_detail():
             """Detailed health check endpoint for debugging."""
             results = {}
@@ -219,6 +218,8 @@ class HealthServer:
                     "checks": results,
                 }
             )
+
+        return app
 
     def add_check(
         self, name: str, check: HealthCheck, startup_only: bool = False
@@ -279,12 +280,7 @@ class HealthServer:
                 )
                 self._server = uvicorn.Server(config)
 
-                # Set up signal handlers for the thread
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-
-                # Run the server
-                loop.run_until_complete(self._server.serve())
+                asyncio.run(self._server.serve())
             except OSError as e:
                 if "Address already in use" in str(e) or "bind" in str(e).lower():
                     logger.error(

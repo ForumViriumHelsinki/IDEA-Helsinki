@@ -20,7 +20,7 @@ Example:
 
 import asyncio
 import random
-from collections.abc import Callable
+from collections.abc import Callable, Coroutine
 from functools import wraps
 from typing import Any, TypeVar
 
@@ -63,8 +63,8 @@ def async_retry(
     base_delay: float = 1.0,
     max_delay: float = 60.0,
     jitter: bool = True,
-    excluded_exceptions: tuple[type[Exception], ...] = (asyncio.CancelledError,),
-    logger_name: str = None,
+    excluded_exceptions: tuple[type[BaseException], ...] = (asyncio.CancelledError,),
+    logger_name: str | None = None,
 ):
     """
     Decorator for retrying async functions with exponential backoff.
@@ -87,7 +87,7 @@ def async_retry(
         @wraps(func)
         async def wrapper(*args, **kwargs):
             logger = Logger(logger_name or func.__name__)
-            last_exception = None
+            last_exception: Exception | None = None
 
             for attempt in range(1, max_attempts + 1):
                 try:
@@ -113,7 +113,9 @@ def async_retry(
                         )
 
             # If we get here, all attempts failed
-            raise last_exception
+            if last_exception is not None:
+                raise last_exception
+            raise RuntimeError("Retry loop completed without success or exception")
 
         return wrapper
 
@@ -121,14 +123,14 @@ def async_retry(
 
 
 async def with_retry[T](
-    func: Callable[..., T],
+    func: Callable[..., Coroutine[Any, Any, T]],
     *args,
     max_attempts: int = 3,
     base_delay: float = 1.0,
     max_delay: float = 60.0,
     jitter: bool = True,
-    excluded_exceptions: tuple[type[Exception], ...] = (asyncio.CancelledError,),
-    logger_name: str = None,
+    excluded_exceptions: tuple[type[BaseException], ...] = (asyncio.CancelledError,),
+    logger_name: str | None = None,
     **kwargs,
 ) -> T:
     """
@@ -162,7 +164,7 @@ async def with_retry[T](
         )
     """
     logger = Logger(logger_name or func.__name__)
-    last_exception = None
+    last_exception: Exception | None = None
 
     for attempt in range(1, max_attempts + 1):
         try:
@@ -182,7 +184,9 @@ async def with_retry[T](
             else:
                 logger.error(f"All {max_attempts} attempts failed. Last error: {e}")
 
-    raise last_exception
+    if last_exception is not None:
+        raise last_exception
+    raise RuntimeError("Retry loop completed without success or exception")
 
 
 class ErrorTracker:

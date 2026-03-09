@@ -50,6 +50,8 @@ class TestWFSAPIHealthCheck:
 
             result = await check.check()
 
+            assert result.message is not None
+            assert result.metadata is not None
             assert result.status == "healthy"
             assert "feature type" in result.message
             assert result.metadata["feature_count"] == 42
@@ -70,6 +72,7 @@ class TestWFSAPIHealthCheck:
 
             result = await check.check()
 
+            assert result.message is not None
             assert result.status == "unhealthy"
             assert "Connection failed" in result.message
 
@@ -78,7 +81,9 @@ class TestWFSAPIHealthCheck:
     async def test_wfs_circuit_breaker(self):
         """Test WFS API circuit breaker behavior."""
         check = WFSAPIHealthCheck(
-            cache_ttl=0, circuit_breaker_threshold=2, circuit_breaker_timeout=1.0
+            cache_ttl=0,
+            circuit_breaker_threshold=2,
+            circuit_breaker_timeout=1.0,  # type: ignore[call-arg]
         )
 
         mock_session = AsyncMock()
@@ -100,6 +105,7 @@ class TestWFSAPIHealthCheck:
 
             # Third call - circuit should be open
             result = await check.check()
+            assert result.message is not None
             assert result.status == "degraded"
             assert "Circuit breaker is open" in result.message
 
@@ -143,6 +149,8 @@ class TestFCDMappingHealthCheck:
 
                 result = await check.check()
 
+                assert result.message is not None
+                assert result.metadata is not None
                 assert result.status == "healthy"
                 assert "valid and fresh" in result.message
                 assert result.metadata["segment_count"] == 1
@@ -168,6 +176,7 @@ class TestFCDMappingHealthCheck:
 
                 result = await check.check()
 
+                assert result.message is not None
                 assert result.status == "degraded"
                 assert "stale" in result.message
             finally:
@@ -180,6 +189,7 @@ class TestFCDMappingHealthCheck:
 
         result = await check.check()
 
+        assert result.message is not None
         assert result.status == "unhealthy"
         assert "does not exist" in result.message
 
@@ -194,6 +204,7 @@ class TestFCDMappingHealthCheck:
                 check = FCDMappingHealthCheck(file_path=f.name, cache_ttl=0)
                 result = await check.check()
 
+                assert result.message is not None
                 assert result.status == "unhealthy"
                 assert "Invalid JSON" in result.message
             finally:
@@ -212,6 +223,8 @@ class TestOutputFileHealthCheck:
 
             result = await check.check()
 
+            assert result.message is not None
+            assert result.metadata is not None
             assert result.status == "healthy"
             assert "writable" in result.message
             assert result.metadata["file_exists"] is False
@@ -227,6 +240,7 @@ class TestOutputFileHealthCheck:
                 check = OutputFileHealthCheck(file_path=f.name, cache_ttl=0)
                 result = await check.check()
 
+                assert result.metadata is not None
                 assert result.status == "healthy"
                 assert result.metadata["file_exists"] is True
                 assert "size_bytes" in result.metadata
@@ -261,6 +275,8 @@ class TestUpdateFreshnessHealthCheck:
 
         result = await check.check()
 
+        assert result.message is not None
+        assert result.metadata is not None
         assert result.status == "healthy"
         assert "fresh" in result.message
         assert result.metadata["current_disturbance_count"] == 10
@@ -278,6 +294,7 @@ class TestUpdateFreshnessHealthCheck:
 
         result = await check.check()
 
+        assert result.message is not None
         assert result.status == "degraded"
         assert "stale" in result.message
 
@@ -294,6 +311,7 @@ class TestUpdateFreshnessHealthCheck:
 
         result = await check.check()
 
+        assert result.message is not None
         assert result.status == "unhealthy"
         assert "too old" in result.message
 
@@ -304,6 +322,7 @@ class TestUpdateFreshnessHealthCheck:
 
         result = await check.check()
 
+        assert result.message is not None
         assert result.status == "unhealthy"
         assert "Service state not available" in result.message
 
@@ -317,6 +336,7 @@ class TestUpdateFreshnessHealthCheck:
 
         result = await check.check()
 
+        assert result.message is not None
         assert result.status == "healthy"
         assert "starting" in result.message.lower()
 
@@ -338,6 +358,7 @@ class TestDetectorHealthCheck:
 
         result = await check.check()
 
+        assert result.message is not None
         assert result.status == "healthy"
         assert "operational" in result.message
 
@@ -352,6 +373,7 @@ class TestDetectorHealthCheck:
 
         result = await check.check()
 
+        assert result.message is not None
         assert result.status == "unhealthy"
         assert "missing required methods" in result.message
 
@@ -362,6 +384,7 @@ class TestDetectorHealthCheck:
 
         result = await check.check()
 
+        assert result.message is not None
         assert result.status == "unhealthy"
         assert "not initialized" in result.message
 

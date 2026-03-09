@@ -1,4 +1,27 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(docker build *)",
+      "Bash(gitleaks detect *)",
+      "Bash(just *)",
+      "Bash(pre-commit run *)",
+      "Bash(ruff check *)",
+      "Bash(ruff format *)",
+      "Bash(uv add *)",
+      "Bash(uv lock *)",
+      "Bash(uv run mypy *)",
+      "Bash(uv run pytest *)",
+      "Bash(uv run python *)",
+      "Bash(uv run ruff *)",
+      "Bash(uv sync *)",
+      "WebFetch(domain:docs.astral.sh)",
+      "WebFetch(domain:gofeatureflag.org)",
+      "WebFetch(domain:developers.podio.com)",
+      "mcp__context7",
+      "mcp__sequential-thinking"
+    ],
+    "deny": []
+  },
   "enabledPlugins": {
     "accessibility-plugin@laurigates-claude-plugins": true,
     "agent-patterns-plugin@laurigates-claude-plugins": true,
@@ -21,14 +44,5 @@
         "repo": "laurigates/claude-plugins"
       }
     }
-  },
-  "permissions": {
-    "allow": [
-      "WebFetch(domain:developers.podio.com)",
-      "mcp__context7",
-      "mcp__sequential-thinking",
-      "mcp__serena"
-    ],
-    "deny": []
   }
 }

@@ -502,7 +502,7 @@ wheels = [
 
 [[package]]
 name = "fcd-manager"
-version = "0.14.0"
+version = "0.14.1"
 source = { editable = "services/fcd-manager" }
 dependencies = [
     { name = "azure-storage-blob" },
@@ -531,7 +531,7 @@ requires-dist = [
     { name = "azure-storage-blob" },
     { name = "idea-shared", editable = "shared" },
     { name = "influxdb-client" },
-    { name = "openfeature-sdk", specifier = ">=0.6.0,<0.8.0" },
+    { name = "openfeature-sdk", specifier = ">=0.8.4,<0.9.0" },
     { name = "pandas" },
     { name = "pause" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
@@ -752,9 +752,19 @@ name = "idea-helsinki"
 version = "0.0.0"
 source = { virtual = "." }
 
+[package.dev-dependencies]
+dev = [
+    { name = "pyright" },
+]
+
+[package.metadata]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pyright", specifier = ">=1.1.408" }]
+
 [[package]]
 name = "idea-shared"
-version = "0.14.0"
+version = "0.14.1"
 source = { editable = "shared" }
 dependencies = [
     { name = "aiohttp" },
@@ -795,7 +805,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.27.0" },
     { name = "influxdb-client" },
     { name = "numpy" },
-    { name = "openfeature-sdk", specifier = ">=0.6.0,<0.8.0" },
+    { name = "openfeature-sdk", specifier = ">=0.8.4,<0.9.0" },
     { name = "pandas" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "pyproj" },
@@ -954,6 +964,15 @@ wheels = [
 ]
 
 [[package]]
+name = "nodeenv"
+version = "1.10.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/24/bf/d1bda4f6168e0b2e9e5958945e01910052158313224ada5ce1fb2e1113b8/nodeenv-1.10.0.tar.gz", hash = "sha256:996c191ad80897d076bdfba80a41994c2b47c68e224c542b48feba42ba00f8bb", size = 55611, upload-time = "2025-12-20T14:08:54.006Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/88/b2/d0896bdcdc8d28a7fc5717c305f1a861c26e18c05047949fb371034d98bd/nodeenv-1.10.0-py2.py3-none-any.whl", hash = "sha256:5bb13e3eed2923615535339b3c620e76779af4cb4c6a90deccc9e36b274d3827", size = 23438, upload-time = "2025-12-20T14:08:52.782Z" },
+]
+
+[[package]]
 name = "numpy"
 version = "2.4.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1016,16 +1035,16 @@ wheels = [
 
 [[package]]
 name = "openfeature-sdk"
-version = "0.7.5"
+version = "0.8.4"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/81/1b/2e743361b416ec18798c4cef568e14d94052c6c287bdbaf5abd4188dc8d1/openfeature_sdk-0.7.5.tar.gz", hash = "sha256:04c04b65ea0b24f4609dce0e737af866f08254eac0707f072c3cd74a7d8cfde7", size = 53768, upload-time = "2025-01-31T16:36:02.298Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3b/08/f6698d0614b8703170117b786bd77b7b0a04f3ee00f19fbe9b360d2dee69/openfeature_sdk-0.8.4.tar.gz", hash = "sha256:66abf71f928ec8c0db1111072bb0ef2635dfbd09510f77f4b548e5d0ea0e6c1a", size = 29676, upload-time = "2025-12-09T07:31:13.137Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9b/20/cb043f54b11505d993e4dd84652cfc44c1260dc94b7f41aa35489af58277/openfeature_sdk-0.7.5-py3-none-any.whl", hash = "sha256:88fb5aee8fddc381195125e122366eaa99c98110d3ad41a752e80f58f7900b10", size = 33518, upload-time = "2025-01-31T16:36:00.139Z" },
+    { url = "https://files.pythonhosted.org/packages/9c/80/f6532778188c573cc83790b11abccde717d4c1442514e722d6bb6140e55c/openfeature_sdk-0.8.4-py3-none-any.whl", hash = "sha256:805ba090669798fc343ca9fdcbc56ff0f4b57bf6757533f0854d2021192e620a", size = 35986, upload-time = "2025-12-09T07:31:12.092Z" },
 ]
 
 [[package]]
 name = "orchestrator"
-version = "0.14.0"
+version = "0.14.1"
 source = { editable = "services/orchestrator" }
 dependencies = [
     { name = "azure-storage-blob" },
@@ -1054,7 +1073,7 @@ requires-dist = [
     { name = "idea-shared", editable = "shared" },
     { name = "influxdb-client" },
     { name = "numpy" },
-    { name = "openfeature-sdk", specifier = ">=0.6.0,<0.8.0" },
+    { name = "openfeature-sdk", specifier = ">=0.8.4,<0.9.0" },
     { name = "pandas" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.21.0" },
@@ -1452,6 +1471,19 @@ wheels = [
 ]
 
 [[package]]
+name = "pyright"
+version = "1.1.408"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "nodeenv" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/74/b2/5db700e52554b8f025faa9c3c624c59f1f6c8841ba81ab97641b54322f16/pyright-1.1.408.tar.gz", hash = "sha256:f28f2321f96852fa50b5829ea492f6adb0e6954568d1caa3f3af3a5f555eb684", size = 4400578, upload-time = "2026-01-08T08:07:38.795Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0c/82/a2c93e32800940d9573fb28c346772a14778b84ba7524e691b324620ab89/pyright-1.1.408-py3-none-any.whl", hash = "sha256:090b32865f4fdb1e0e6cd82bf5618480d48eecd2eb2e70f960982a3d9a4c17c1", size = 6399144, upload-time = "2026-01-08T08:07:37.082Z" },
+]
+
+[[package]]
 name = "pytest"
 version = "9.0.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1761,7 +1793,7 @@ wheels = [
 
 [[package]]
 name = "traffic-monitor"
-version = "0.14.0"
+version = "0.14.1"
 source = { editable = "services/traffic-monitor" }
 dependencies = [
     { name = "geopandas" },
@@ -1788,7 +1820,7 @@ dev = [
 requires-dist = [
     { name = "geopandas" },
     { name = "idea-shared", editable = "shared" },
-    { name = "openfeature-sdk", specifier = ">=0.6.0,<0.8.0" },
+    { name = "openfeature-sdk", specifier = ">=0.8.4,<0.9.0" },
     { name = "pandas" },
     { name = "pause" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },

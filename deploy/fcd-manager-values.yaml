@@ -7,7 +7,7 @@
 
 image:
   repository: ghcr.io/forumviriumhelsinki/idea-helsinki/fcd-manager
-  tag: "0.14.0" # Updated by ArgoCD Image Updater
+  tag: "0.14.1" # Updated by ArgoCD Image Updater
 replicaCount: 1
 progressDeadlineSeconds: 1800 # 30 min: 20-min startup probe + GCS FUSE sidecar init
 serviceAccount:
@@ -46,6 +46,8 @@ service:
   type: ClusterIP
   port: 8080
   targetPort: 8080
+gateway:
+  enabled: true
 livenessProbe:
   httpGet:
     path: /healthz

@@ -84,7 +84,13 @@ def example_sync_service():
     # Add health checks
     health_server.add_check(
         "influxdb",
-        InfluxDBHealthCheck("http://localhost:8086"),
+        InfluxDBHealthCheck(
+            name="influxdb",
+            url="http://localhost:8086",
+            token="example-token",
+            org="example-org",
+            bucket="example-bucket",
+        ),
     )
 
     health_server.add_check(
@@ -138,12 +144,24 @@ async def example_async_service():
     # Add multiple database checks for different InfluxDB buckets
     health_server.add_check(
         "influxdb_fcd",
-        InfluxDBHealthCheck("http://localhost:8086/fcd_bucket"),
+        InfluxDBHealthCheck(
+            name="influxdb_fcd",
+            url="http://localhost:8086",
+            token="example-token",
+            org="example-org",
+            bucket="fcd_bucket",
+        ),
     )
 
     health_server.add_check(
         "influxdb_validation",
-        InfluxDBHealthCheck("http://localhost:8086/validation_bucket"),
+        InfluxDBHealthCheck(
+            name="influxdb_validation",
+            url="http://localhost:8086",
+            token="example-token",
+            org="example-org",
+            bucket="validation_bucket",
+        ),
     )
 
     health_server.add_check(
@@ -225,12 +243,18 @@ class ServiceWithDynamicChecks:
         )
         self.health_server.start_background()
 
-    def connect_to_database(self, db_name: str, connection_string: str):
+    def connect_to_database(self, db_name: str, url: str):
         """Add health check when connecting to a database."""
         print(f"Connecting to {db_name}...")
         self.health_server.add_check(
             f"database_{db_name}",
-            InfluxDBHealthCheck(connection_string),
+            InfluxDBHealthCheck(
+                name=f"database_{db_name}",
+                url=url,
+                token="example-token",
+                org="example-org",
+                bucket=db_name,
+            ),
         )
 
     def disconnect_from_database(self, db_name: str):
