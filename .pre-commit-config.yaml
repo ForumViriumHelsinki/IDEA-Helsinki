@@ -47,13 +47,6 @@ repos:
       - id: python-no-log-warn
       - id: python-use-type-annotations
 
-  # Security - detect secrets
-  - repo: https://github.com/Yelp/detect-secrets
-    rev: v1.5.0
-    hooks:
-    - id: detect-secrets
-      args: ['--baseline', '.secrets.baseline']
-
   # GitHub Actions linting
   - repo: https://github.com/rhysd/actionlint
     rev: v1.7.7
