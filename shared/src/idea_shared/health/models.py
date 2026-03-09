@@ -13,10 +13,8 @@ class HealthCheckResult(BaseModel):
     status: Literal["healthy", "unhealthy", "degraded"] = Field(
         ..., description="Current status of the check"
     )
-    message: str | None = Field(None, description="Optional status message")
-    metadata: dict[str, Any] | None = Field(
-        None, description="Optional additional metadata"
-    )
+    message: str | None = None
+    metadata: dict[str, Any] | None = None
 
 
 class ReadinessResponse(BaseModel):

@@ -51,7 +51,7 @@ class TestEnvironmentVariableProvider:
 
         result = provider.resolve_boolean_details("missing", default_value=True)
         assert result.value is True
-        assert result.reason.value == "DEFAULT"
+        assert result.reason == "DEFAULT"
 
     @pytest.mark.unit
     def test_string_flag(self):
@@ -62,7 +62,7 @@ class TestEnvironmentVariableProvider:
         try:
             result = provider.resolve_string_details("log_level", default_value="info")
             assert result.value == "debug"
-            assert result.reason.value == "STATIC"
+            assert result.reason == "STATIC"
         finally:
             del os.environ["FEATURE_FLAG_LOG_LEVEL"]
 
@@ -77,7 +77,7 @@ class TestEnvironmentVariableProvider:
                 "max_connections", default_value=10
             )
             assert result.value == 100
-            assert result.reason.value == "STATIC"
+            assert result.reason == "STATIC"
         finally:
             del os.environ["FEATURE_FLAG_MAX_CONNECTIONS"]
 
@@ -92,7 +92,7 @@ class TestEnvironmentVariableProvider:
                 "max_connections", default_value=10
             )
             assert result.value == 10
-            assert result.reason.value == "ERROR"
+            assert result.reason == "ERROR"
         finally:
             del os.environ["FEATURE_FLAG_MAX_CONNECTIONS"]
 
@@ -105,7 +105,7 @@ class TestEnvironmentVariableProvider:
         try:
             result = provider.resolve_float_details("threshold", default_value=0.5)
             assert result.value == 0.75
-            assert result.reason.value == "STATIC"
+            assert result.reason == "STATIC"
         finally:
             del os.environ["FEATURE_FLAG_THRESHOLD"]
 
@@ -118,7 +118,7 @@ class TestEnvironmentVariableProvider:
         try:
             result = provider.resolve_float_details("threshold", default_value=0.5)
             assert result.value == 0.5
-            assert result.reason.value == "ERROR"
+            assert result.reason == "ERROR"
         finally:
             del os.environ["FEATURE_FLAG_THRESHOLD"]
 
@@ -134,7 +134,7 @@ class TestEnvironmentVariableProvider:
         try:
             result = provider.resolve_object_details("config", default_value={})
             assert result.value == config
-            assert result.reason.value == "STATIC"
+            assert result.reason == "STATIC"
         finally:
             del os.environ["FEATURE_FLAG_CONFIG"]
 
@@ -148,7 +148,7 @@ class TestEnvironmentVariableProvider:
             default = {"default": "config"}
             result = provider.resolve_object_details("config", default_value=default)
             assert result.value == default
-            assert result.reason.value == "ERROR"
+            assert result.reason == "ERROR"
         finally:
             del os.environ["FEATURE_FLAG_CONFIG"]
 
@@ -164,7 +164,7 @@ class TestEnvironmentVariableProvider:
             default = {"default": "config"}
             result = provider.resolve_object_details("config", default_value=default)
             assert result.value == default
-            assert result.reason.value == "ERROR"
+            assert result.reason == "ERROR"
         finally:
             del os.environ["FEATURE_FLAG_CONFIG"]
 

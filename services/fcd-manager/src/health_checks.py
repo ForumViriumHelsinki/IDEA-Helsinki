@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 from idea_shared.health.checks import HealthCheck
 from idea_shared.health.models import HealthCheckResult
@@ -262,7 +263,7 @@ class ProcessingPipelineHealthCheck(HealthCheck):
         Returns:
             HealthCheckResult indicating pipeline status
         """
-        metadata = {
+        metadata: dict[str, Any] = {
             "total_blobs_processed": self.blobs_processed,
         }
 

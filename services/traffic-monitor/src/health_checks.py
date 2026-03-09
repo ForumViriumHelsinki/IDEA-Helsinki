@@ -195,7 +195,7 @@ class FCDMappingHealthCheck(FileSystemHealthCheck):
     def __init__(
         self,
         name: str = "fcd_mapping",
-        file_path: str = None,
+        file_path: str | None = None,
         max_age_minutes: int = 15,
         timeout: float = 5.0,
         critical: bool = True,
@@ -334,7 +334,7 @@ class OutputFileHealthCheck(FileSystemHealthCheck):
     def __init__(
         self,
         name: str = "output_file",
-        file_path: str = None,
+        file_path: str | None = None,
         timeout: float = 5.0,
         critical: bool = False,
         cache_ttl: float = 5.0,

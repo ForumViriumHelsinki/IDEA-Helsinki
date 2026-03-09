@@ -1,7 +1,6 @@
 """Tests for shared lifecycle module."""
 
-import signal
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 

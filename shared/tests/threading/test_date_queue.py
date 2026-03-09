@@ -137,11 +137,13 @@ class TestDateRangeQueue:
 
         # First chunk: full 7 days
         range1 = queue.get_next_range()
+        assert range1 is not None
         assert range1.start == datetime(2025, 1, 1, tzinfo=UTC)
         assert range1.end == datetime(2025, 1, 7, tzinfo=UTC)
 
         # Second chunk: only 3 days (8, 9, 10)
         range2 = queue.get_next_range()
+        assert range2 is not None
         assert range2.start == datetime(2025, 1, 8, tzinfo=UTC)
         assert range2.end == datetime(2025, 1, 10, tzinfo=UTC)  # Capped at end date
 
@@ -188,6 +190,7 @@ class TestDateRangeQueue:
         assert total == 1
 
         range1 = queue.get_next_range()
+        assert range1 is not None
         assert range1.start == start
         assert range1.end == end
 
@@ -203,6 +206,7 @@ class TestDateRangeQueue:
         assert total == 1  # Should be single chunk
 
         range1 = queue.get_next_range()
+        assert range1 is not None
         assert range1.start == start
         assert range1.end == end
 
@@ -242,6 +246,7 @@ class TestDateRangeRetry:
 
         # Get a range
         date_range = queue.get_next_range()
+        assert date_range is not None
         assert date_range.retry_count == 0
 
         # Requeue as failed
@@ -262,11 +267,13 @@ class TestDateRangeRetry:
         queue.populate(start, end, chunk_days=7)
 
         date_range = queue.get_next_range()
+        assert date_range is not None
 
         # Requeue 3 times
         for i in range(1, 4):
             queue.requeue_failed(date_range, f"Error {i}")
             date_range = queue.get_next_range()
+            assert date_range is not None
             assert date_range.retry_count == i
             assert date_range.last_error == f"Error {i}"
 
@@ -279,6 +286,7 @@ class TestDateRangeRetry:
         queue.populate(start, end, chunk_days=7)
 
         date_range = queue.get_next_range()
+        assert date_range is not None
         date_range.retry_count = 3
         date_range.last_error = "Final error"
 
@@ -309,6 +317,8 @@ class TestDateRangeRetry:
         # Move both ranges to dead-letter
         range1 = queue.get_next_range()
         range2 = queue.get_next_range()
+        assert range1 is not None
+        assert range2 is not None
 
         queue.move_to_dead_letter(range1)
         queue.move_to_dead_letter(range2)
@@ -327,6 +337,7 @@ class TestDateRangeRetry:
         assert queue.get_progress() == (0, 1)
 
         date_range = queue.get_next_range()
+        assert date_range is not None
         queue.requeue_failed(date_range, "Error")
 
         # Total should still be 1

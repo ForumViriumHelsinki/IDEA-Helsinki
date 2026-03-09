@@ -303,7 +303,7 @@ class TestDataIntegrity:
         # Mock write queue to track submissions
         original_put = None
 
-        def tracking_put_write_request(fcd_data, worker_id, timeout=None):
+        def tracking_put_write_request(fcd_data, worker_id, timeout=10.0):
             with lock:
                 write_queue_submissions.append((worker_id, str(fcd_data)))
             # Call original method
@@ -426,6 +426,7 @@ class TestGracefulShutdown:
         # All threads should be stopped
         for thread in coordinator._worker_threads:
             assert not thread.is_alive()
+        assert coordinator._writer_thread is not None
         assert not coordinator._writer_thread.is_alive()
 
     def test_shutdown_with_pending_writes(self):

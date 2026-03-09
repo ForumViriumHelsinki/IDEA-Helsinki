@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from azure.storage.blob import BlobServiceClient
-from influxdb_client import InfluxDBClient
+from influxdb_client.client.influxdb_client import InfluxDBClient
 
 from idea_shared.threading.file_locks import read_json_with_retry
 
@@ -85,6 +85,15 @@ class AzureBlobStorageHealthCheck(HealthCheck):
                         "container": self.container_name,
                     },
                 )
+            return HealthCheckResult(
+                name=self.name,
+                status="unhealthy",
+                message="Azure Blob Storage connectivity check returned no result",
+                metadata={
+                    "account": self.account_name,
+                    "container": self.container_name,
+                },
+            )
         except Exception as e:
             return HealthCheckResult(
                 name=self.name,
@@ -145,8 +154,9 @@ class WFSServiceHealthCheck(ExternalAPIHealthCheck):
         # Add WFS-specific metadata
         if result.status == "healthy":
             result.message = f"WFS service is available at {self.base_url}"
-            result.metadata["service"] = "WFS"
-            result.metadata["base_url"] = self.base_url
+            if result.metadata is not None:
+                result.metadata["service"] = "WFS"
+                result.metadata["base_url"] = self.base_url
 
         return result
 
@@ -315,7 +325,7 @@ class FCDDataFreshnessHealthCheck(DatabaseHealthCheck):
             ) = await loop.run_in_executor(None, check_freshness)
 
             if has_recent_data:
-                if backfill_timestamp:
+                if backfill_timestamp and age_minutes is not None:
                     # Backfill mode - data exists but is historical
                     backfill_msg = f"FCD data is healthy (backfilling from {backfill_timestamp.strftime('%Y-%m-%d %H:%M')})"
                     return HealthCheckResult(

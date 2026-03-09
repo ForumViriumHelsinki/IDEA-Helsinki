@@ -21,7 +21,7 @@ class TestGetFcdGeometries:
     @pytest.mark.unit
     def test_none_input_returns_empty(self):
         """None input returns empty result."""
-        result = FcdUtils.get_fcd_geometries(None)
+        result = FcdUtils.get_fcd_geometries(None)  # type: ignore[arg-type]
         assert result == {}
 
     @pytest.mark.unit

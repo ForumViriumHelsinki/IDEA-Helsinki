@@ -146,6 +146,7 @@ class TestCheckBackfillMode:
         )
 
         assert has_data is True
+        assert age_minutes is not None
         assert age_minutes > 30
         assert backfill_ts == threshold_timestamp  # Should be in backfill mode
 

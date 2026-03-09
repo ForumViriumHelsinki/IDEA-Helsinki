@@ -137,6 +137,9 @@ class TestInfluxDBWriteQueue:
         req2 = queue.get_next_request(timeout=0.1)
         req3 = queue.get_next_request(timeout=0.1)
 
+        assert req1 is not None
+        assert req2 is not None
+        assert req3 is not None
         assert req1.fcd_data == {"data": "first"}
         assert req2.fcd_data == {"data": "second"}
         assert req3.fcd_data == {"data": "third"}
@@ -242,4 +245,5 @@ class TestInfluxDBWriteQueue:
 
         after = datetime.now(UTC)
 
+        assert request is not None
         assert before <= request.timestamp <= after

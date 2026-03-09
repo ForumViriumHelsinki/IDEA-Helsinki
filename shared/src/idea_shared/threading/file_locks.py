@@ -152,6 +152,8 @@ def atomic_write_json(
                 _cleanup_temp_file(temp_path)
             raise
 
+    return False
+
 
 def _cleanup_temp_file(temp_file: Path) -> None:
     """Clean up temporary file if it exists."""
@@ -195,7 +197,7 @@ class SegmentMappingFileManager:
                 os.rename(temp_file, file_path)
                 return True
 
-            except Exception as e:
+            except Exception:
                 # Clean up temp file if it exists
                 if os.path.exists(temp_file):
                     try:

@@ -274,6 +274,14 @@ def main():
                 weeks=PROFILE_TIME_FRAME_WEEKS
             )
 
+            if not isinstance(allu_wfs_data, dict):
+                logger.error(
+                    f"Unexpected WFS data type: {type(allu_wfs_data).__name__}, expected dict"
+                )
+                service_state.set_processing(False)
+                update_cycle_pause(TRAFFIC_DISTURBANCE_UPDATE_FREQUENCY)
+                continue
+
             validated_allu_data = DisturbanceValidator.validate_disturbance_dates(
                 validation_date, allu_wfs_data
             )
@@ -292,6 +300,14 @@ def main():
                     FCD_MAP_DATA_FILE_LOCATION
                 )
 
+                if fcd_segments_gdf is None:
+                    logger.error(
+                        "Failed to load FCD segment data, skipping intersection detection"
+                    )
+                    service_state.set_processing(False)
+                    update_cycle_pause(TRAFFIC_DISTURBANCE_UPDATE_FREQUENCY)
+                    continue
+
                 # Buffer segments for better intersection detection (addresses precision/alignment issues)
                 logger.info(
                     f"Buffering road segments by {BUFFERING_DISTANCE} meters using CRS {BUFFERING_FCD_CRS}..."
@@ -301,6 +317,14 @@ def main():
                     buffer_distance=BUFFERING_DISTANCE,
                     buffering_crs=BUFFERING_FCD_CRS,
                 )
+
+                if allu_wfs_gdf is None:
+                    logger.error(
+                        "Failed to load WFS GeoJSON data, skipping intersection detection"
+                    )
+                    service_state.set_processing(False)
+                    update_cycle_pause(TRAFFIC_DISTURBANCE_UPDATE_FREQUENCY)
+                    continue
 
                 # Find intersections
                 intersecting_features = detector.find_intersecting_features(
@@ -315,6 +339,12 @@ def main():
                     intersecting_features = detector.restore_original_geometries(
                         intersecting_features
                     )
+
+                if intersecting_features is None:
+                    logger.info("No intersecting features found")
+                    service_state.set_processing(False)
+                    update_cycle_pause(TRAFFIC_DISTURBANCE_UPDATE_FREQUENCY)
+                    continue
 
                 # Process intersections to an intersection data model
                 # Note that usually there is a numerical difference between the "intersecting_features" and the "final_model_data".

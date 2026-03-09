@@ -17,7 +17,7 @@ class TestConfidenceConversion:
 
     def test_none_confidence_returns_none(self):
         """None confidence should return None for IDEA algorithm."""
-        result = TomTomFcdAggregator.convert_confidence_to_fcd_num(None)
+        result = TomTomFcdAggregator.convert_confidence_to_fcd_num(None)  # type: ignore[arg-type]
         assert result is None
 
     def test_zero_confidence_returns_zero(self):

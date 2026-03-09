@@ -1,14 +1,17 @@
 """Tests for shared observability module."""
 
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 
 @pytest.mark.unit
 class TestConfigureSentry:
     """Tests for configure_sentry function."""
 
-    @patch.dict("os.environ", {"SENTRY_DSN": "https://key@sentry.io/123", "ENVIRONMENT": "test"})
+    @patch.dict(
+        "os.environ", {"SENTRY_DSN": "https://key@sentry.io/123", "ENVIRONMENT": "test"}
+    )
     @patch("idea_shared.observability.sentry.sentry_sdk")
     def test_initializes_sentry_when_dsn_set(self, mock_sentry):
         from idea_shared.observability.sentry import configure_sentry
@@ -37,7 +40,8 @@ class TestConfigureSentry:
         mock_sentry.init.assert_not_called()
 
     @patch.dict(
-        "os.environ", {"SENTRY_DSN": "  https://key@sentry.io/123  ", "ENVIRONMENT": "staging"}
+        "os.environ",
+        {"SENTRY_DSN": "  https://key@sentry.io/123  ", "ENVIRONMENT": "staging"},
     )
     @patch("idea_shared.observability.sentry.sentry_sdk")
     def test_strips_whitespace_from_dsn(self, mock_sentry):

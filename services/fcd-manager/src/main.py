@@ -162,7 +162,7 @@ def run(azure_manager: AzureBlobContainerManager):
         num_backfill_workers=FCD_BACKFILL_WORKER_COUNT,
         azure_manager=azure_manager,
         influx_config=influx_config,
-        logger=logger,
+        logger=logger.logger,
         processing_function=process_date_range_streaming,
         max_write_queue_size=FCD_WRITE_QUEUE_MAX_SIZE,
         max_retries=FCD_MAX_CHUNK_RETRIES,
