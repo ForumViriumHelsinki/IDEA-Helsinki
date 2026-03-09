@@ -24,7 +24,7 @@ dependencies = [
     "pandas",
     "pause",
     "sentry-sdk",
-    "openfeature-sdk>=0.6.0,<0.8.0",  # Required by idea-shared feature flags
+    "openfeature-sdk>=0.8.4,<0.9.0",  # Required by idea-shared feature flags
     "trio>=0.27.0,<0.32.0",  # Python 3.13 compatibility (via sentry-sdk → httpcore → trio), exclude 0.32.0 due to incompatibility
 ]
 
