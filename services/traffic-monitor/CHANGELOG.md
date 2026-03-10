@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.14.1...traffic-monitor-v0.14.2) (2026-03-09)
+
+
+### Bug Fixes
+
+* **deps:** update dependency openfeature-sdk to &gt;=0.8.4,&lt;0.9.0 ([#243](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/243)) ([92328ae](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/92328ae3f975ee187a1652e7e02a45f77e00575f))
+
 ## [0.14.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.14.0...traffic-monitor-v0.14.1) (2026-03-09)
 
 
