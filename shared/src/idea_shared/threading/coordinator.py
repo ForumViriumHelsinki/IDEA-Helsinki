@@ -399,6 +399,11 @@ class ThreadCoordinator:
             if remaining > 0:
                 self._writer_thread.join(timeout=remaining)
 
+        # Close InfluxDB client to release connection pool resources
+        if self._influx_client:
+            self._influx_client.close()
+            self.logger.info("InfluxDB client closed")
+
         self.logger.info("Shutdown complete")
 
     def is_shutdown(self) -> bool:
