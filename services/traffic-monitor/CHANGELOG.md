@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.3](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.14.2...traffic-monitor-v0.14.3) (2026-03-17)
+
+
+### Documentation
+
+* add project rules and apply ruff formatting ([#265](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/265)) ([4bd90da](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/4bd90da7bc12ba2c41916f0b0bc5210c8519316f))
+
 ## [0.14.2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.14.1...traffic-monitor-v0.14.2) (2026-03-09)
 
 

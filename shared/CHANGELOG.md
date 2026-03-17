@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.14.3](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.14.2...idea-shared-v0.14.3) (2026-03-17)
+
+
+### Bug Fixes
+
+* resolve orchestrator OOMKill (4Gi → 6Gi) ([#268](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/268)) ([c0ab5a2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/c0ab5a28a7d1f1f4fda1be37d8e19aea0f52b57b))
+
+
+### Documentation
+
+* add project rules and apply ruff formatting ([#265](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/265)) ([4bd90da](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/4bd90da7bc12ba2c41916f0b0bc5210c8519316f))
+
 ## [0.14.2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.14.1...idea-shared-v0.14.2) (2026-03-09)
 
 
