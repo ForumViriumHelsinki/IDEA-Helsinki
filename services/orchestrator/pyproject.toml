@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "orchestrator"
-version = "0.14.2"
+version = "0.14.3"
 description = "IDEA Helsinki traffic validation orchestration service"
 requires-python = ">=3.12"
 authors = [
