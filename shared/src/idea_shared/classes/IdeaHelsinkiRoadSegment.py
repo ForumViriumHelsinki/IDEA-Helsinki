@@ -2,6 +2,7 @@
 # ---------------- GENERAL IMPORTS ---------------------#
 # ------------------------------------------------------#
 import asyncio
+from contextlib import nullcontext
 from datetime import UTC, datetime, timedelta
 
 import pandas as pd
@@ -17,7 +18,8 @@ from idea_shared.lib import IdeaHelsinkiDataPreProcessor
 # ------------- PROJECT MODULE IMPORTS -----------------#
 # ------------------------------------------------------#
 from idea_shared.lib.idea.exceptions import IDEAError
-from idea_shared.lib.idea.profile.profile import calculate_profile
+from idea_shared.lib.idea.profile import util as idea_util
+from idea_shared.lib.idea.profile.profile import calculate_profile_from_hourly
 from idea_shared.lib.idea.validation.validation import validate_roadwork
 from idea_shared.resilience import CircuitBreaker
 from idea_shared.resilience.retry import ErrorTracker, calculate_backoff
@@ -44,6 +46,7 @@ class IdeaHelsinkiRoadSegment:
         db_fcd_token: str,
         db_validation_bucket: str,
         db_validation_token: str,
+        profiling_semaphore: asyncio.Semaphore | None = None,
     ):
         self.segment_id = segment_id
         self.validation_frequency: int = validation_frequency
@@ -80,6 +83,7 @@ class IdeaHelsinkiRoadSegment:
         self.segment_profile = None
         self.last_segment_validation = None
         self.segment_active: bool = True
+        self.profiling_semaphore = profiling_semaphore
         self.logger = Logger(f"Helsinki IDEA road segment ID : {self.segment_id}")
         # Resilience infrastructure
         self.error_tracker = ErrorTracker(max_consecutive=10)
@@ -128,50 +132,44 @@ class IdeaHelsinkiRoadSegment:
 
         if self.segment_profile is None:
             self.logger.info("Generating segment profile...")
-            segment_data_to_profile = (
-                await self.__get_idea_formated_segment_data_from_influxdb(
-                    segment_id=self.segment_id,
-                    start_time=self.profiling_start_date,
-                    end_time=self.profiling_end_date,
-                )
-            )
-            if (
-                segment_data_to_profile is not None
-                and not segment_data_to_profile.empty
+            async with (
+                self.profiling_semaphore
+                if self.profiling_semaphore is not None
+                else nullcontext()
             ):
-                try:
-                    profile = await asyncio.to_thread(
-                        calculate_profile,
-                        df=segment_data_to_profile,
-                        start=self.profiling_start_date,
-                        end=self.profiling_end_date,
-                    )
-                except IDEAError as e:
-                    # Profile validation failed due to insufficient data quality
-                    data_points = len(segment_data_to_profile)
-                    self.logger.error(
-                        f"Profile validation failed: {e.message}. "
-                        f"Segment had {data_points} data points for period "
-                        f"{self.profiling_start_date} to {self.profiling_end_date}. "
-                        f"This typically means the FCD coverage quality is too low "
-                        f"(too many gaps or zeros in the data)."
-                    )
-                    return
+                hourly_profile_data = await self.__get_hourly_profile_data()
+                if hourly_profile_data is not None and not hourly_profile_data.empty:
+                    try:
+                        profile = await asyncio.to_thread(
+                            calculate_profile_from_hourly,
+                            hourly_df=hourly_profile_data,
+                        )
+                    except IDEAError as e:
+                        self.logger.error(
+                            f"Profile validation failed: {e.message}. "
+                            f"Segment had {len(hourly_profile_data)} hourly data points for period "
+                            f"{self.profiling_start_date} to {self.profiling_end_date}. "
+                            f"This typically means the FCD coverage quality is too low "
+                            f"(too many gaps or zeros in the data)."
+                        )
+                        return
+                    finally:
+                        del hourly_profile_data
 
-                if not profile.empty:
-                    self.logger.info("Segment profile generated")
-                    self.segment_profile = profile
+                    if not profile.empty:
+                        self.logger.info("Segment profile generated")
+                        self.segment_profile = profile
+                    else:
+                        self.logger.error("IDEA returned an empty segment profile")
+                        return
                 else:
-                    self.logger.error("IDEA returned an empty segment profile")
+                    # No FCD data available at all for this segment/period
+                    self.logger.error(
+                        f"No FCD data available for segment. "
+                        f"Query returned empty/None for period "
+                        f"{self.profiling_start_date} to {self.profiling_end_date}."
+                    )
                     return
-            else:
-                # No FCD data available at all for this segment/period
-                self.logger.error(
-                    f"No FCD data available for segment. "
-                    f"Query returned empty/None for period "
-                    f"{self.profiling_start_date} to {self.profiling_end_date}."
-                )
-                return
 
         self.logger.info(
             f"Validating segment for timestamps {self.last_validation_update} - {current_time} "
@@ -432,6 +430,54 @@ class IdeaHelsinkiRoadSegment:
             self.logger.error(f"FCD database query failed: {e}")
 
         return segment_date
+
+    async def __get_hourly_profile_data(self) -> pd.DataFrame | None:
+        """
+        Fetch the full profiling period in 4-week chunks and pre-aggregate each
+        chunk to hourly resolution before collecting the results.
+
+        This reduces peak memory by ~12× compared to loading the full 26-week
+        DataFrame at once: each raw chunk (~3,000 rows) is reduced to hourly
+        aggregates (~672 rows) before the next chunk is fetched.
+
+        Returns:
+            A concatenated hourly DataFrame with columns:
+            ``hour_of_date``, ``fcd_mean``, ``max_consecutive_zeros``,
+            ``max_consecutive_zeros_or_ones``.
+            Returns None if no chunks contain data.
+        """
+        hourly_chunks: list[pd.DataFrame] = []
+        current = self.profiling_start_date
+        chunk_weeks = 4
+
+        while current < self.profiling_end_date:
+            chunk_end = min(
+                current + timedelta(weeks=chunk_weeks), self.profiling_end_date
+            )
+
+            chunk_df = await self.__get_idea_formated_segment_data_from_influxdb(
+                segment_id=self.segment_id,
+                start_time=current,
+                end_time=chunk_end,
+            )
+
+            if chunk_df is not None and not chunk_df.empty:
+                interpolated = idea_util.interpolate_missing_minutes(
+                    chunk_df, current, chunk_end
+                )
+                filled = idea_util.fill_nan_columns_with_zeros(
+                    interpolated, column_subset=["fcd"]
+                )
+                hourly = idea_util.aggregate_by_hour(filled)
+                hourly_chunks.append(hourly)
+                del chunk_df, interpolated, filled
+
+            current = chunk_end
+
+        if not hourly_chunks:
+            return None
+
+        return pd.concat(hourly_chunks, ignore_index=True)
 
     async def __get_idea_formated_segment_data_from_influxdb(
         self, segment_id: str, start_time: datetime, end_time: datetime

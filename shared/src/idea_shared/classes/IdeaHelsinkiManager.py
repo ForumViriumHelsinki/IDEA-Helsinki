@@ -64,6 +64,10 @@ class IdeaHelsinkiManager:
         # Health monitoring attributes
         self.last_cycle_time = datetime.now(UTC)
         self.last_discovery_time = None
+        # Limits concurrent 26-week profile queries to cap peak memory usage.
+        # Each profiling query loads ~1 MB of data; without a limit all segments
+        # that restart simultaneously would fire queries concurrently.
+        self._profiling_semaphore = asyncio.Semaphore(3)
         # Resilience infrastructure
         self.error_tracker = ErrorTracker(max_consecutive=10)
         self.circuit_breaker = CircuitBreaker(
@@ -189,6 +193,7 @@ class IdeaHelsinkiManager:
                     db_fcd_token=self.db_fcd_token,
                     db_validation_bucket=self.db_validation_bucket,
                     db_validation_token=self.db_validation_token,
+                    profiling_semaphore=self._profiling_semaphore,
                 )
                 # Wrap worker lifecycle with error isolation
                 task = asyncio.create_task(
