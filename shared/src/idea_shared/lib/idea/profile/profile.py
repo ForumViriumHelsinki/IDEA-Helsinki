@@ -122,7 +122,9 @@ def calculate_profile_from_hourly(
     pd.DataFrame
         Profile DataFrame in the same format as ``calculate_profile``.
     """
-    df = hourly_df.sort_values("hour_of_date").reset_index(drop=True)
+    df = hourly_df.copy()
+    df["hour_of_date"] = pd.to_datetime(df["hour_of_date"])
+    df = df.sort_values("hour_of_date").reset_index(drop=True)
     df = idea_util.filter_max_consecutive_60(df)
     df = idea_util.add_periods(df)
     df = idea_util.aggregate_hour_of_week(df)

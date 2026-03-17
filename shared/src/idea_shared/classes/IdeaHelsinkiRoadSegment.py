@@ -32,6 +32,9 @@ class IdeaHelsinkiRoadSegment:
     This is the go-go-jee-jee of the Helsinki IDEA application.
     """
 
+    # Number of weeks per chunk when fetching 26-week profile data
+    _PROFILING_CHUNK_WEEKS = 4
+
     def __init__(
         self,
         segment_id: str,
@@ -448,11 +451,11 @@ class IdeaHelsinkiRoadSegment:
         """
         hourly_chunks: list[pd.DataFrame] = []
         current = self.profiling_start_date
-        chunk_weeks = 4
 
         while current < self.profiling_end_date:
             chunk_end = min(
-                current + timedelta(weeks=chunk_weeks), self.profiling_end_date
+                current + timedelta(weeks=self._PROFILING_CHUNK_WEEKS),
+                self.profiling_end_date,
             )
 
             chunk_df = await self.__get_idea_formated_segment_data_from_influxdb(

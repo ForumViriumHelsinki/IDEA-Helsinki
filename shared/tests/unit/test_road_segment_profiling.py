@@ -25,7 +25,6 @@ from idea_shared.lib.idea.profile.profile import calculate_profile_from_hourly
 
 def _make_segment(**kwargs) -> IdeaHelsinkiRoadSegment:
     """Create a minimal IdeaHelsinkiRoadSegment for testing."""
-    disturbance_start = datetime(2025, 6, 1, tzinfo=UTC)
     disturbances = [
         {
             "properties": {
@@ -34,20 +33,20 @@ def _make_segment(**kwargs) -> IdeaHelsinkiRoadSegment:
             }
         }
     ]
-    defaults = dict(
-        segment_id="test-segment-001",
-        reported_disturbances=disturbances,
-        validation_frequency=5,
-        validation_max_age_days=7,
-        profile_time_frame_weeks=26,
-        profile_end_lead_time_hours=0,
-        db_org="test-org",
-        db_url="http://localhost:8086",
-        db_fcd_bucket="fcd-data",
-        db_fcd_token="test-token",
-        db_validation_bucket="validation",
-        db_validation_token="test-token",
-    )
+    defaults = {
+        "segment_id": "test-segment-001",
+        "reported_disturbances": disturbances,
+        "validation_frequency": 5,
+        "validation_max_age_days": 7,
+        "profile_time_frame_weeks": 26,
+        "profile_end_lead_time_hours": 0,
+        "db_org": "test-org",
+        "db_url": "http://localhost:8086",
+        "db_fcd_bucket": "fcd-data",
+        "db_fcd_token": "test-token",
+        "db_validation_bucket": "validation",
+        "db_validation_token": "test-token",
+    }
     defaults.update(kwargs)
     return IdeaHelsinkiRoadSegment(**defaults)
 
