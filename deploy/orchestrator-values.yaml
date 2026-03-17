@@ -7,7 +7,7 @@
 
 image:
   repository: ghcr.io/forumviriumhelsinki/idea-helsinki/orchestrator
-  tag: "0.14.1" # Updated by ArgoCD Image Updater
+  tag: "0.14.2" # Updated by ArgoCD Image Updater
 replicaCount: 1
 progressDeadlineSeconds: 1800 # 30 min: 20-min startup probe + GCS FUSE sidecar init
 serviceAccount:
@@ -38,10 +38,10 @@ podAnnotations:
 resources:
   limits:
     cpu: "2000m"
-    memory: "4.0Gi"
+    memory: "6Gi"
   requests:
     cpu: "1000m"
-    memory: "256Mi"
+    memory: "4Gi"
 service:
   type: ClusterIP
   port: 8080
