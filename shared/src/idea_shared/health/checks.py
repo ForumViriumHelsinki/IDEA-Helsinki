@@ -76,33 +76,32 @@ class HealthCheck(ABC):
             return self._cached_result
 
         start = time.time()
+        is_success = False
         try:
             result = await asyncio.wait_for(self.check(), timeout=self.timeout)
-            execution_time_ms = (time.time() - start) * 1000
-            self._record_execution_time(execution_time_ms)
-            result = result.model_copy(update={"execution_time_ms": execution_time_ms})
-            if self.cache_ttl > 0:
-                self._cached_result = result
-                self._cache_timestamp = now
-            return result
+            is_success = True
         except TimeoutError:
-            execution_time_ms = (time.time() - start) * 1000
-            self._record_execution_time(execution_time_ms)
-            return HealthCheckResult(
+            result = HealthCheckResult(
                 name=self.name,
                 status="unhealthy",
                 message=f"Health check timed out after {self.timeout} seconds",
-                execution_time_ms=execution_time_ms,
             )
         except Exception as e:
-            execution_time_ms = (time.time() - start) * 1000
-            self._record_execution_time(execution_time_ms)
-            return HealthCheckResult(
+            result = HealthCheckResult(
                 name=self.name,
                 status="unhealthy",
                 message=f"Health check failed: {str(e)}",
-                execution_time_ms=execution_time_ms,
             )
+
+        execution_time_ms = (time.time() - start) * 1000
+        self._record_execution_time(execution_time_ms)
+        result = result.model_copy(update={"execution_time_ms": execution_time_ms})
+
+        if is_success and self.cache_ttl > 0:
+            self._cached_result = result
+            self._cache_timestamp = now
+
+        return result
 
     def _record_execution_time(self, execution_time_ms: float) -> None:
         """Record an execution time and warn if approaching timeout.

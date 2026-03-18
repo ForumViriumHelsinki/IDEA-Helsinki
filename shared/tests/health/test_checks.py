@@ -44,7 +44,9 @@ class TestHealthCheck:
         expected = HealthCheckResult(name="test", status="healthy")
         check = ConcreteHealthCheck(result=expected, name="test")
         result = await check.check_with_cache()
-        assert result == expected
+        assert result.name == expected.name
+        assert result.status == expected.status
+        assert result.execution_time_ms is not None
 
     @pytest.mark.asyncio
     async def test_check_with_timeout(self):
@@ -138,7 +140,9 @@ class TestHealthCheck:
         expected = HealthCheckResult(name="sync", status="healthy")
         check = ConcreteHealthCheck(result=expected, name="sync")
         result = check.check_sync()
-        assert result == expected
+        assert result.name == expected.name
+        assert result.status == expected.status
+        assert result.execution_time_ms is not None
 
 
 class TestFileSystemHealthCheck:
