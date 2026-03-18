@@ -308,15 +308,7 @@ class TestValidationHistoryWindow:
         current_date = datetime(2026, 3, 18, 12, 0, tzinfo=UTC)
         segment.profiling_end_date = current_date - timedelta(days=90)
 
-        # Manually run the clamping logic (mirrors run_lifecycle lines 261-272)
-        if segment.profiling_end_date.date() < current_date.date():
-            candidate = segment.profiling_end_date + timedelta(days=1)
-            earliest_allowed = current_date - timedelta(
-                weeks=segment.validation_history_weeks
-            )
-            segment.last_validation_update = max(candidate, earliest_allowed)
-        else:
-            segment.last_validation_update = current_date
+        segment._initialize_last_validation_update(current_date)
 
         expected_earliest = current_date - timedelta(weeks=4)
         assert segment.last_validation_update == expected_earliest
@@ -328,14 +320,7 @@ class TestValidationHistoryWindow:
         current_date = datetime(2026, 3, 18, 12, 0, tzinfo=UTC)
         segment.profiling_end_date = current_date - timedelta(days=10)
 
-        if segment.profiling_end_date.date() < current_date.date():
-            candidate = segment.profiling_end_date + timedelta(days=1)
-            earliest_allowed = current_date - timedelta(
-                weeks=segment.validation_history_weeks
-            )
-            segment.last_validation_update = max(candidate, earliest_allowed)
-        else:
-            segment.last_validation_update = current_date
+        segment._initialize_last_validation_update(current_date)
 
         expected_candidate = segment.profiling_end_date + timedelta(days=1)
         assert segment.last_validation_update == expected_candidate

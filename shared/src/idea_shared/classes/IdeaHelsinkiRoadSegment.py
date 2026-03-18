@@ -102,6 +102,23 @@ class IdeaHelsinkiRoadSegment:
         )
         self.logger.info("Segment object created")
 
+    def _initialize_last_validation_update(self, current_date: datetime) -> None:
+        """Sets the initial last_validation_update date, clamping it to the history window.
+
+        Called once when last_validation_update is None and validation is ready to begin.
+        For long-running disturbances this prevents loading months of data.
+        """
+        if self.profiling_end_date.date() < current_date.date():
+            # Increment one day to avoid overlapping with the segment profiling.
+            candidate = self.profiling_end_date + timedelta(days=1)
+            # Clamp: don't recalculate further back than validation_history_weeks.
+            earliest_allowed = current_date - timedelta(
+                weeks=self.validation_history_weeks
+            )
+            self.last_validation_update = max(candidate, earliest_allowed)
+        else:
+            self.last_validation_update = current_date
+
     async def _wait_for_next_cycle(self):
         """
         Void method that pauses the road segment object until the next validation cycle.
@@ -268,21 +285,7 @@ class IdeaHelsinkiRoadSegment:
                             # self.last_validation_update variable can be None if this is the first run after object init, or the last influxDB query returned None.
                             # Otherwise, the variable is incremented (datetime) after each validation.
                             if self.last_validation_update is None:
-                                if self.profiling_end_date.date() < current_date.date():
-                                    # Increment one day to avoid overlapping with the segment profiling.
-                                    candidate = self.profiling_end_date + timedelta(
-                                        days=1
-                                    )
-                                    # Clamp: don't recalculate further back than validation_history_weeks.
-                                    # For long-running disturbances this prevents loading months of data.
-                                    earliest_allowed = current_date - timedelta(
-                                        weeks=self.validation_history_weeks
-                                    )
-                                    self.last_validation_update = max(
-                                        candidate, earliest_allowed
-                                    )
-                                else:
-                                    self.last_validation_update = current_date
+                                self._initialize_last_validation_update(current_date)
 
                             await self.__validate_segment(current_date)
                         else:
