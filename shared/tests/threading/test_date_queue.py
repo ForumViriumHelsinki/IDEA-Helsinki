@@ -4,7 +4,7 @@ Tests for DateRangeQueue - Thread-safe date range distribution.
 Following TDD RED-GREEN-REFACTOR cycle.
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from idea_shared.threading.date_queue import DateRange, DateRangeQueue
 
@@ -325,6 +325,21 @@ class TestDateRangeRetry:
 
         dead_letter_ranges = queue.get_dead_letter_ranges()
         assert len(dead_letter_ranges) == 2
+
+    def test_dead_letter_queue_caps_at_maxlen(self):
+        """Test that dead-letter queue does not grow beyond maxlen=1000."""
+        queue = DateRangeQueue()
+        start = datetime(2025, 1, 1, tzinfo=UTC)
+
+        # Add 1001 entries to dead-letter queue
+        for i in range(1001):
+            end = start + timedelta(days=1)
+            dr = DateRange(start=start, end=end, retry_count=3)
+            queue.move_to_dead_letter(dr)
+            start = end
+
+        dead_letter_ranges = queue.get_dead_letter_ranges()
+        assert len(dead_letter_ranges) == 1000
 
     def test_requeue_does_not_affect_total_ranges(self):
         """Test that requeue doesn't change total_ranges count."""
