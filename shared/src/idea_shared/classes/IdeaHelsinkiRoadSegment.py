@@ -436,12 +436,12 @@ class IdeaHelsinkiRoadSegment:
 
     async def __get_hourly_profile_data(self) -> pd.DataFrame | None:
         """
-        Fetch the full profiling period in 4-week chunks and pre-aggregate each
-        chunk to hourly resolution before collecting the results.
+        Fetch the full profiling period in chunks defined by _PROFILING_CHUNK_WEEKS
+        and pre-aggregate each chunk to hourly resolution before collecting the results.
 
-        This reduces peak memory by ~12× compared to loading the full 26-week
-        DataFrame at once: each raw chunk (~3,000 rows) is reduced to hourly
-        aggregates (~672 rows) before the next chunk is fetched.
+        For example, with 4-week chunks, this reduces peak memory by ~12× compared
+        to loading the full 26-week DataFrame at once: each raw chunk (~3,000 rows)
+        is reduced to hourly aggregates (~672 rows) before the next chunk is fetched.
 
         Returns:
             A concatenated hourly DataFrame with columns:
