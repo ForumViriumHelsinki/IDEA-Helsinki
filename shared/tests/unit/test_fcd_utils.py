@@ -303,5 +303,217 @@ class TestReadExistingJsonRecords:
             Path(filepath).unlink()
 
 
+# ---------------------------------------------------------------------------
+# Helpers shared by geo-matching tests
+# ---------------------------------------------------------------------------
+
+# Helsinki-area coordinates used across tests.
+# Segment A: east–west road at lat 60.17.
+SEG_A_COORDS = [[24.94, 60.17], [24.95, 60.17]]
+# Segment B: same road shifted ~10 m north (0.00009° lat ≈ 10 m).
+SEG_B_COORDS = [[24.94, 60.17009], [24.95, 60.17009]]
+# Segment C: same orientation but ~110 m away – should NOT match A.
+SEG_C_COORDS = [[24.94, 60.171], [24.95, 60.171]]
+
+
+def _make_linestring(coords: list) -> dict:
+    return {"type": "LineString", "coordinates": coords}
+
+
+def _make_removed_record(coords: list, history: list | None = None) -> dict:
+    return {
+        "current_geometry": _make_linestring(coords),
+        "current_hash": "dummy_hash",
+        "date_added": "2025-01-01T00:00:00",
+        "history": history or [],
+        "date_archived": "2025-06-01T00:00:00",
+    }
+
+
+class TestFindMatchingHistoricalSegments:
+    """Tests for find_matching_historical_segments."""
+
+    @pytest.mark.unit
+    def test_empty_new_segments_returns_empty(self):
+        """No new segments → empty result."""
+        removed = {"old1": _make_removed_record(SEG_A_COORDS)}
+        result = FcdUtils.find_matching_historical_segments({}, removed)
+        assert result == {}
+
+    @pytest.mark.unit
+    def test_empty_removed_segments_returns_empty(self):
+        """No removed segments → empty result."""
+        new = {"new1": _make_linestring(SEG_A_COORDS)}
+        result = FcdUtils.find_matching_historical_segments(new, {})
+        assert result == {}
+
+    @pytest.mark.unit
+    def test_identical_geometry_matches(self):
+        """Identical geometry with a different ID is recognised as a match."""
+        new = {"new1": _make_linestring(SEG_A_COORDS)}
+        removed = {"old1": _make_removed_record(SEG_A_COORDS)}
+        result = FcdUtils.find_matching_historical_segments(new, removed)
+        assert result == {"new1": "old1"}
+
+    @pytest.mark.unit
+    def test_nearby_geometry_matches(self):
+        """Geometry shifted ~10 m (within 20 m buffer) is matched."""
+        new = {"new1": _make_linestring(SEG_B_COORDS)}
+        removed = {"old1": _make_removed_record(SEG_A_COORDS)}
+        result = FcdUtils.find_matching_historical_segments(new, removed)
+        assert result == {"new1": "old1"}
+
+    @pytest.mark.unit
+    def test_far_geometry_does_not_match(self):
+        """Geometry ~110 m away (outside 20 m buffer) is not matched."""
+        new = {"new1": _make_linestring(SEG_C_COORDS)}
+        removed = {"old1": _make_removed_record(SEG_A_COORDS)}
+        result = FcdUtils.find_matching_historical_segments(new, removed)
+        assert result == {}
+
+    @pytest.mark.unit
+    def test_best_match_selected(self):
+        """When multiple removed segments exist, the closest one wins."""
+        new = {"new1": _make_linestring(SEG_A_COORDS)}
+        removed = {
+            "close": _make_removed_record(SEG_B_COORDS),  # ~10 m away
+            "far": _make_removed_record(SEG_C_COORDS),  # ~110 m away
+        }
+        result = FcdUtils.find_matching_historical_segments(new, removed)
+        assert result == {"new1": "close"}
+
+    @pytest.mark.unit
+    def test_multiple_new_segments_each_matched(self):
+        """Multiple new segments can each independently match a removed segment."""
+        new = {
+            "new1": _make_linestring(SEG_A_COORDS),
+            "new2": _make_linestring(SEG_B_COORDS),
+        }
+        removed = {"old1": _make_removed_record(SEG_A_COORDS)}
+        result = FcdUtils.find_matching_historical_segments(new, removed)
+        # Both new segments are close enough to old1
+        assert "new1" in result and result["new1"] == "old1"
+        assert "new2" in result and result["new2"] == "old1"
+
+    @pytest.mark.unit
+    def test_high_threshold_prevents_nearby_match(self):
+        """A threshold of 1.0 prevents a near-but-not-identical match."""
+        new = {"new1": _make_linestring(SEG_B_COORDS)}
+        removed = {"old1": _make_removed_record(SEG_A_COORDS)}
+        result = FcdUtils.find_matching_historical_segments(new, removed, match_threshold=1.0)
+        assert result == {}
+
+    @pytest.mark.unit
+    def test_removed_record_missing_geometry_skipped(self):
+        """Removed records without current_geometry are skipped gracefully."""
+        new = {"new1": _make_linestring(SEG_A_COORDS)}
+        removed = {"old1": {"current_hash": "x", "history": []}}  # no geometry
+        result = FcdUtils.find_matching_historical_segments(new, removed)
+        assert result == {}
+
+
+class TestUpdateSegmentChangelogGeoInheritance:
+    """Tests for the geo-inheritance behaviour in update_segment_changelog."""
+
+    def _write_mapping(self, tmp_path: Path, segments: dict) -> str:
+        data = {"segmentId": {}}
+        for seg_id, coords in segments.items():
+            data["segmentId"][seg_id] = {"geometry": _make_linestring(coords)}
+        path = tmp_path / "mapping.json"
+        path.write_text(json.dumps(data))
+        return str(path)
+
+    def _write_changelog(self, tmp_path: Path, changelog: dict) -> str:
+        path = tmp_path / "changelog.json"
+        path.write_text(json.dumps(changelog))
+        return str(path)
+
+    def _write_archive(self, tmp_path: Path, archive: dict) -> str:
+        path = tmp_path / "archive.json"
+        path.write_text(json.dumps(archive))
+        return str(path)
+
+    @pytest.mark.unit
+    def test_history_inherited_when_segment_replaced_at_same_location(self, tmp_path):
+        """A new segment at the same location as a removed segment inherits its history."""
+        old_history = [{"date_archived": "2024-06-01T00:00:00", "geometry": _make_linestring(SEG_A_COORDS)}]
+        changelog = {
+            "old1": {
+                "current_geometry": _make_linestring(SEG_A_COORDS),
+                "current_hash": "old_hash",
+                "date_added": "2025-01-01T00:00:00",
+                "history": old_history,
+            }
+        }
+        # Fresh mapping has a new segment replacing the old one (slightly shifted)
+        mapping_path = self._write_mapping(tmp_path, {"new1": SEG_B_COORDS})
+        changelog_path = self._write_changelog(tmp_path, changelog)
+        archive_path = self._write_archive(tmp_path, {})
+
+        processing_date = datetime.fromisoformat("2025-06-01T00:00:00")
+        FcdUtils.update_segment_changelog(
+            mapping_path, changelog_path, str(archive_path), processing_date
+        )
+
+        updated = json.loads(Path(changelog_path).read_text())
+        assert "new1" in updated
+        # History should contain the inherited entries + old segment's current geometry
+        new1_history = updated["new1"]["history"]
+        assert len(new1_history) >= len(old_history) + 1  # old history + final geometry
+        assert updated["new1"].get("geo_inherited_from") == "old1"
+
+    @pytest.mark.unit
+    def test_no_inheritance_when_new_segment_far_away(self, tmp_path):
+        """A new segment far from the removed one does not inherit history."""
+        changelog = {
+            "old1": {
+                "current_geometry": _make_linestring(SEG_A_COORDS),
+                "current_hash": "old_hash",
+                "date_added": "2025-01-01T00:00:00",
+                "history": [],
+            }
+        }
+        # Fresh mapping has a new segment 110 m away – outside the 20 m buffer
+        mapping_path = self._write_mapping(tmp_path, {"new1": SEG_C_COORDS})
+        changelog_path = self._write_changelog(tmp_path, changelog)
+        archive_path = self._write_archive(tmp_path, {})
+
+        processing_date = datetime.fromisoformat("2025-06-01T00:00:00")
+        FcdUtils.update_segment_changelog(
+            mapping_path, changelog_path, str(archive_path), processing_date
+        )
+
+        updated = json.loads(Path(changelog_path).read_text())
+        assert "new1" in updated
+        assert updated["new1"].get("geo_inherited_from") is None
+        assert updated["new1"]["history"] == []
+
+    @pytest.mark.unit
+    def test_no_inheritance_without_removed_segments(self, tmp_path):
+        """geo_inherited_from is absent when no segments were removed."""
+        changelog = {
+            "existing": {
+                "current_geometry": _make_linestring(SEG_A_COORDS),
+                "current_hash": "h",
+                "date_added": "2025-01-01T00:00:00",
+                "history": [],
+            }
+        }
+        mapping_path = self._write_mapping(
+            tmp_path, {"existing": SEG_A_COORDS, "new1": SEG_C_COORDS}
+        )
+        changelog_path = self._write_changelog(tmp_path, changelog)
+        archive_path = self._write_archive(tmp_path, {})
+
+        processing_date = datetime.fromisoformat("2025-06-01T00:00:00")
+        FcdUtils.update_segment_changelog(
+            mapping_path, changelog_path, str(archive_path), processing_date
+        )
+
+        updated = json.loads(Path(changelog_path).read_text())
+        assert "new1" in updated
+        assert updated["new1"].get("geo_inherited_from") is None
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -8,6 +8,10 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
+from pyproj import Transformer
+from shapely.geometry import shape
+from shapely.ops import transform as shapely_transform
+
 # ------------------------------------------------------#
 # -------------- PROJECT CLASS IMPORTS -----------------#
 # ------------------------------------------------------#
@@ -191,6 +195,117 @@ def read_existing_json_records(json_file: str) -> dict:
     return records
 
 
+def _project_shapely_geometry(geom, from_crs: str, to_crs: str):
+    """Project a Shapely geometry from one CRS to another."""
+    transformer = Transformer.from_crs(from_crs, to_crs, always_xy=True)
+    return shapely_transform(transformer.transform, geom)
+
+
+def find_matching_historical_segments(
+    new_segment_geometries: dict,
+    removed_segment_records: dict,
+    match_threshold: float = 0.7,
+    buffer_distance_meters: float = 20.0,
+    metric_crs: str = "EPSG:3879",
+    geographic_crs: str = "EPSG:4326",
+) -> dict:
+    """
+    Finds removed segments that geographically match new segments for history inheritance.
+
+    When FCD segments are updated by TomTom, old segment IDs may be replaced by new ones at
+    the same physical location. This function detects such replacements by comparing segment
+    geometries spatially, enabling new segments to inherit the history of the segments they
+    replaced.
+
+    The matching score is computed as:
+        min(fraction of new segment within old segment's buffer,
+            fraction of old segment within new segment's buffer)
+    Both segments must have significant overlap for a match to be recorded.
+
+    Args:
+        new_segment_geometries: Dict of {segment_id: geometry_dict} for newly added segments.
+        removed_segment_records: Dict of {segment_id: record} for recently removed segments
+            as they appear in the master changelog before archiving.
+        match_threshold: Minimum overlap score (0.0–1.0) to consider two segments matching.
+            Defaults to 0.7 (70 % overlap required on both sides).
+        buffer_distance_meters: Distance in meters used to buffer segments when computing
+            overlap. Defaults to 20.0 m.
+        metric_crs: CRS string for metric (buffering) operations. Defaults to "EPSG:3879".
+        geographic_crs: CRS string of the input geometries. Defaults to "EPSG:4326".
+
+    Returns:
+        Dict mapping {new_segment_id: best_matching_old_segment_id} for every match that
+        exceeds the threshold. Each new segment is matched to at most one old segment
+        (the best-scoring one).
+    """
+    if not new_segment_geometries or not removed_segment_records:
+        return {}
+
+    transformer = Transformer.from_crs(geographic_crs, metric_crs, always_xy=True)
+
+    def project(geom_dict):
+        return shapely_transform(transformer.transform, shape(geom_dict))
+
+    # Pre-project and buffer all removed segments once.
+    projected_old: dict = {}
+    buffered_old: dict = {}
+    for old_id, old_record in removed_segment_records.items():
+        old_geom_dict = old_record.get("current_geometry")
+        if not old_geom_dict:
+            continue
+        try:
+            old_geom = project(old_geom_dict)
+            projected_old[old_id] = old_geom
+            buffered_old[old_id] = old_geom.buffer(buffer_distance_meters, cap_style="flat")
+        except Exception as e:
+            logger.warning(f"Could not project removed segment '{old_id}' for geo-matching: {e}")
+
+    if not projected_old:
+        return {}
+
+    matches: dict = {}
+
+    for new_id, new_geom_dict in new_segment_geometries.items():
+        try:
+            new_geom = project(new_geom_dict)
+            if new_geom.length == 0:
+                continue
+            new_buffer = new_geom.buffer(buffer_distance_meters, cap_style="flat")
+        except Exception as e:
+            logger.warning(f"Could not project new segment '{new_id}' for geo-matching: {e}")
+            continue
+
+        best_score = 0.0
+        best_old_id = None
+
+        for old_id, old_geom in projected_old.items():
+            if old_geom.length == 0:
+                continue
+            try:
+                # Fraction of the new segment covered by the old segment's buffer.
+                new_overlap = new_geom.intersection(buffered_old[old_id]).length / new_geom.length
+                # Fraction of the old segment covered by the new segment's buffer.
+                old_overlap = old_geom.intersection(new_buffer).length / old_geom.length
+                # Both sides must overlap substantially.
+                score = min(new_overlap, old_overlap)
+                if score > best_score:
+                    best_score = score
+                    best_old_id = old_id
+            except Exception as e:
+                logger.warning(
+                    f"Error comparing new segment '{new_id}' with old '{old_id}': {e}"
+                )
+
+        if best_score >= match_threshold and best_old_id is not None:
+            matches[new_id] = best_old_id
+            logger.info(
+                f"New segment '{new_id}' geographically matches removed segment "
+                f"'{best_old_id}' (overlap score: {best_score:.2f})."
+            )
+
+    return matches
+
+
 def update_segment_changelog(
     fresh_mapping_file_path: str,
     changelog_file_path: str,
@@ -322,6 +437,50 @@ def update_segment_changelog(
         )
     if not newly_added_ids and not removed_segments_ids and not modified_ids:
         logger.info("Segment inventory check complete. No changes detected.")
+
+    # Geo-inheritance: when both new and removed segments exist in the same cycle,
+    # check whether any new segment geographically matches a removed one.
+    # If so, the new segment inherits the removed segment's accumulated history so
+    # that the InfluxDB history gap caused by a segment ID change can be bridged.
+    if newly_added_ids and removed_segments_ids:
+        removed_records_for_matching = {
+            seg_id: archived_segments[seg_id]
+            for seg_id in removed_segments_ids
+            if seg_id in archived_segments
+        }
+        new_geometries_for_matching = {
+            seg_id: fresh_segments[seg_id] for seg_id in newly_added_ids
+        }
+        geo_matches = find_matching_historical_segments(
+            new_geometries_for_matching, removed_records_for_matching
+        )
+
+        for new_id, old_id in geo_matches.items():
+            old_record = archived_segments[old_id]
+            # Build the inherited history: everything the old segment accumulated,
+            # plus its final (current) geometry as the most recent archived entry.
+            inherited_history = old_record.get("history", []).copy()
+            inherited_history.append(
+                {
+                    "date_archived": old_record.get(
+                        "date_archived", processing_date.isoformat()
+                    ),
+                    "geometry": old_record["current_geometry"],
+                }
+            )
+            # Prepend inherited entries so they appear before any changes on the new segment.
+            changelog[new_id]["history"] = inherited_history + changelog[new_id]["history"]
+            changelog[new_id]["geo_inherited_from"] = old_id
+            logger.info(
+                f"Segment '{new_id}' inherited {len(inherited_history)} history "
+                f"entries from removed segment '{old_id}'."
+            )
+
+        if geo_matches:
+            logger.info(
+                f"Geo-inheritance complete: {len(geo_matches)} new segment(s) "
+                f"inherited history from removed segment(s)."
+            )
 
     # Update files using atomic writes to prevent corruption from ESTALE errors
     try:
