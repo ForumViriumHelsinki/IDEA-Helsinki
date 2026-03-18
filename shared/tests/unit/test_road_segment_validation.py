@@ -36,7 +36,6 @@ def _make_segment(**kwargs) -> IdeaHelsinkiRoadSegment:
         "segment_id": "test-segment-001",
         "reported_disturbances": disturbances,
         "validation_frequency": 5,
-        "validation_max_age_days": 7,
         "profile_time_frame_weeks": 26,
         "profile_end_lead_time_hours": 0,
         "db_org": "test-org",
@@ -58,7 +57,6 @@ def _make_manager(**kwargs):
         "validation_frequency": 5,
         "profile_time_frame_weeks": 26,
         "profile_end_lead_time_hours": 0,
-        "validation_max_age_days": 7,
         "validation_history_weeks": 4,
         "traffic_disturbance_data_file_location": "/tmp/test.json",
         "traffic_disturbance_update_frequency": 60,
@@ -340,3 +338,29 @@ class TestValidationHistoryWindow:
 
             result = int(os.getenv("VALIDATION_HISTORY_WEEKS", "4"))
             assert result == 8
+
+    def test_zero_history_weeks_starts_one_cycle_before_now(self):
+        """When validation_history_weeks=0, last_validation_update should be current_date - validation_frequency."""
+        segment = _make_segment(validation_history_weeks=0, validation_frequency=5)
+
+        current_date = datetime(2026, 3, 18, 12, 0, tzinfo=UTC)
+        segment.profiling_end_date = current_date - timedelta(days=90)
+
+        segment._initialize_last_validation_update(current_date)
+
+        expected = current_date - timedelta(minutes=5)
+        assert segment.last_validation_update == expected
+
+    def test_zero_history_weeks_ignores_profiling_end_date(self):
+        """With validation_history_weeks=0, the profiling_end_date should have no effect."""
+        segment_old = _make_segment(validation_history_weeks=0)
+        segment_recent = _make_segment(validation_history_weeks=0)
+
+        current_date = datetime(2026, 3, 18, 12, 0, tzinfo=UTC)
+        segment_old.profiling_end_date = current_date - timedelta(days=90)
+        segment_recent.profiling_end_date = current_date - timedelta(days=2)
+
+        segment_old._initialize_last_validation_update(current_date)
+        segment_recent._initialize_last_validation_update(current_date)
+
+        assert segment_old.last_validation_update == segment_recent.last_validation_update

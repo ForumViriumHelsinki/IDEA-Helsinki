@@ -37,7 +37,6 @@ class IdeaHelsinkiManager:
         validation_frequency: int,
         profile_time_frame_weeks: int,
         profile_end_lead_time_hours: int,
-        validation_max_age_days: int,
         validation_history_weeks: int,
         traffic_disturbance_data_file_location: str,
         traffic_disturbance_update_frequency: int,
@@ -52,7 +51,6 @@ class IdeaHelsinkiManager:
         self.validation_frequency = validation_frequency
         self.profile_time_frame_weeks = profile_time_frame_weeks
         self.profile_end_lead_time_hours = profile_end_lead_time_hours
-        self.validation_max_age_days = validation_max_age_days
         self.validation_history_weeks = validation_history_weeks
         self.traffic_disturbance_data_file_location = (
             traffic_disturbance_data_file_location
@@ -196,7 +194,6 @@ class IdeaHelsinkiManager:
                     segment_id=segment_id,
                     reported_disturbances=disturbances,
                     validation_frequency=self.validation_frequency,
-                    validation_max_age_days=self.validation_max_age_days,
                     profile_time_frame_weeks=self.profile_time_frame_weeks,
                     profile_end_lead_time_hours=self.profile_end_lead_time_hours,
                     db_org=self.db_org,

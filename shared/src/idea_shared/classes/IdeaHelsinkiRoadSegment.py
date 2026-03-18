@@ -40,7 +40,6 @@ class IdeaHelsinkiRoadSegment:
         segment_id: str,
         reported_disturbances: list,
         validation_frequency: int,
-        validation_max_age_days: int,
         profile_time_frame_weeks: int,
         profile_end_lead_time_hours: int,
         db_org: str,
@@ -55,7 +54,6 @@ class IdeaHelsinkiRoadSegment:
     ):
         self.segment_id = segment_id
         self.validation_frequency: int = validation_frequency
-        self.validation_max_age_days = validation_max_age_days
         self.profile_time_frame_weeks: int = profile_time_frame_weeks
         self.profile_end_lead_time_hours: int = profile_end_lead_time_hours
         self.db_org: str = db_org
@@ -107,7 +105,17 @@ class IdeaHelsinkiRoadSegment:
 
         Called once when last_validation_update is None and validation is ready to begin.
         For long-running disturbances this prevents loading months of data.
+
+        When validation_history_weeks is 0, no history is recalculated: the start
+        point is set to one validation cycle before now so the first query captures
+        only the freshest data.
         """
+        if self.validation_history_weeks == 0:
+            # No history: start from one cycle ago so the first query is non-empty.
+            self.last_validation_update = current_date - timedelta(
+                minutes=self.validation_frequency
+            )
+            return
         if self.profiling_end_date.date() < current_date.date():
             # Increment one day to avoid overlapping with the segment profiling.
             candidate = self.profiling_end_date + timedelta(days=1)
@@ -215,9 +223,7 @@ class IdeaHelsinkiRoadSegment:
                 self.last_segment_validation = (
                     await self.__get_validation_dataframe_from_influxdb(
                         segment_id=self.segment_id,
-                        start_time=(
-                            current_time - timedelta(days=self.validation_max_age_days)
-                        ),
+                        start_time=self.last_validation_update,
                         end_time=current_time,
                     )
                 )

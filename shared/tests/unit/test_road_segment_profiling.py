@@ -36,7 +36,6 @@ def _make_segment(**kwargs) -> IdeaHelsinkiRoadSegment:
         "segment_id": "test-segment-001",
         "reported_disturbances": disturbances,
         "validation_frequency": 5,
-        "validation_max_age_days": 7,
         "profile_time_frame_weeks": 26,
         "profile_end_lead_time_hours": 0,
         "db_org": "test-org",
