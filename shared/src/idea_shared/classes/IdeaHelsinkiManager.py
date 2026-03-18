@@ -23,6 +23,8 @@ class IdeaHelsinkiManager:
     _MAIN_LOOP_MAX_ERRORS = 10
     # Maximum number of concurrent 26-week profile queries
     _PROFILING_CONCURRENCY_LIMIT = 3
+    # Maximum number of concurrent validation history queries
+    _VALIDATION_CONCURRENCY_LIMIT = 3
     """
     Manages IdeaHelsinkiRoadSegments objects and updates them with the latest traffic disturbance information.
     Creates and removes IdeaHelsinkiRoadSegments objects based on the latest traffic disturbance information.
@@ -35,7 +37,7 @@ class IdeaHelsinkiManager:
         validation_frequency: int,
         profile_time_frame_weeks: int,
         profile_end_lead_time_hours: int,
-        validation_max_age_days: int,
+        validation_history_weeks: int,
         traffic_disturbance_data_file_location: str,
         traffic_disturbance_update_frequency: int,
         db_org: str,
@@ -49,7 +51,7 @@ class IdeaHelsinkiManager:
         self.validation_frequency = validation_frequency
         self.profile_time_frame_weeks = profile_time_frame_weeks
         self.profile_end_lead_time_hours = profile_end_lead_time_hours
-        self.validation_max_age_days = validation_max_age_days
+        self.validation_history_weeks = validation_history_weeks
         self.traffic_disturbance_data_file_location = (
             traffic_disturbance_data_file_location
         )
@@ -70,6 +72,12 @@ class IdeaHelsinkiManager:
         # Each profiling query loads ~1 MB of data; without a limit all segments
         # that restart simultaneously would fire queries concurrently.
         self._profiling_semaphore = asyncio.Semaphore(self._PROFILING_CONCURRENCY_LIMIT)
+        # Limits concurrent validation history queries on first cycle after restart.
+        # Without this, all segments loading validation history simultaneously
+        # can cause memory spikes similar to concurrent profiling queries.
+        self._validation_semaphore = asyncio.Semaphore(
+            self._VALIDATION_CONCURRENCY_LIMIT
+        )
         # Resilience infrastructure
         self.error_tracker = ErrorTracker(max_consecutive=10)
         self.circuit_breaker = CircuitBreaker(
@@ -186,7 +194,6 @@ class IdeaHelsinkiManager:
                     segment_id=segment_id,
                     reported_disturbances=disturbances,
                     validation_frequency=self.validation_frequency,
-                    validation_max_age_days=self.validation_max_age_days,
                     profile_time_frame_weeks=self.profile_time_frame_weeks,
                     profile_end_lead_time_hours=self.profile_end_lead_time_hours,
                     db_org=self.db_org,
@@ -196,6 +203,8 @@ class IdeaHelsinkiManager:
                     db_validation_bucket=self.db_validation_bucket,
                     db_validation_token=self.db_validation_token,
                     profiling_semaphore=self._profiling_semaphore,
+                    validation_semaphore=self._validation_semaphore,
+                    validation_history_weeks=self.validation_history_weeks,
                 )
                 # Wrap worker lifecycle with error isolation
                 task = asyncio.create_task(

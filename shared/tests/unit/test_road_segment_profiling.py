@@ -8,15 +8,14 @@ Issue: https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/269
 """
 
 import asyncio
-from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import UTC, datetime
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
 
 from idea_shared.classes.IdeaHelsinkiRoadSegment import IdeaHelsinkiRoadSegment
 from idea_shared.lib.idea.profile.profile import calculate_profile_from_hourly
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -37,7 +36,6 @@ def _make_segment(**kwargs) -> IdeaHelsinkiRoadSegment:
         "segment_id": "test-segment-001",
         "reported_disturbances": disturbances,
         "validation_frequency": 5,
-        "validation_max_age_days": 7,
         "profile_time_frame_weeks": 26,
         "profile_end_lead_time_hours": 0,
         "db_org": "test-org",
@@ -160,9 +158,7 @@ class TestChunkedProfileDataFetching:
             call_count += 1
             return self._make_raw_chunk_df(start_time, end_time)
 
-        segment._IdeaHelsinkiRoadSegment__get_idea_formated_segment_data_from_influxdb = (
-            fake_fetch
-        )
+        segment._IdeaHelsinkiRoadSegment__get_idea_formated_segment_data_from_influxdb = fake_fetch
 
         result = await segment._IdeaHelsinkiRoadSegment__get_hourly_profile_data()
 
@@ -179,9 +175,7 @@ class TestChunkedProfileDataFetching:
         async def fake_fetch(segment_id, start_time, end_time):
             return self._make_raw_chunk_df(start_time, end_time)
 
-        segment._IdeaHelsinkiRoadSegment__get_idea_formated_segment_data_from_influxdb = (
-            fake_fetch
-        )
+        segment._IdeaHelsinkiRoadSegment__get_idea_formated_segment_data_from_influxdb = fake_fetch
 
         result = await segment._IdeaHelsinkiRoadSegment__get_hourly_profile_data()
 
@@ -199,9 +193,7 @@ class TestChunkedProfileDataFetching:
         async def fake_fetch_empty(segment_id, start_time, end_time):
             return None
 
-        segment._IdeaHelsinkiRoadSegment__get_idea_formated_segment_data_from_influxdb = (
-            fake_fetch_empty
-        )
+        segment._IdeaHelsinkiRoadSegment__get_idea_formated_segment_data_from_influxdb = fake_fetch_empty
 
         result = await segment._IdeaHelsinkiRoadSegment__get_hourly_profile_data()
 
@@ -219,9 +211,7 @@ class TestChunkedProfileDataFetching:
             raw_rows.append(len(df))
             return df
 
-        segment._IdeaHelsinkiRoadSegment__get_idea_formated_segment_data_from_influxdb = (
-            fake_fetch
-        )
+        segment._IdeaHelsinkiRoadSegment__get_idea_formated_segment_data_from_influxdb = fake_fetch
 
         result = await segment._IdeaHelsinkiRoadSegment__get_hourly_profile_data()
 
@@ -273,9 +263,7 @@ class TestProfilingSemaphore:
             "_IdeaHelsinkiRoadSegment__get_hourly_profile_data",
             side_effect=fake_get_hourly,
         ):
-            await segment._IdeaHelsinkiRoadSegment__validate_segment(
-                datetime.now(UTC)
-            )
+            await segment._IdeaHelsinkiRoadSegment__validate_segment(datetime.now(UTC))
 
         assert acquired_during_call, "Semaphore was not acquired during profiling"
 
@@ -293,9 +281,7 @@ class TestProfilingSemaphore:
             "_IdeaHelsinkiRoadSegment__get_hourly_profile_data",
             side_effect=fake_get_hourly,
         ):
-            await segment._IdeaHelsinkiRoadSegment__validate_segment(
-                datetime.now(UTC)
-            )
+            await segment._IdeaHelsinkiRoadSegment__validate_segment(datetime.now(UTC))
 
         assert sem._value == 3, "Semaphore not fully released after profiling"
 
@@ -324,9 +310,7 @@ class TestProfilingSemaphore:
                 side_effect=IDEAError("not enough data"),
             ),
         ):
-            await segment._IdeaHelsinkiRoadSegment__validate_segment(
-                datetime.now(UTC)
-            )
+            await segment._IdeaHelsinkiRoadSegment__validate_segment(datetime.now(UTC))
 
         assert sem._value == 3, (
             "Semaphore not released after IDEAError during profiling"
@@ -350,6 +334,7 @@ class TestManagerProfilingSemaphore:
             profile_time_frame_weeks=26,
             profile_end_lead_time_hours=0,
             validation_max_age_days=7,
+            validation_history_weeks=4,
             traffic_disturbance_data_file_location="/tmp/test.json",
             traffic_disturbance_update_frequency=60,
             db_org="test-org",
@@ -386,7 +371,9 @@ class TestManagerProfilingSemaphore:
             }
         }
 
-        with patch.object(manager, "_get_disturbance_data", return_value=disturbance_data):
+        with patch.object(
+            manager, "_get_disturbance_data", return_value=disturbance_data
+        ):
             with patch("asyncio.create_task", return_value=MagicMock()):
                 await manager._run_management_cycle_with_error_isolation()
 

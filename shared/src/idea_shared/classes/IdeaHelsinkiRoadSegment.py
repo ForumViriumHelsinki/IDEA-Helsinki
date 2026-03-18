@@ -40,7 +40,6 @@ class IdeaHelsinkiRoadSegment:
         segment_id: str,
         reported_disturbances: list,
         validation_frequency: int,
-        validation_max_age_days: int,
         profile_time_frame_weeks: int,
         profile_end_lead_time_hours: int,
         db_org: str,
@@ -50,10 +49,11 @@ class IdeaHelsinkiRoadSegment:
         db_validation_bucket: str,
         db_validation_token: str,
         profiling_semaphore: asyncio.Semaphore | None = None,
+        validation_semaphore: asyncio.Semaphore | None = None,
+        validation_history_weeks: int = 4,
     ):
         self.segment_id = segment_id
         self.validation_frequency: int = validation_frequency
-        self.validation_max_age_days = validation_max_age_days
         self.profile_time_frame_weeks: int = profile_time_frame_weeks
         self.profile_end_lead_time_hours: int = profile_end_lead_time_hours
         self.db_org: str = db_org
@@ -87,6 +87,8 @@ class IdeaHelsinkiRoadSegment:
         self.last_segment_validation = None
         self.segment_active: bool = True
         self.profiling_semaphore = profiling_semaphore
+        self.validation_semaphore = validation_semaphore
+        self.validation_history_weeks = validation_history_weeks
         self.logger = Logger(f"Helsinki IDEA road segment ID : {self.segment_id}")
         # Resilience infrastructure
         self.error_tracker = ErrorTracker(max_consecutive=10)
@@ -97,6 +99,33 @@ class IdeaHelsinkiRoadSegment:
             half_open_max_calls=3,
         )
         self.logger.info("Segment object created")
+
+    def _initialize_last_validation_update(self, current_date: datetime) -> None:
+        """Sets the initial last_validation_update date, clamping it to the history window.
+
+        Called once when last_validation_update is None and validation is ready to begin.
+        For long-running disturbances this prevents loading months of data.
+
+        When validation_history_weeks is 0, no history is recalculated: the start
+        point is set to one validation cycle before now so the first query captures
+        only the freshest data.
+        """
+        if self.validation_history_weeks == 0:
+            # No history: start from one cycle ago so the first query is non-empty.
+            self.last_validation_update = current_date - timedelta(
+                minutes=self.validation_frequency
+            )
+            return
+        if self.profiling_end_date.date() < current_date.date():
+            # Increment one day to avoid overlapping with the segment profiling.
+            candidate = self.profiling_end_date + timedelta(days=1)
+            # Clamp: don't recalculate further back than validation_history_weeks.
+            earliest_allowed = current_date - timedelta(
+                weeks=self.validation_history_weeks
+            )
+            self.last_validation_update = max(candidate, earliest_allowed)
+        else:
+            self.last_validation_update = current_date
 
     async def _wait_for_next_cycle(self):
         """
@@ -186,15 +215,18 @@ class IdeaHelsinkiRoadSegment:
         )
 
         if self.last_segment_validation is None:
-            self.last_segment_validation = (
-                await self.__get_validation_dataframe_from_influxdb(
-                    segment_id=self.segment_id,
-                    start_time=(
-                        current_time - timedelta(days=self.validation_max_age_days)
-                    ),
-                    end_time=current_time,
+            async with (
+                self.validation_semaphore
+                if self.validation_semaphore is not None
+                else nullcontext()
+            ):
+                self.last_segment_validation = (
+                    await self.__get_validation_dataframe_from_influxdb(
+                        segment_id=self.segment_id,
+                        start_time=self.last_validation_update,
+                        end_time=current_time,
+                    )
                 )
-            )
 
         if segment_data_to_validate is not None and not segment_data_to_validate.empty:
             segment_validation = await asyncio.to_thread(
@@ -259,13 +291,7 @@ class IdeaHelsinkiRoadSegment:
                             # self.last_validation_update variable can be None if this is the first run after object init, or the last influxDB query returned None.
                             # Otherwise, the variable is incremented (datetime) after each validation.
                             if self.last_validation_update is None:
-                                if self.profiling_end_date.date() < current_date.date():
-                                    # Increment one day to avoid overlapping with the segment profiling.
-                                    self.last_validation_update = (
-                                        self.profiling_end_date + timedelta(days=1)
-                                    )
-                                else:
-                                    self.last_validation_update = current_date
+                                self._initialize_last_validation_update(current_date)
 
                             await self.__validate_segment(current_date)
                         else:

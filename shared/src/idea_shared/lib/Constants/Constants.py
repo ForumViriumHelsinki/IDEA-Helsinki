@@ -7,7 +7,9 @@ import os
 PROFILE_TIME_FRAME_WEEKS = 26
 PROFILE_END_LEAD_TIME_HOURS = 48
 VALIDATION_UPDATE_FREQUENCY = 5  # In minutes
-VALIDATION_MAX_AGE_DAYS = 7  # If the validation process is interrupted (system crash & restart etc.), how old can the last validation be for restart reference (running mean)
+VALIDATION_HISTORY_WEEKS = int(
+    os.getenv("VALIDATION_HISTORY_WEEKS", "4")
+)  # Maximum weeks of validation history to recalculate on first cycle
 
 # TRAFFIC DISTURBANCE PROVIDER DEFAULTS
 TRAFFIC_DISTURBANCE_UPDATE_FREQUENCY = 60  # In minutes
