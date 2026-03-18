@@ -94,3 +94,45 @@ def calculate_profile(
     idea_util.does_profile_has_enough_data(df)
     df = idea_util.fill_missing_values_with_values(df)
     return df
+
+
+def calculate_profile_from_hourly(
+    hourly_df: pd.DataFrame,
+    minimum_weeks_required: int = MINIMUM_WEEKS_INPUT_FOR_PROFILE,
+) -> pd.DataFrame:
+    """
+    Calculate a profile from pre-aggregated hourly FCD data.
+
+    This is the second phase of chunked profile calculation. The caller is
+    responsible for pre-processing each raw chunk with:
+    ``interpolate_missing_minutes → fill_nan_columns_with_zeros → aggregate_by_hour``
+    before concatenating the chunks and passing the result here.
+
+    Parameters
+    ----------
+    hourly_df : pd.DataFrame
+        Pre-aggregated hourly data with columns produced by ``aggregate_by_hour``:
+        ``hour_of_date``, ``fcd_mean``, ``max_consecutive_zeros``,
+        ``max_consecutive_zeros_or_ones``.
+    minimum_weeks_required : int
+        Minimum weeks of data required for a valid profile.
+
+    Returns
+    -------
+    pd.DataFrame
+        Profile DataFrame in the same format as ``calculate_profile``.
+    """
+    df = hourly_df.copy()
+    df["hour_of_date"] = pd.to_datetime(df["hour_of_date"])
+    df = df.sort_values("hour_of_date").reset_index(drop=True)
+    df = idea_util.filter_max_consecutive_60(df)
+    df = idea_util.add_periods(df)
+    df = idea_util.aggregate_hour_of_week(df)
+    df = idea_util.filter_profile_low_availability(
+        df, PROFILE_COLUMNS, minimum_weeks_required
+    )
+    df = idea_util.replace_nans_with_none(df)
+    df = idea_util.map_day_of_week_to_name(df)
+    idea_util.does_profile_has_enough_data(df)
+    df = idea_util.fill_missing_values_with_values(df)
+    return df
