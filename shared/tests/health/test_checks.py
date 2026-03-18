@@ -44,7 +44,9 @@ class TestHealthCheck:
         expected = HealthCheckResult(name="test", status="healthy")
         check = ConcreteHealthCheck(result=expected, name="test")
         result = await check.check_with_cache()
-        assert result == expected
+        assert result.name == expected.name
+        assert result.status == expected.status
+        assert result.execution_time_ms is not None
 
     @pytest.mark.asyncio
     async def test_check_with_timeout(self):
@@ -138,7 +140,9 @@ class TestHealthCheck:
         expected = HealthCheckResult(name="sync", status="healthy")
         check = ConcreteHealthCheck(result=expected, name="sync")
         result = check.check_sync()
-        assert result == expected
+        assert result.name == expected.name
+        assert result.status == expected.status
+        assert result.execution_time_ms is not None
 
 
 class TestFileSystemHealthCheck:
@@ -543,6 +547,121 @@ class TestExternalAPIHealthCheck:
             result = await check.check()
             assert result.status == "unhealthy"
             assert check._circuit_state == CircuitBreakerState.OPEN
+
+
+class TestHealthCheckPerformanceMetrics:
+    """Tests for health check execution time tracking."""
+
+    @pytest.mark.asyncio
+    async def test_execution_time_populated_in_result(self):
+        """Test that execution_time_ms is set in the result after check_with_cache().
+
+        Verifies that every real health check execution records its duration
+        so callers can observe how long checks take.
+        """
+        expected = HealthCheckResult(name="test", status="healthy")
+        check = ConcreteHealthCheck(result=expected, name="test")
+        result = await check.check_with_cache()
+        assert result.execution_time_ms is not None
+        assert result.execution_time_ms >= 0
+
+    @pytest.mark.asyncio
+    async def test_execution_time_tracked_in_check_object(self):
+        """Test that the check object tracks the last execution time."""
+        expected = HealthCheckResult(name="test", status="healthy")
+        check = ConcreteHealthCheck(result=expected, name="test")
+        assert check._last_execution_time_ms is None
+        await check.check_with_cache()
+        assert check._last_execution_time_ms is not None
+        assert check._last_execution_time_ms >= 0
+
+    @pytest.mark.asyncio
+    async def test_execution_history_tracked(self):
+        """Test that last N execution times are stored for trending."""
+        expected = HealthCheckResult(name="test", status="healthy")
+        check = ConcreteHealthCheck(result=expected, name="test", cache_ttl=0)
+        assert len(check._execution_times) == 0
+        for _ in range(3):
+            await check.check_with_cache()
+        assert len(check._execution_times) == 3
+
+    @pytest.mark.asyncio
+    async def test_execution_history_capped_at_max(self):
+        """Test that execution history is bounded (max 10 entries)."""
+        expected = HealthCheckResult(name="test", status="healthy")
+        check = ConcreteHealthCheck(result=expected, name="test", cache_ttl=0)
+        for _ in range(15):
+            await check.check_with_cache()
+        assert len(check._execution_times) == 10
+
+    @pytest.mark.asyncio
+    async def test_slow_check_warning_logged(self):
+        """Test that a warning is logged when a check takes >= 80% of its timeout."""
+
+        class SlowishCheck(HealthCheck):
+            async def check(self) -> HealthCheckResult:
+                await asyncio.sleep(0.09)
+                return HealthCheckResult(name="slowish", status="healthy")
+
+        check = SlowishCheck(name="slowish", timeout=0.1)  # threshold = 80ms
+        with patch("idea_shared.health.checks.logger") as mock_logger:
+            await check.check_with_cache()
+            # Execution is ~90ms, threshold is 80ms — warning must fire
+            mock_logger.warning.assert_called_once()
+            args = mock_logger.warning.call_args[0]
+            assert "slowish" in args[1]
+
+    @pytest.mark.asyncio
+    async def test_get_performance_stats_empty(self):
+        """Test get_performance_stats() with no executions yet."""
+        expected = HealthCheckResult(name="test", status="healthy")
+        check = ConcreteHealthCheck(result=expected, name="test")
+        stats = check.get_performance_stats()
+        assert stats["check_count"] == 0
+        assert stats["last_execution_time_ms"] is None
+        assert stats["min_execution_time_ms"] is None
+        assert stats["max_execution_time_ms"] is None
+        assert stats["avg_execution_time_ms"] is None
+
+    @pytest.mark.asyncio
+    async def test_get_performance_stats_after_runs(self):
+        """Test get_performance_stats() returns correct values after executions."""
+        expected = HealthCheckResult(name="test", status="healthy")
+        check = ConcreteHealthCheck(result=expected, name="test", cache_ttl=0)
+        await check.check_with_cache()
+        await check.check_with_cache()
+        stats = check.get_performance_stats()
+        assert stats["check_count"] == 2
+        assert stats["last_execution_time_ms"] is not None
+        assert stats["min_execution_time_ms"] is not None
+        assert stats["max_execution_time_ms"] is not None
+        assert stats["avg_execution_time_ms"] is not None
+        assert stats["min_execution_time_ms"] <= stats["max_execution_time_ms"]
+
+    @pytest.mark.asyncio
+    async def test_cache_hit_does_not_update_execution_time(self):
+        """Test that returning a cached result does not add a new execution time."""
+        expected = HealthCheckResult(name="test", status="healthy")
+        check = ConcreteHealthCheck(result=expected, name="test", cache_ttl=10.0)
+        await check.check_with_cache()  # Real execution
+        assert len(check._execution_times) == 1
+        await check.check_with_cache()  # Cache hit
+        assert len(check._execution_times) == 1  # Should not grow
+
+    @pytest.mark.asyncio
+    async def test_timeout_result_includes_execution_time(self):
+        """Test that timed-out checks still record execution_time_ms."""
+
+        class SlowHealthCheck(HealthCheck):
+            async def check(self) -> HealthCheckResult:
+                await asyncio.sleep(2)
+                return HealthCheckResult(name="slow", status="healthy")
+
+        check = SlowHealthCheck(name="slow", timeout=0.05)
+        result = await check.check_with_cache()
+        assert result.status == "unhealthy"
+        assert result.execution_time_ms is not None
+        assert result.execution_time_ms >= 50  # At least the timeout duration in ms
 
 
 class TestConcurrentHealthChecks:

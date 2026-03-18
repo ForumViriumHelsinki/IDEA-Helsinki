@@ -15,6 +15,9 @@ class HealthCheckResult(BaseModel):
     )
     message: str | None = None
     metadata: dict[str, Any] | None = None
+    execution_time_ms: float | None = Field(
+        None, description="Execution time in milliseconds"
+    )
 
 
 class ReadinessResponse(BaseModel):

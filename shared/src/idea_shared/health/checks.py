@@ -1,12 +1,14 @@
 """Abstract base classes for health checks."""
 
 import asyncio
+import collections
 import logging
 import time
 import uuid
 from abc import ABC, abstractmethod
 from enum import Enum
 from pathlib import Path
+from typing import Any
 
 import aiohttp
 
@@ -47,6 +49,8 @@ class HealthCheck(ABC):
         self.cache_ttl = cache_ttl
         self._cached_result: HealthCheckResult | None = None
         self._cache_timestamp: float = 0
+        self._last_execution_time_ms: float | None = None
+        self._execution_times: collections.deque[float] = collections.deque(maxlen=10)
 
     @abstractmethod
     async def check(self) -> HealthCheckResult:
@@ -71,24 +75,73 @@ class HealthCheck(ABC):
         ):
             return self._cached_result
 
+        start = time.time()
+        is_success = False
         try:
             result = await asyncio.wait_for(self.check(), timeout=self.timeout)
-            if self.cache_ttl > 0:
-                self._cached_result = result
-                self._cache_timestamp = now
-            return result
+            is_success = True
         except TimeoutError:
-            return HealthCheckResult(
+            result = HealthCheckResult(
                 name=self.name,
                 status="unhealthy",
                 message=f"Health check timed out after {self.timeout} seconds",
             )
         except Exception as e:
-            return HealthCheckResult(
+            result = HealthCheckResult(
                 name=self.name,
                 status="unhealthy",
                 message=f"Health check failed: {str(e)}",
             )
+
+        execution_time_ms = (time.time() - start) * 1000
+        self._record_execution_time(execution_time_ms)
+        result = result.model_copy(update={"execution_time_ms": execution_time_ms})
+
+        if is_success and self.cache_ttl > 0:
+            self._cached_result = result
+            self._cache_timestamp = now
+
+        return result
+
+    def _record_execution_time(self, execution_time_ms: float) -> None:
+        """Record an execution time and warn if approaching timeout.
+
+        Args:
+            execution_time_ms: Execution time in milliseconds
+        """
+        self._last_execution_time_ms = execution_time_ms
+        self._execution_times.append(execution_time_ms)
+        slow_threshold_ms = self.timeout * 0.8 * 1000
+        if execution_time_ms >= slow_threshold_ms:
+            logger.warning(
+                "Health check '%s' took %.1fms, approaching timeout of %.0fms",
+                self.name,
+                execution_time_ms,
+                self.timeout * 1000,
+            )
+
+    def get_performance_stats(self) -> dict[str, Any]:
+        """Return execution time statistics for this health check.
+
+        Returns:
+            Dict with check_count, last/min/max/avg execution times in ms
+        """
+        times = list(self._execution_times)
+        if not times:
+            return {
+                "check_count": 0,
+                "last_execution_time_ms": None,
+                "min_execution_time_ms": None,
+                "max_execution_time_ms": None,
+                "avg_execution_time_ms": None,
+            }
+        return {
+            "check_count": len(times),
+            "last_execution_time_ms": self._last_execution_time_ms,
+            "min_execution_time_ms": min(times),
+            "max_execution_time_ms": max(times),
+            "avg_execution_time_ms": sum(times) / len(times),
+        }
 
     def check_sync(self) -> HealthCheckResult:
         """Synchronous version of the health check.
