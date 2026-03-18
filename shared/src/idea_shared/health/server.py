@@ -177,15 +177,15 @@ class HealthServer:
 
             @app.get("/metrics", response_model=MetricsResponse)
             async def metrics():
-                """Metrics endpoint for Prometheus (placeholder).
-
-                This is a placeholder for future Prometheus metrics integration.
-                """
-                # This would be replaced with actual Prometheus client library integration
+                """Metrics endpoint exposing health check performance data."""
+                check_metrics: dict = {}
+                for name, check in self._health_checks.items():
+                    check_metrics[name] = check.get_performance_stats()
                 return MetricsResponse(
                     metrics={
                         "health_checks_total": len(self._health_checks),
                         "service_name": self.app_name,
+                        "check_performance": check_metrics,
                     }
                 )
 
@@ -203,6 +203,8 @@ class HealthServer:
                         "message": result.message,
                         "metadata": result.metadata,
                         "critical": check.critical,
+                        "execution_time_ms": result.execution_time_ms,
+                        "performance": check.get_performance_stats(),
                     }
                 except Exception as e:
                     results[name] = {
