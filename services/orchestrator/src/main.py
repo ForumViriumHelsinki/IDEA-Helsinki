@@ -27,6 +27,7 @@ from idea_shared.lib.Constants.Constants import (
     PROFILE_TIME_FRAME_WEEKS,
     TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION,
     TRAFFIC_DISTURBANCE_UPDATE_FREQUENCY,
+    VALIDATION_HISTORY_WEEKS,
     VALIDATION_MAX_AGE_DAYS,
     VALIDATION_UPDATE_FREQUENCY,
     WORKER_HEALTH_THRESHOLD_PERCENT,
@@ -111,6 +112,7 @@ async def main():
     manager = IdeaHelsinkiManager(
         validation_frequency=VALIDATION_UPDATE_FREQUENCY,
         validation_max_age_days=VALIDATION_MAX_AGE_DAYS,
+        validation_history_weeks=VALIDATION_HISTORY_WEEKS,
         profile_time_frame_weeks=PROFILE_TIME_FRAME_WEEKS,
         profile_end_lead_time_hours=PROFILE_END_LEAD_TIME_HOURS,
         traffic_disturbance_data_file_location=TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION,
