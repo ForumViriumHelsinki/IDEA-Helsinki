@@ -47,11 +47,13 @@ class IdeaHelsinkiManager:
         db_validation_bucket: str,
         db_validation_token: str,
         target_fcd_segments: list | None = None,
+        validation_max_age_days: int | None = None,
     ):
         self.validation_frequency = validation_frequency
         self.profile_time_frame_weeks = profile_time_frame_weeks
         self.profile_end_lead_time_hours = profile_end_lead_time_hours
         self.validation_history_weeks = validation_history_weeks
+        self.validation_max_age_days = validation_max_age_days
         self.traffic_disturbance_data_file_location = (
             traffic_disturbance_data_file_location
         )

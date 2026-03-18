@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/orchestrator-v0.14.4...orchestrator-v0.15.0) (2026-03-18)
+
+
+### Features
+
+* add validation semaphore and configurable history window ([#280](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/280)) ([f6fa4e3](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/f6fa4e3721704e687f0dc79b07a83b6951c1e373))
+
 ## [0.14.4](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/orchestrator-v0.14.3...orchestrator-v0.14.4) (2026-03-18)
 
 
