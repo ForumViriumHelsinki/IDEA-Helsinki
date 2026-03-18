@@ -363,4 +363,6 @@ class TestValidationHistoryWindow:
         segment_old._initialize_last_validation_update(current_date)
         segment_recent._initialize_last_validation_update(current_date)
 
-        assert segment_old.last_validation_update == segment_recent.last_validation_update
+        assert (
+            segment_old.last_validation_update == segment_recent.last_validation_update
+        )
