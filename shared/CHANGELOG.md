@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.4](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.14.3...idea-shared-v0.14.4) (2026-03-18)
+
+
+### Performance Improvements
+
+* reduce orchestrator memory via chunked profile queries and semaphore ([#274](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/274)) ([36561db](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/36561db27ff380e7258522427a8e735afaa91f65))
+
 ## [0.14.3](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.14.2...idea-shared-v0.14.3) (2026-03-17)
 
 

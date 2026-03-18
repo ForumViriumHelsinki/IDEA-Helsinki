@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.4](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/orchestrator-v0.14.3...orchestrator-v0.14.4) (2026-03-18)
+
+
+### Miscellaneous Chores
+
+* **orchestrator:** Synchronize idea-helsinki versions
+
 ## [0.14.3](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/orchestrator-v0.14.2...orchestrator-v0.14.3) (2026-03-17)
 
 
