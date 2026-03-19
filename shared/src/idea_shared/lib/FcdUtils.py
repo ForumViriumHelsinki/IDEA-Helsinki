@@ -195,12 +195,6 @@ def read_existing_json_records(json_file: str) -> dict:
     return records
 
 
-def _project_shapely_geometry(geom, from_crs: str, to_crs: str):
-    """Project a Shapely geometry from one CRS to another."""
-    transformer = Transformer.from_crs(from_crs, to_crs, always_xy=True)
-    return shapely_transform(transformer.transform, geom)
-
-
 def find_matching_historical_segments(
     new_segment_geometries: dict,
     removed_segment_records: dict,

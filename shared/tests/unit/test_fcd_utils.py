@@ -2,6 +2,7 @@
 
 import json
 import tempfile
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -459,7 +460,7 @@ class TestUpdateSegmentChangelogGeoInheritance:
         assert "new1" in updated
         # History should contain the inherited entries + old segment's current geometry
         new1_history = updated["new1"]["history"]
-        assert len(new1_history) >= len(old_history) + 1  # old history + final geometry
+        assert len(new1_history) == len(old_history) + 1  # old history + final geometry
         assert updated["new1"].get("geo_inherited_from") == "old1"
 
     @pytest.mark.unit
