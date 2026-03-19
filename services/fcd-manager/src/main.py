@@ -19,6 +19,7 @@ from idea_shared.classes.AzureBlobContainerManager import (
 )
 from idea_shared.classes.FCDInfluxDBManager import FCDInfluxDBManager
 from idea_shared.classes.Logger import Logger
+from idea_shared.data.json_backend import JsonSegmentRepository
 from idea_shared.feature_flags import init_feature_flags
 from idea_shared.health.idea_checks import (
     AzureBlobStorageHealthCheck,
@@ -129,7 +130,10 @@ def handle_shutdown(signum, frame):
     sys.exit(0)
 
 
-def run(azure_manager: AzureBlobContainerManager):
+def run(
+    azure_manager: AzureBlobContainerManager,
+    segment_repo: JsonSegmentRepository | None = None,
+):
     """
     Run FCD synchronization with ThreadCoordinator.
 
@@ -139,6 +143,7 @@ def run(azure_manager: AzureBlobContainerManager):
 
     Args:
         azure_manager: Azure blob container manager instance
+        segment_repo: Optional segment repository for changelog updates.
     """
     global thread_coordinator
 
@@ -263,12 +268,17 @@ def run(azure_manager: AzureBlobContainerManager):
                 logger.info("FCD segment mapping updated")
                 _write_in_progress.set()
                 try:
-                    FcdUtils.update_segment_changelog(
-                        FCD_MAP_DATA_FILE_LOCATION,
-                        MASTER_SEGMENT_HISTORY_FILE_LOCATION,
-                        ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION,
-                        current_time,
-                    )
+                    if segment_repo is not None:
+                        FcdUtils.update_segment_changelog_from_repo(
+                            segment_repo, current_time
+                        )
+                    else:
+                        FcdUtils.update_segment_changelog(
+                            FCD_MAP_DATA_FILE_LOCATION,
+                            MASTER_SEGMENT_HISTORY_FILE_LOCATION,
+                            ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION,
+                            current_time,
+                        )
                 finally:
                     _write_in_progress.clear()
 
@@ -461,6 +471,13 @@ def main():
     )
     logger.info(f"  - Details:   http://0.0.0.0:{HEALTH_CHECK_PORT}/health/detail")
 
+    # Initialize segment repository for data access
+    segment_repo = JsonSegmentRepository(
+        mapping_path=FCD_MAP_DATA_FILE_LOCATION,
+        changelog_path=MASTER_SEGMENT_HISTORY_FILE_LOCATION,
+        archive_path=ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION,
+    )
+
     # Initialize Azure manager
     azure_manager = AzureBlobContainerManager(
         AZURE_ACCOUNT_NAME, AZURE_CONTAINER_NAME, AZURE_SAS_TOKEN
@@ -468,7 +485,7 @@ def main():
 
     # Run FCD synchronization
     try:
-        success = run(azure_manager)
+        success = run(azure_manager, segment_repo=segment_repo)
         if not success:
             logger.error("FCD synchronization failed, exiting...")
             if health_server:

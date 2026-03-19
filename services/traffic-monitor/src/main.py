@@ -18,6 +18,10 @@ import pause
 from idea_shared.classes.HelsinkiWFSClient import HelsinkiAlluWFSClient
 from idea_shared.classes.IntersectionDetector import IntersectionDetector
 from idea_shared.classes.Logger import Logger
+from idea_shared.data.json_backend import (
+    JsonDisturbanceRepository,
+    JsonSegmentRepository,
+)
 from idea_shared.feature_flags import init_feature_flags
 from idea_shared.health.server import HealthServer
 
@@ -73,6 +77,16 @@ def main():
     # Initialize feature flags early in startup
     logger.info("Initializing feature flags...")
     init_feature_flags(data_dir="/app/data", service_name="traffic-monitor")
+
+    # Initialize repositories for data access
+    segment_repo = JsonSegmentRepository(
+        mapping_path=FCD_MAP_DATA_FILE_LOCATION,
+        changelog_path="",  # Traffic monitor doesn't use changelog
+        archive_path="",  # Traffic monitor doesn't use archive
+    )
+    disturbance_repo = JsonDisturbanceRepository(
+        data_path=TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION
+    )
 
     # Initialize core components
     detector = IntersectionDetector()
@@ -295,10 +309,8 @@ def main():
                 allu_wfs_gdf = detector.load_wfs_geojson(validated_allu_data)
 
                 logger.info("Loading FCD segment map data")
-                # Note that the detector class validates if the FCD_MAP_DATA_FILE_LOCATION location is valid and a file is found.
-                fcd_segments_gdf = detector.load_fcd_segment_data(
-                    FCD_MAP_DATA_FILE_LOCATION
-                )
+                # Load segments via repository (wraps same JSON I/O with retry)
+                fcd_segments_gdf = detector.load_segments_from_repo(segment_repo)
 
                 if fcd_segments_gdf is None:
                     logger.error(
@@ -362,8 +374,8 @@ def main():
                 )
 
                 try:
-                    detector.write_json_records(
-                        final_model_data, TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION
+                    detector.save_disturbances_to_repo(
+                        final_model_data, disturbance_repo
                     )
                     service_state.update_file_write(success=True)
                 except Exception as e:

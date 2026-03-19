@@ -10,6 +10,7 @@ import sys
 # ------------------------------------------------------#
 from idea_shared.classes.IdeaHelsinkiManager import IdeaHelsinkiManager
 from idea_shared.classes.Logger import Logger
+from idea_shared.data.json_backend import JsonDisturbanceRepository
 from idea_shared.feature_flags import init_feature_flags
 from idea_shared.health.idea_checks import InfluxDBHealthCheck
 from idea_shared.health.server import HealthServer
@@ -106,6 +107,11 @@ async def main():
         port=HEALTH_CHECK_PORT, app_name="IDEA Helsinki Service"
     )
 
+    # Create repository for disturbance data access
+    disturbance_repo = JsonDisturbanceRepository(
+        data_path=TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION
+    )
+
     # Create an instance of the manager with the required configuration.
     # The target_fcd_segments argument is omitted to process all segments by default.
     manager = IdeaHelsinkiManager(
@@ -116,6 +122,7 @@ async def main():
         traffic_disturbance_data_file_location=TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION,
         traffic_disturbance_update_frequency=TRAFFIC_DISTURBANCE_UPDATE_FREQUENCY,
         target_fcd_segments=None,
+        disturbance_repository=disturbance_repo,
         db_org=INFLUX_DB_ORG,
         db_url=INFLUX_DB_URL,
         db_fcd_bucket=INFLUX_DB_FCD_BUCKET,
