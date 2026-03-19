@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/orchestrator-v0.15.0...orchestrator-v0.16.0) (2026-03-18)
+
+
+### Bug Fixes
+
+* store and cancel health server asyncio task on shutdown ([#287](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/287)) ([2d74130](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/2d7413018ac9d0e8a9bceb332039f4bf976e67d9))
+
 ## [0.15.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/orchestrator-v0.14.4...orchestrator-v0.15.0) (2026-03-18)
 
 
