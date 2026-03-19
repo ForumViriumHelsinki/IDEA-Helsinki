@@ -199,7 +199,7 @@ def find_matching_historical_segments(
     new_segment_geometries: dict,
     removed_segment_records: dict,
     match_threshold: float = 0.7,
-    buffer_distance_meters: float = 20.0,
+    buffer_distance_meters: float = 5.0,
     metric_crs: str = "EPSG:3879",
     geographic_crs: str = "EPSG:4326",
 ) -> dict:
@@ -223,7 +223,8 @@ def find_matching_historical_segments(
         match_threshold: Minimum overlap score (0.0–1.0) to consider two segments matching.
             Defaults to 0.7 (70 % overlap required on both sides).
         buffer_distance_meters: Distance in meters used to buffer segments when computing
-            overlap. Defaults to 20.0 m.
+            overlap. Defaults to 5.0 m (narrow enough to avoid cross-lane matching on
+            bidirectional roads where lane separation is typically 7–10 m).
         metric_crs: CRS string for metric (buffering) operations. Defaults to "EPSG:3879".
         geographic_crs: CRS string of the input geometries. Defaults to "EPSG:4326".
 

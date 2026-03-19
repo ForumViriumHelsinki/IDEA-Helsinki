@@ -311,8 +311,8 @@ class TestReadExistingJsonRecords:
 # Helsinki-area coordinates used across tests.
 # Segment A: east–west road at lat 60.17.
 SEG_A_COORDS = [[24.94, 60.17], [24.95, 60.17]]
-# Segment B: same road shifted ~10 m north (0.00009° lat ≈ 10 m).
-SEG_B_COORDS = [[24.94, 60.17009], [24.95, 60.17009]]
+# Segment B: same road shifted ~3 m north (0.000027° lat ≈ 3 m) – within 5 m buffer.
+SEG_B_COORDS = [[24.94, 60.170027], [24.95, 60.170027]]
 # Segment C: same orientation but ~110 m away – should NOT match A.
 SEG_C_COORDS = [[24.94, 60.171], [24.95, 60.171]]
 
@@ -358,7 +358,7 @@ class TestFindMatchingHistoricalSegments:
 
     @pytest.mark.unit
     def test_nearby_geometry_matches(self):
-        """Geometry shifted ~10 m (within 20 m buffer) is matched."""
+        """Geometry shifted ~3 m (within 5 m buffer) is matched."""
         new = {"new1": _make_linestring(SEG_B_COORDS)}
         removed = {"old1": _make_removed_record(SEG_A_COORDS)}
         result = FcdUtils.find_matching_historical_segments(new, removed)
@@ -366,7 +366,7 @@ class TestFindMatchingHistoricalSegments:
 
     @pytest.mark.unit
     def test_far_geometry_does_not_match(self):
-        """Geometry ~110 m away (outside 20 m buffer) is not matched."""
+        """Geometry ~110 m away (outside 5 m buffer) is not matched."""
         new = {"new1": _make_linestring(SEG_C_COORDS)}
         removed = {"old1": _make_removed_record(SEG_A_COORDS)}
         result = FcdUtils.find_matching_historical_segments(new, removed)
@@ -377,7 +377,7 @@ class TestFindMatchingHistoricalSegments:
         """When multiple removed segments exist, the closest one wins."""
         new = {"new1": _make_linestring(SEG_A_COORDS)}
         removed = {
-            "close": _make_removed_record(SEG_B_COORDS),  # ~10 m away
+            "close": _make_removed_record(SEG_B_COORDS),  # ~3 m away
             "far": _make_removed_record(SEG_C_COORDS),  # ~110 m away
         }
         result = FcdUtils.find_matching_historical_segments(new, removed)
@@ -474,7 +474,7 @@ class TestUpdateSegmentChangelogGeoInheritance:
                 "history": [],
             }
         }
-        # Fresh mapping has a new segment 110 m away – outside the 20 m buffer
+        # Fresh mapping has a new segment 110 m away – outside the 5 m buffer
         mapping_path = self._write_mapping(tmp_path, {"new1": SEG_C_COORDS})
         changelog_path = self._write_changelog(tmp_path, changelog)
         archive_path = self._write_archive(tmp_path, {})
