@@ -64,21 +64,20 @@ The single-writer discipline enforced at the application level partially mitigat
 
 ### Architecture
 
-```
-┌──────────────┐     GCS Object API      ┌──────────────┐
-│  fcd-manager │ ──── upload ──────────── │  GCS Bucket  │
-│  (SQLite)    │                          │  segments/   │
-└──────────────┘                          │  disturb/    │
-                                          └──────┬───────┘
-┌──────────────┐     GCS Object API              │
-│traffic-monitor│ ──── upload ──────────── ───────┤
-│  (SQLite)    │ ←─── download (segments) ───────┤
-└──────────────┘                                  │
-                                                  │
-┌──────────────┐     GCS Object API              │
-│ orchestrator │ ←─── download (both) ─── ───────┘
-│  (SQLite)    │
-└──────────────┘
+```mermaid
+graph LR
+    subgraph Services
+        FM["fcd-manager<br/>(SQLite)"]
+        TM["traffic-monitor<br/>(SQLite)"]
+        OR["orchestrator<br/>(SQLite)"]
+    end
+
+    GCS["GCS Bucket<br/>segments/ · disturb/"]
+
+    FM -- "upload segments" --> GCS
+    TM -- "upload disturbances" --> GCS
+    TM -. "download segments" .-> GCS
+    OR -. "download segments<br/>+ disturbances" .-> GCS
 ```
 
 Each service:
