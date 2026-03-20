@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.17.0...fcd-manager-v0.18.0) (2026-03-20)
+
+
+### Features
+
+* add data access layer for SQLite migration (Phase 1) ([#294](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/294)) ([c701e7f](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/c701e7f42681740326e184038144f08c5fd6c1b9))
+
 ## [0.17.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.16.0...fcd-manager-v0.17.0) (2026-03-20)
 
 
