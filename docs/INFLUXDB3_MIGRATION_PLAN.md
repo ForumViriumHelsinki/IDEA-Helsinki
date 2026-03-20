@@ -159,15 +159,41 @@ All three implementations (v2, dual, v3) return identical types. Callers don't c
 import os
 from idea_shared.feature_flags import get_feature_flags, FeatureFlag
 
-def _create_v3_manager(bucket: str, token: str, timeout: int):
-    """Create a v3 manager, mapping v2 bucket names to v3 database names."""
+_BUCKET_TO_DB_MAP: dict[str, str | None] = {}  # populated in _create_v3_manager
+
+
+def _create_v3_manager(bucket: str, timeout: int):
+    """Create a v3 manager, mapping v2 bucket names to v3 database names.
+
+    Raises ValueError if required v3 env vars are not set — fail fast rather
+    than silently using v2 credentials against a v3 Cloud endpoint.
+    """
     from idea_shared.classes.FCDInfluxDBManagerV3 import FCDInfluxDBManagerV3
 
-    host = os.getenv("INFLUX_DB_V3_HOST", "localhost:8181")
-    v3_token = os.getenv("INFLUX_DB_V3_TOKEN", token)
+    host = os.getenv("INFLUX_DB_V3_HOST")
+    v3_token = os.getenv("INFLUX_DB_V3_TOKEN")
+
+    if not host or not v3_token:
+        raise ValueError(
+            "INFLUX_DB_V3_HOST and INFLUX_DB_V3_TOKEN must be set "
+            "when INFLUXDB_VERSION is 'dual' or 'v3'. "
+            "Refusing to use v2 credentials against InfluxDB Cloud."
+        )
+
     fcd_db = os.getenv("INFLUX_DB_V3_FCD_DATABASE", "fcd-data")
     val_db = os.getenv("INFLUX_DB_V3_VALIDATION_DATABASE", "validation")
-    database = val_db if "validation" in bucket.lower() else fcd_db
+
+    # Explicit mapping — avoids substring fragility if bucket names change
+    bucket_to_db = {
+        os.getenv("INFLUX_DB_FCD_BUCKET", "fcd-data"): fcd_db,
+        os.getenv("INFLUX_DB_VALIDATION_BUCKET", "validation"): val_db,
+    }
+    database = bucket_to_db.get(bucket)
+    if database is None:
+        raise ValueError(
+            f"Unknown v2 bucket '{bucket}' — add it to the bucket_to_db mapping "
+            f"in influxdb_factory.py. Known buckets: {list(bucket_to_db)}"
+        )
 
     return FCDInfluxDBManagerV3(
         host=host, token=v3_token, database=database, timeout=timeout,
@@ -193,7 +219,7 @@ def create_influxdb_manager(
     version = flags.get_string(FeatureFlag.INFLUXDB_VERSION, default="v2")
 
     if version == "v3":
-        return _create_v3_manager(bucket, token, timeout)
+        return _create_v3_manager(bucket, timeout)
 
     elif version == "dual":
         from idea_shared.classes.FCDInfluxDBManager import FCDInfluxDBManager
@@ -202,7 +228,7 @@ def create_influxdb_manager(
         primary = FCDInfluxDBManager(
             url=url, token=token, org=org, bucket=bucket, timeout=timeout,
         )
-        shadow = _create_v3_manager(bucket, token, timeout)
+        shadow = _create_v3_manager(bucket, timeout)
 
         return DualWriteInfluxDBManager(primary=primary, shadow=shadow)
 
@@ -665,18 +691,54 @@ The only caller-visible overhead is on **writes** (v3 write is sequential after 
 
 ## 5. Query Migration — Flux → SQL (unchanged from previous plan)
 
-### 4.1 Query Safety: Parameterized Queries
+### 4.1 Query Safety: Parameterized Queries and Identifier Handling
 
-InfluxDB 3's Python client supports parameterized queries natively, replacing `_sanitize_flux_string()`:
+InfluxDB 3's Python client supports parameterized queries natively for **values** in `WHERE` clauses, replacing `_sanitize_flux_string()`:
 
 ```python
 # v2: Manual string sanitization
 flux = f'... r.segmentId == "{_sanitize_flux_string(segment_id)}" ...'
 
-# v3: Parameterized queries (injection-safe by design)
+# v3: Parameterized queries — $segment_id is a value parameter (injection-safe)
 sql = "SELECT max(time) FROM segment_data WHERE segmentId = $segment_id"
 result = client.query(sql, query_parameters={"segment_id": segment_id})
 ```
+
+> **Important**: SQL parameterization applies to **values only** (`WHERE` clause literals, `INSERT` values). It does **not** apply to identifiers such as table names (`FROM` clause) or parts of `INTERVAL` expressions. These require a different safety approach — see below.
+
+#### Identifiers: table names (`measurement`)
+
+Table names in `FROM` clauses cannot be parameterized. Use an **allowlist** to prevent injection:
+
+```python
+_ALLOWED_MEASUREMENTS = frozenset({"segment_data", "validation_result"})
+
+def _safe_measurement(measurement: str) -> str:
+    if measurement not in _ALLOWED_MEASUREMENTS:
+        raise ValueError(f"Invalid measurement name: {measurement!r}")
+    return measurement
+
+# Usage
+sql = f'SELECT max(time) as last_time FROM "{_safe_measurement(measurement)}" WHERE "segmentId" = $segment_id'
+result = client.query(sql, query_parameters={"segment_id": segment_id})
+```
+
+#### Intervals: `INTERVAL` values (`threshold`, `days`)
+
+`INTERVAL` expressions also cannot be parameterized. Validate the value is a non-negative integer:
+
+```python
+def _safe_interval_minutes(minutes: int) -> int:
+    if not isinstance(minutes, int) or minutes < 0:
+        raise ValueError(f"Interval must be a non-negative integer, got: {minutes!r}")
+    return minutes
+
+# Usage
+sql = f"SELECT max(time) as last_time FROM segment_data WHERE time >= now() - INTERVAL '{_safe_interval_minutes(threshold)} minutes'"
+result = client.query(sql)
+```
+
+The `_sanitize_flux_string()` function from v2 is **replaced** (for values) by parameterized queries, and **replaced** (for identifiers/intervals) by allowlist/type-checking helpers.
 
 ### 4.2 Complete Query Mapping
 
@@ -708,9 +770,11 @@ from(bucket: "{bucket}")
 ```
 ```sql
 -- NEW (SQL)
+-- NOTE: measurement is a table name (identifier) — cannot be parameterized.
+-- Use _safe_measurement() allowlist validation + f-string (see Section 4.1).
 SELECT max(time) as last_time
-FROM $measurement
-WHERE "segmentId" = $segment_id
+FROM "{measurement}"        -- measurement validated by _safe_measurement()
+WHERE "segmentId" = $segment_id   -- value parameter (injection-safe)
 ```
 
 #### Query 3: Segment timestamp — first (`get_first_segment_update_timestamp`)
@@ -725,9 +789,10 @@ from(bucket: "{bucket}")
 ```
 ```sql
 -- NEW (SQL)
+-- NOTE: measurement is a table name — allowlist-validated, not parameterized.
 SELECT min(time) as first_time
-FROM $measurement
-WHERE "segmentId" = $segment_id
+FROM "{measurement}"        -- measurement validated by _safe_measurement()
+WHERE "segmentId" = $segment_id   -- value parameter (injection-safe)
 ```
 
 #### Query 4: Segment data — full range (`get_segment_data_dataframe` / `get_segment_data_csv`)
@@ -745,8 +810,10 @@ from(bucket: "{bucket}")
 ```
 ```sql
 -- NEW (SQL) — fields are already columns in v3, no pivot needed
+-- NOTE: measurement is a table name — allowlist-validated, not parameterized.
+-- $start_time and $end_time are value parameters (injection-safe).
 SELECT time, speed, confidence
-FROM $measurement
+FROM "{measurement}"        -- measurement validated by _safe_measurement()
 WHERE "segmentId" = $segment_id
   AND time >= $start_time
   AND time <= $end_time
@@ -757,7 +824,7 @@ SELECT
   DATE_BIN(INTERVAL '5 minutes', time) as time_bin,
   LAST_VALUE(speed) as speed,
   LAST_VALUE(confidence) as confidence
-FROM $measurement
+FROM "{measurement}"        -- measurement validated by _safe_measurement()
 WHERE "segmentId" = $segment_id
   AND time >= $start_time
   AND time <= $end_time
@@ -778,9 +845,12 @@ from(bucket: "{bucket}")
 ```
 ```sql
 -- NEW (SQL)
+-- NOTE: Both measurement (table name) and threshold (INTERVAL part) require
+-- string formatting, not SQL parameters. Use _safe_measurement() and
+-- _safe_interval_minutes() helpers from Section 4.1.
 SELECT max(time) as last_time
-FROM $measurement
-WHERE time >= now() - INTERVAL '$threshold minutes'
+FROM "{measurement}"            -- validated by _safe_measurement()
+WHERE time >= now() - INTERVAL '{threshold} minutes'   -- threshold validated by _safe_interval_minutes()
 ```
 
 #### Query 6: Backfill lookback (`check_backfill_mode` — historical)
@@ -796,9 +866,10 @@ from(bucket: "{bucket}")
 ```
 ```sql
 -- NEW (SQL)
+-- NOTE: Both measurement and days require string formatting — see Section 4.1.
 SELECT max(time) as last_time
-FROM $measurement
-WHERE time >= now() - INTERVAL '$days days'
+FROM "{measurement}"            -- validated by _safe_measurement()
+WHERE time >= now() - INTERVAL '{days} days'   -- days validated as non-negative int
 ```
 
 #### Query 7: Validation data check (`ValidationDatabaseHealthCheck`)
