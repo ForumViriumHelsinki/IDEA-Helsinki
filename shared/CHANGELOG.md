@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.18.0...idea-shared-v0.18.1) (2026-03-20)
+
+
+### Bug Fixes
+
+* improve WFS 400 error diagnostics and logging clarity ([#306](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/306)) ([2b5ff88](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/2b5ff881952c6c567843f0bd10b64250e617e55e))
+
 ## [0.18.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.17.0...idea-shared-v0.18.0) (2026-03-20)
 
 
