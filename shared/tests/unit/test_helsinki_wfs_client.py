@@ -113,8 +113,7 @@ class TestWFSNoRetryOnPermanentErrors:
         with patch.object(client.logger, "warning") as mock_warning:
             client.get_feature("TestFeature")
 
-        warning_messages = " ".join(str(call) for call in mock_warning.call_args_list)
-        assert "No such layer: Kaivuilmoitus_alue" in warning_messages
+        mock_warning.assert_any_call("Response body: No such layer: Kaivuilmoitus_alue...")
 
 
 class TestWFSRequestFromList:
@@ -170,9 +169,7 @@ class TestWFSRequestFromList:
         mock_session.get.return_value = fail_response
         mock_session.prepare_request.return_value = MagicMock(url="http://test")
 
-        result = allu_client.request_wfs_features_from_list(
-            ["Feature1", "Feature2"]
-        )
+        result = allu_client.request_wfs_features_from_list(["Feature1", "Feature2"])
 
         assert result == {}
 
@@ -192,8 +189,9 @@ class TestWFSRequestFromList:
         with patch.object(allu_client.logger, "warning") as mock_warning:
             allu_client.request_wfs_features_from_list(["FailingFeature"])
 
-        warning_messages = " ".join(str(call) for call in mock_warning.call_args_list)
-        assert "FailingFeature" in warning_messages
+        mock_warning.assert_any_call(
+            "Failed to fetch data for identifier: 'FailingFeature' (request error, see above)"
+        )
 
 
 class TestWFSSuccessAfterRetry:

@@ -169,9 +169,7 @@ class HelsinkiWFSClient:
             self.logger.error(
                 f"HTTP error occurred for {url}: {http_err} - Status: {status_code}"
             )
-            self.logger.warning(
-                f"Response body: {http_err.response.text[:500]}..."
-            )
+            self.logger.warning(f"Response body: {http_err.response.text[:500]}...")
             return None
         except requests.exceptions.ConnectionError:
             self.logger.warning(f"Connection error for {url}, retrying...")
@@ -277,8 +275,7 @@ class HelsinkiAlluWFSClient(HelsinkiWFSClient):
                     self.logger.warning(
                         f"Failed to fetch data for identifier: '{feature_id}' (request error, see above)"
                     )
-                elif "features" in wfs_response and wfs_response["features"]:
-                    features = wfs_response.get("features")
+                elif features := wfs_response.get("features"):
                     aggregated_wfs_features["features"].extend(features)
                 else:
                     self.logger.info(
