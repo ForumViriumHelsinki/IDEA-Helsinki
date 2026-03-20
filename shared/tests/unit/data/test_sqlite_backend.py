@@ -60,19 +60,33 @@ class TestSqliteSegmentRepository:
 
     @pytest.mark.unit
     def test_changelog_retention_enforced(self, segment_repo):
-        """Insert 60 changelog entries for one segment, verify only 50 remain."""
-        for i in range(60):
-            changelog = {
-                "seg_retention": {
-                    "current_geometry": {"type": "Point", "coordinates": [i, i]},
-                    "current_hash": f"hash_{i}",
-                    "date_added": f"2024-01-01T{i:02d}:00:00",
-                    "history": [],
-                }
-            }
-            segment_repo.save_changelog(changelog)
+        """Save a changelog with 60 history entries; verify only 50 rows remain.
 
-        # Check total entries for this segment
+        save_changelog uses full-replace semantics (delete + reinsert per segment),
+        so the retention limit is applied to the entries within a single call.
+        60 history entries + 1 current entry = 61 rows inserted; 11 are pruned,
+        leaving 50.
+        """
+        history = [
+            {
+                "geometry": {"type": "Point", "coordinates": [i, i]},
+                "geometry_hash": f"hash_{i}",
+                "change_type": "updated",
+                "recorded_at": f"2024-01-01T{i:02d}:00:00+00:00",
+            }
+            for i in range(60)
+        ]
+        changelog = {
+            "seg_retention": {
+                "current_geometry": {"type": "Point", "coordinates": [60, 60]},
+                "current_hash": "hash_60",
+                "date_added": "2024-01-01T00:00:00+00:00",
+                "history": history,
+            }
+        }
+        segment_repo.save_changelog(changelog)
+
+        # Check total entries for this segment (61 inserted, 11 pruned → 50 remain)
         conn = segment_repo._conn
         cursor = conn.execute(
             "SELECT COUNT(*) FROM segment_changelog WHERE segment_id = ?",
@@ -80,6 +94,49 @@ class TestSqliteSegmentRepository:
         )
         count = cursor.fetchone()[0]
         assert count == 50
+
+    @pytest.mark.unit
+    def test_save_changelog_no_duplicates_on_repeat_call(self, segment_repo):
+        """Repeated save_changelog calls must not duplicate history rows.
+
+        The get_changelog → process → save_changelog round-trip means the
+        history entries returned by get_changelog() are passed back in the
+        next save_changelog() call. Without full-replace semantics this would
+        create duplicate rows in segment_changelog.
+        """
+        changelog = {
+            "seg_dup": {
+                "current_geometry": {"type": "Point", "coordinates": [1, 1]},
+                "current_hash": "h1",
+                "date_added": "2024-01-01T00:00:00+00:00",
+                "history": [],
+            }
+        }
+        # First save: 1 row
+        segment_repo.save_changelog(changelog)
+
+        # Simulate a round-trip: read back, add a history entry, save again
+        retrieved = segment_repo.get_changelog()
+        # Geometry "changed" — old entry moves to history
+        retrieved["seg_dup"]["history"].append(
+            {
+                "geometry": {"type": "Point", "coordinates": [1, 1]},
+                "geometry_hash": "h1",
+                "change_type": "updated",
+                "recorded_at": "2024-01-01T00:00:00+00:00",
+            }
+        )
+        retrieved["seg_dup"]["current_geometry"] = {"type": "Point", "coordinates": [2, 2]}
+        retrieved["seg_dup"]["current_hash"] = "h2"
+        segment_repo.save_changelog(retrieved)
+
+        conn = segment_repo._conn
+        cursor = conn.execute(
+            "SELECT COUNT(*) FROM segment_changelog WHERE segment_id = ?",
+            ("seg_dup",),
+        )
+        # Expect exactly 2 rows: current + 1 history entry (no duplicates)
+        assert cursor.fetchone()[0] == 2
 
     @pytest.mark.unit
     def test_get_archive_returns_empty_when_no_data(self, segment_repo):

@@ -96,18 +96,11 @@ CREATE VIRTUAL TABLE IF NOT EXISTS segments_rtree USING rtree(
     max_y     -- maximum latitude
 );
 
--- Triggers to maintain R-tree on segment changes
-CREATE TRIGGER IF NOT EXISTS segments_rtree_insert AFTER INSERT ON segments
-BEGIN
-    -- R-tree population handled by application code (bounding box extraction)
-    -- Trigger placeholder for documentation; actual insert done in repository
-    SELECT 1;
-END;
-
-CREATE TRIGGER IF NOT EXISTS segments_rtree_delete AFTER DELETE ON segments
-BEGIN
-    DELETE FROM segments_rtree WHERE id = CAST(OLD.segment_id AS INTEGER);
-END;
+-- R-tree maintenance note:
+-- Population and cleanup are handled entirely in repository code (sqlite_backend.py)
+-- via explicit INSERT/DELETE on segments_rtree. Trigger-based maintenance is not
+-- used because segment_id is a TEXT key that cannot be directly mapped to the
+-- integer R-tree rowid without the same SHA-256 derivation used at insert time.
 
 -- Record this migration
 INSERT OR IGNORE INTO schema_version (version, applied_at)

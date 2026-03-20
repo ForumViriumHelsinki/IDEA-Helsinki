@@ -158,8 +158,15 @@ class SqliteSegmentRepository(SegmentRepository):
                     )
                     bbox = _extract_bounding_box(geometry)
                     if bbox:
-                        # Use hash of segment_id as integer key for R-tree
-                        rtree_id = hash(seg_id) & 0x7FFFFFFFFFFFFFFF
+                        # Use SHA-256 hash of segment_id for a stable, collision-resistant
+                        # integer key. Python's built-in hash() is PYTHONHASHSEED-randomized
+                        # and can cause PRIMARY KEY collisions across runs.
+                        rtree_id = (
+                            int.from_bytes(
+                                hashlib.sha256(seg_id.encode()).digest()[:8], "big"
+                            )
+                            & 0x7FFFFFFFFFFFFFFF
+                        )
                         self._conn.execute(
                             "INSERT INTO segments_rtree (id, min_x, max_x, min_y, max_y) "
                             "VALUES (?, ?, ?, ?, ?)",
@@ -202,10 +209,23 @@ class SqliteSegmentRepository(SegmentRepository):
         return changelog
 
     def save_changelog(self, changelog: dict) -> None:
-        """Save changelog entries with retention enforcement."""
+        """Save changelog with full-replace semantics per segment.
+
+        Matches the JSON backend's file-overwrite behaviour: all existing rows for
+        each segment in the dict are deleted and the full history (current + past
+        entries) is reinserted. This prevents duplicate rows when the caller
+        round-trips through get_changelog() → process_segment_changelog() →
+        save_changelog(), where history entries are already stored in the DB.
+        """
         now = datetime.now(UTC).isoformat()
         with self._conn:
             for seg_id, entry in changelog.items():
+                # Full-replace: remove all existing rows for this segment so that
+                # history entries from a previous save are not duplicated.
+                self._conn.execute(
+                    "DELETE FROM segment_changelog WHERE segment_id = ?", (seg_id,)
+                )
+                # Insert the current geometry as the most-recent entry.
                 geometry = entry.get("current_geometry", {})
                 geometry_json = json.dumps(geometry)
                 geometry_hash = entry.get("current_hash", "")
@@ -215,7 +235,7 @@ class SqliteSegmentRepository(SegmentRepository):
                     "VALUES (?, ?, ?, ?, ?)",
                     (seg_id, geometry_json, geometry_hash, "updated", now),
                 )
-                # Also insert history entries
+                # Reinsert historical entries (older timestamps preserved).
                 for hist in entry.get("history", []):
                     self._conn.execute(
                         "INSERT INTO segment_changelog "
@@ -229,7 +249,7 @@ class SqliteSegmentRepository(SegmentRepository):
                             hist.get("recorded_at", now),
                         ),
                     )
-                # Enforce retention limit per segment
+                # Enforce retention limit per segment.
                 self._conn.execute(
                     "DELETE FROM segment_changelog WHERE id NOT IN "
                     "(SELECT id FROM segment_changelog WHERE segment_id = ? "
