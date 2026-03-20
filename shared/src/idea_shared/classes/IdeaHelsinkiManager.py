@@ -1,8 +1,11 @@
 # ------------------------------------------------------#
 # ---------------- GENERAL IMPORTS ---------------------#
 # ------------------------------------------------------#
+from __future__ import annotations
+
 import asyncio
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 
 # ------------------------------------------------------#
 # -------------- PROJECT CLASS IMPORTS -----------------#
@@ -12,6 +15,9 @@ from idea_shared.classes.Logger import Logger
 from idea_shared.resilience import CircuitBreaker
 from idea_shared.resilience.retry import ErrorTracker, calculate_backoff
 from idea_shared.threading.file_locks import read_json_with_retry
+
+if TYPE_CHECKING:
+    from idea_shared.data.repositories import DisturbanceRepository
 
 
 class IdeaHelsinkiManager:
@@ -48,6 +54,7 @@ class IdeaHelsinkiManager:
         db_validation_token: str,
         target_fcd_segments: list | None = None,
         validation_max_age_days: int | None = None,
+        disturbance_repository: DisturbanceRepository | None = None,
     ):
         self.validation_frequency = validation_frequency
         self.profile_time_frame_weeks = profile_time_frame_weeks
@@ -65,6 +72,7 @@ class IdeaHelsinkiManager:
         self.db_validation_bucket: str = db_validation_bucket
         self.db_validation_token: str = db_validation_token
         self.target_fcd_segments = target_fcd_segments
+        self.disturbance_repository = disturbance_repository
         self.active_segments = {}  # Stores segment_id -> segment_object
         self.logger = Logger(__name__)
         # Health monitoring attributes
@@ -93,12 +101,18 @@ class IdeaHelsinkiManager:
         """
         Loads the latest validated disturbance data with intersections.
 
+        Uses the disturbance_repository if configured, otherwise falls back
+        to reading the JSON file directly.
+
         Args:
             file_path: Path to the JSON file containing the latest validated disturbance data.
 
         returns:
             Dictionary containing the latest validated disturbance data.
         """
+        if self.disturbance_repository is not None:
+            return self.disturbance_repository.get_disturbances()
+
         data = read_json_with_retry(file_path)
         if data is None:
             self.logger.error(f"Could not load disturbance data from '{file_path}'")

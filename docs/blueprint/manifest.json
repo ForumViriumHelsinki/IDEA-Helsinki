@@ -1,7 +1,7 @@
 {
-  "format_version": "3.1.0",
+  "format_version": "3.2.0",
   "created_at": "2026-02-17T00:00:00Z",
-  "updated_at": "2026-02-17T00:00:00Z",
+  "updated_at": "2026-03-19T00:00:00Z",
   "created_by": {
     "blueprint_plugin": "3.16.6"
   },
@@ -18,9 +18,9 @@
     ]
   },
   "structure": {
-    "has_prds": false,
-    "has_adrs": false,
-    "has_prps": false,
+    "has_prds": true,
+    "has_adrs": true,
+    "has_prps": true,
     "has_work_orders": true,
     "has_ai_docs": false,
     "has_modular_rules": true,
@@ -41,8 +41,88 @@
     },
     "commands": {}
   },
+  "task_registry": {
+    "tasks": {
+      "derive-prd": {
+        "enabled": true,
+        "auto_run": false,
+        "schedule": "on-demand",
+        "last_completed_at": null,
+        "last_result": null
+      },
+      "derive-plans": {
+        "enabled": true,
+        "auto_run": false,
+        "schedule": "weekly",
+        "last_completed_at": null,
+        "last_result": null
+      },
+      "derive-rules": {
+        "enabled": true,
+        "auto_run": false,
+        "schedule": "weekly",
+        "last_completed_at": null,
+        "last_result": null
+      },
+      "generate-rules": {
+        "enabled": true,
+        "auto_run": false,
+        "schedule": "on-change",
+        "last_completed_at": null,
+        "last_result": null
+      },
+      "adr-validate": {
+        "enabled": true,
+        "auto_run": false,
+        "schedule": "weekly",
+        "last_completed_at": null,
+        "last_result": null
+      },
+      "feature-tracker-sync": {
+        "enabled": true,
+        "auto_run": false,
+        "schedule": "daily",
+        "last_completed_at": null,
+        "last_result": null
+      },
+      "sync-ids": {
+        "enabled": true,
+        "auto_run": false,
+        "schedule": "on-change",
+        "last_completed_at": null,
+        "last_result": null
+      },
+      "claude-md": {
+        "enabled": true,
+        "auto_run": false,
+        "schedule": "on-change",
+        "last_completed_at": null,
+        "last_result": null
+      },
+      "curate-docs": {
+        "enabled": false,
+        "auto_run": false,
+        "schedule": "on-demand",
+        "last_completed_at": null,
+        "last_result": null
+      }
+    },
+    "stats": {},
+    "context": {}
+  },
   "custom_overrides": {
     "skills": [],
     "commands": []
-  }
+  },
+  "upgrade_history": [
+    {
+      "from": "3.1.0",
+      "to": "3.2.0",
+      "date": "2026-03-19",
+      "changes": [
+        "Added task_registry with scheduling metadata",
+        "All tasks set to prompt-before-running mode"
+      ]
+    }
+  ]
 }

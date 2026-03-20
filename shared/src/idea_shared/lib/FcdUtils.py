@@ -1,12 +1,17 @@
 # ------------------------------------------------------#
 # ---------------- GENERAL IMPORTS ---------------------#
 # ------------------------------------------------------#
+from __future__ import annotations
+
+import copy
 import hashlib
 import json
 import re
 import shutil
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pyproj import Transformer
 from shapely.geometry import shape
@@ -18,7 +23,21 @@ from shapely.ops import transform as shapely_transform
 from idea_shared.classes.Logger import Logger
 from idea_shared.threading.file_locks import atomic_write_json, read_json_with_retry
 
+if TYPE_CHECKING:
+    from idea_shared.data.repositories import SegmentRepository
+
 logger = Logger(__name__)
+
+
+@dataclass
+class ChangelogResult:
+    """Result of processing segment changelog changes."""
+
+    changelog: dict
+    archive: dict
+    newly_added_ids: list[str] = field(default_factory=list)
+    modified_ids: list[str] = field(default_factory=list)
+    removed_ids: set[str] = field(default_factory=set)
 
 
 def get_fcd_geometries(fcd_file: dict) -> dict:
@@ -497,3 +516,140 @@ def update_segment_changelog(
             logger.info("Segment archive file has been updated.")
     except OSError as e:
         logger.error(f"Failed to write updated changelog or archive file: {e}")
+
+
+def extract_fresh_segments(segments_data: dict) -> dict:
+    """Extract segment_id -> geometry mapping from segments data.
+
+    Args:
+        segments_data: Dict in format ``{"segmentId": {id: {"geometry": ...}}}``
+
+    Returns:
+        Dict mapping segment_id to geometry dict.
+    """
+    fresh_segments = {}
+    for seg_id, seg_value in segments_data.get("segmentId", {}).items():
+        if isinstance(seg_value, dict) and "geometry" in seg_value:
+            fresh_segments[seg_id] = seg_value["geometry"]
+    return fresh_segments
+
+
+def process_segment_changelog(
+    fresh_segments: dict,
+    changelog: dict,
+    archive: dict,
+    processing_date: datetime,
+) -> ChangelogResult:
+    """Pure logic for comparing segments against changelog and detecting changes.
+
+    This function contains the core changelog processing logic without any file I/O,
+    making it testable and reusable across different storage backends.
+
+    Args:
+        fresh_segments: Dict mapping segment_id to geometry dict.
+        changelog: Existing changelog dict (segment_id -> history record).
+        archive: Existing archive dict (segment_id -> archived record).
+        processing_date: Timestamp for recording changes.
+
+    Returns:
+        ChangelogResult with updated changelog, archive, and change details.
+    """
+    # Deep copy to avoid mutating caller's data (nested dicts contain lists/dicts)
+    changelog = copy.deepcopy(changelog)
+    archive = copy.deepcopy(archive)
+
+    master_ids = set(changelog.keys())
+    fresh_ids = set(fresh_segments.keys())
+
+    # Detect removed segments
+    removed_ids = master_ids - fresh_ids
+    if removed_ids:
+        logger.warning(
+            f"DETECTED {len(removed_ids)} REMOVED SEGMENTS: {list(removed_ids)}"
+        )
+        for seg_id in removed_ids:
+            removed_record = changelog.pop(seg_id)
+            removed_record["date_archived"] = processing_date.isoformat()
+            archive[seg_id] = removed_record
+
+    # Detect new and modified segments
+    newly_added_ids = []
+    modified_ids = []
+    for seg_id, geometry in fresh_segments.items():
+        geom_str = json.dumps(geometry, sort_keys=True)
+        geom_hash = hashlib.sha256(geom_str.encode("utf-8")).hexdigest()
+
+        if seg_id not in changelog:
+            newly_added_ids.append(seg_id)
+            changelog[seg_id] = {
+                "current_geometry": geometry,
+                "current_hash": geom_hash,
+                "date_added": processing_date.isoformat(),
+                "history": [],
+            }
+        elif changelog[seg_id]["current_hash"] != geom_hash:
+            modified_ids.append(seg_id)
+            archive_entry = {
+                "date_archived": processing_date.isoformat(),
+                "geometry": changelog[seg_id]["current_geometry"],
+            }
+            changelog[seg_id]["history"].append(archive_entry)
+            changelog[seg_id]["current_geometry"] = geometry
+            changelog[seg_id]["current_hash"] = geom_hash
+
+    # Report changes
+    if newly_added_ids:
+        logger.info(f"DETECTED {len(newly_added_ids)} NEW SEGMENTS: {newly_added_ids}")
+    if modified_ids:
+        logger.info(
+            f"DETECTED {len(modified_ids)} MODIFIED SEGMENT GEOMETRIES: {modified_ids}"
+        )
+    if not newly_added_ids and not removed_ids and not modified_ids:
+        logger.info("Segment inventory check complete. No changes detected.")
+
+    return ChangelogResult(
+        changelog=changelog,
+        archive=archive,
+        newly_added_ids=newly_added_ids,
+        modified_ids=modified_ids,
+        removed_ids=removed_ids,
+    )
+
+
+def update_segment_changelog_from_repo(
+    repository: SegmentRepository,
+    processing_date: datetime,
+) -> None:
+    """Update segment changelog using a SegmentRepository.
+
+    Repository-based equivalent of update_segment_changelog(). Reads segments,
+    changelog, and archive from the repository, processes changes, and writes
+    results back.
+
+    Args:
+        repository: SegmentRepository instance providing data access.
+        processing_date: Timestamp for recording changes.
+    """
+    segments_data = repository.get_segments()
+    if not segments_data:
+        logger.error("Could not read segment mapping from repository.")
+        return
+
+    fresh_segments = extract_fresh_segments(segments_data)
+    if not fresh_segments:
+        logger.error("No valid segments found in mapping data.")
+        return
+
+    changelog = repository.get_changelog()
+    archive = repository.get_archive()
+
+    result = process_segment_changelog(
+        fresh_segments, changelog, archive, processing_date
+    )
+
+    try:
+        repository.save_changelog(result.changelog)
+        if result.removed_ids:
+            repository.save_archive(result.archive)
+    except OSError as e:
+        logger.error(f"Failed to write updated changelog or archive: {e}")

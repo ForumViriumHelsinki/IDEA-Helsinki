@@ -1,9 +1,11 @@
 # ------------------------------------------------------#
 # ---------------- GENERAL IMPORTS ---------------------#
 # ------------------------------------------------------#
+from __future__ import annotations
+
 import json
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import geopandas
 import pandas as pd
@@ -14,6 +16,9 @@ from shapely.geometry import mapping, shape
 # ------------------------------------------------------#
 from idea_shared.classes.Logger import Logger
 from idea_shared.threading.file_locks import atomic_write_json
+
+if TYPE_CHECKING:
+    from idea_shared.data.repositories import DisturbanceRepository, SegmentRepository
 
 
 class IntersectionDetectorError(Exception):
@@ -128,60 +133,13 @@ class IntersectionDetector:
         try:
             with open(segment_json_path, encoding="utf-8") as f:
                 data = json.load(f)
-
-            if not isinstance(data, dict):
-                raise IntersectionDetectorError(
-                    "Segment data JSON is not a dictionary."
+            result = self._parse_segment_data(data)
+            if result is not None:
+                self.logger.info(
+                    f"Successfully loaded segment data from {segment_json_path} "
+                    f"into GeoDataFrame with {len(result)} segments."
                 )
-
-            segment_data = data.get("segmentId")
-            if not isinstance(segment_data, dict):
-                raise IntersectionDetectorError("SegmentIds data is not a dictionary.")
-
-            geometries = []
-            segment_ids = []
-
-            for segment_key, segment_value in segment_data.items():
-                if not isinstance(segment_value, dict):
-                    self.logger.warning(
-                        f"Skipping non-dictionary item in segment data: {segment_key}"
-                    )
-                    continue
-
-                geom_dict = segment_value.get("geometry")
-                seg_id = segment_key
-
-                if geom_dict:
-                    try:
-                        shapely_geom = shape(geom_dict)
-                        geometries.append(shapely_geom)
-                        segment_ids.append(seg_id)
-                    except Exception as geo_err:
-                        self.logger.warning(
-                            f"Could not parse geometry for segmentId '{seg_id}': {geo_err}"
-                        )
-                else:
-                    self.logger.warning(
-                        f"Segment data item missing 'geometry' for segmentId : {segment_key}"
-                    )
-
-            if not segment_ids:
-                self.logger.warning(
-                    f"No valid segments with geometry found in {segment_json_path}"
-                )
-                return geopandas.GeoDataFrame(
-                    columns=["segmentId", "geometry"], crs=self.segment_crs
-                )  # Return empty GDF
-
-            gdf = geopandas.GeoDataFrame(
-                {"segmentId": segment_ids}, geometry=geometries, crs=self.segment_crs
-            )
-
-            self.logger.info(
-                f"Successfully loaded segment data from {segment_json_path} into GeoDataFrame with {len(gdf)} segments."
-            )
-            return gdf
-
+            return result
         except FileNotFoundError:
             self.logger.error(f"Segment data JSON file not found: {segment_json_path}")
             return None
@@ -189,9 +147,6 @@ class IntersectionDetector:
             self.logger.error(
                 f"Failed to decode JSON from segment data file '{segment_json_path}': {jde}"
             )
-            return None
-        except IntersectionDetectorError as mme:
-            self.logger.error(f"Error processing segment data: {mme}")
             return None
         except Exception as e:
             self.logger.error(
@@ -366,6 +321,96 @@ class IntersectionDetector:
                 f"Unexpected error writing JSON records to '{json_file}': {e}"
             )
             return False
+
+    def load_segments_from_repo(
+        self, repository: SegmentRepository
+    ) -> geopandas.GeoDataFrame | None:
+        """Load FCD segment data from a SegmentRepository into a GeoDataFrame.
+
+        Repository-based equivalent of load_fcd_segment_data().
+
+        Args:
+            repository: SegmentRepository providing segment mapping data.
+
+        Returns:
+            GeoDataFrame with segmentId and geometry columns, or None on failure.
+        """
+        data = repository.get_segments()
+        if not data:
+            self.logger.error("No segment data available from repository")
+            return None
+        return self._parse_segment_data(data)
+
+    def save_disturbances_to_repo(
+        self, records: dict, repository: DisturbanceRepository
+    ) -> bool:
+        """Save intersection results to a DisturbanceRepository.
+
+        Repository-based equivalent of write_json_records().
+
+        Args:
+            records: Intersection data dict.
+            repository: DisturbanceRepository to save to.
+
+        Returns:
+            True if successful, False otherwise.
+        """
+        return repository.save_disturbances(records)
+
+    def _parse_segment_data(self, data: dict) -> geopandas.GeoDataFrame | None:
+        """Parse segment mapping dict into a GeoDataFrame.
+
+        Shared logic between load_fcd_segment_data() and load_segments_from_repo().
+        """
+        if not isinstance(data, dict):
+            self.logger.error("Segment data is not a dictionary.")
+            return None
+
+        segment_data = data.get("segmentId")
+        if not isinstance(segment_data, dict):
+            self.logger.error("SegmentIds data is not a dictionary.")
+            return None
+
+        geometries = []
+        segment_ids = []
+
+        for segment_key, segment_value in segment_data.items():
+            if not isinstance(segment_value, dict):
+                self.logger.warning(
+                    f"Skipping non-dictionary item in segment data: {segment_key}"
+                )
+                continue
+
+            geom_dict = segment_value.get("geometry")
+
+            if geom_dict:
+                try:
+                    shapely_geom = shape(geom_dict)
+                    geometries.append(shapely_geom)
+                    segment_ids.append(segment_key)
+                except Exception as geo_err:
+                    self.logger.warning(
+                        f"Could not parse geometry for segmentId '{segment_key}': {geo_err}"
+                    )
+            else:
+                self.logger.warning(
+                    f"Segment data item missing 'geometry' for segmentId: {segment_key}"
+                )
+
+        if not segment_ids:
+            self.logger.warning("No valid segments with geometry found")
+            return geopandas.GeoDataFrame(
+                columns=["segmentId", "geometry"], crs=self.segment_crs
+            )
+
+        gdf = geopandas.GeoDataFrame(
+            {"segmentId": segment_ids}, geometry=geometries, crs=self.segment_crs
+        )
+
+        self.logger.info(
+            f"Successfully loaded segment data into GeoDataFrame with {len(gdf)} segments."
+        )
+        return gdf
 
     @staticmethod
     def check_if_file_path_exists(file_location: str | Path) -> bool:
