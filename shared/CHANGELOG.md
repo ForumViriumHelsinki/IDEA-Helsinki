@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.16.0...idea-shared-v0.17.0) (2026-03-20)
+
+
+### Features
+
+* inherit segment history when replaced segments match geographically ([#290](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/290)) ([4a6f6c2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/4a6f6c2996ce8ce85e1b67e12009a94b648aa5ba))
+
 ## [0.16.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.15.0...idea-shared-v0.16.0) (2026-03-18)
 
 
