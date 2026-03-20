@@ -218,8 +218,9 @@ async def main():
 
     # Start health server with async integration
     logger.info(f"Starting health server on port {HEALTH_CHECK_PORT}...")
-    # Run health server as background task to avoid blocking
-    asyncio.create_task(health_server.start_async())
+    # Run health server as background task to avoid blocking; store reference
+    # so exceptions are not silently swallowed and the task can be cancelled on shutdown.
+    health_task = asyncio.create_task(health_server.start_async())
     await asyncio.sleep(0.1)  # Give server time to start
 
     try:
@@ -235,9 +236,11 @@ async def main():
         logger.error(
             f"A critical error occurred in the IdeaHelsinkiManager: {e}", exc_info=True
         )
-        if health_server:
-            await health_server.stop_async()
         sys.exit(1)  # Exit with an error code
+    finally:
+        await health_server.stop_async()
+        health_task.cancel()
+        await asyncio.gather(health_task, return_exceptions=True)
 
 
 if __name__ == "__main__":

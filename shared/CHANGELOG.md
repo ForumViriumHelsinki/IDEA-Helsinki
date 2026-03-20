@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.16.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.15.0...idea-shared-v0.16.0) (2026-03-18)
+
+
+### Features
+
+* add health check execution time tracking and slow check warnings ([#285](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/285)) ([1fedb4b](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/1fedb4bd676c0684e625be0b930c6ad479bad3c8))
+
+
+### Bug Fixes
+
+* avoid mutating caller's query_fields list in get_segment_data_dataframe ([#288](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/288)) ([f3b4bde](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/f3b4bde9f02d4e38bbb60b1822931feb1e837949))
+* cap dead-letter queue size in DateRangeQueue ([#286](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/286)) ([a9a4756](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/a9a47567f32c9a56b9772b87e8a0eea97a46bef5))
+* store and cancel health server asyncio task on shutdown ([#287](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/287)) ([2d74130](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/2d7413018ac9d0e8a9bceb332039f4bf976e67d9))
+
 ## [0.15.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.14.4...idea-shared-v0.15.0) (2026-03-18)
 
 

@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
+import pandas as pd
 import pytest
 from urllib3.util.retry import Retry
 
@@ -313,3 +314,49 @@ class TestFCDInfluxDBManagerInitializationErrors:
                 org="test-org",
                 bucket="test-bucket",
             )
+
+
+class TestGetSegmentDataDataframe:
+    """Tests for get_segment_data_dataframe method."""
+
+    @pytest.mark.unit
+    @patch("idea_shared.classes.FCDInfluxDBManager.InfluxDBClient")
+    def test_query_fields_list_is_not_mutated(self, mock_client_class):
+        """Regression test: query_fields must not be mutated across calls (issue #237)."""
+        mock_client = MagicMock()
+        mock_query_api = MagicMock()
+        mock_client.query_api.return_value = mock_query_api
+        mock_client_class.return_value = mock_client
+
+        # Return a DataFrame that has _time + the requested fields
+        mock_df = pd.DataFrame(
+            {"_time": ["2024-01-01"], "speed": [50.0], "confidence": [0.9]}
+        )
+        mock_query_api.query_data_frame.return_value = mock_df
+
+        manager = FCDInfluxDBManager(
+            url="http://localhost:8086",
+            token="test-token",
+            org="test-org",
+            bucket="test-bucket",
+        )
+
+        query_fields = ["speed", "confidence"]
+        original_fields = list(query_fields)
+
+        # Call twice with the same list reference
+        manager.get_segment_data_dataframe(
+            segment_id="seg-1",
+            measurement_name="segment_data",
+            query_fields=query_fields,
+        )
+        manager.get_segment_data_dataframe(
+            segment_id="seg-1",
+            measurement_name="segment_data",
+            query_fields=query_fields,
+        )
+
+        # The caller's list must be unchanged
+        assert query_fields == original_fields
+
+        manager.close()

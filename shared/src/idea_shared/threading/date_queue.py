@@ -3,9 +3,12 @@ Thread-safe date range queue for distributing work to backfill workers.
 """
 
 import threading
+from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from queue import Empty, Queue
+
+DEAD_LETTER_QUEUE_MAX_SIZE = 1000
 
 
 @dataclass
@@ -27,7 +30,7 @@ class DateRangeQueue:
         self._queue = Queue()
         self._total_ranges = 0
         self._completed_ranges = 0
-        self._dead_letter_ranges = []  # Failed ranges that exceeded max retries
+        self._dead_letter_ranges: deque[DateRange] = deque(maxlen=DEAD_LETTER_QUEUE_MAX_SIZE)  # Failed ranges that exceeded max retries
         self._lock = threading.Lock()
 
     def populate(self, start_date: datetime, end_date: datetime, chunk_days: int = 7):
