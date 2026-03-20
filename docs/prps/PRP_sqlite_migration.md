@@ -49,48 +49,54 @@ Decoupled business logic from storage backends via abstract repository interface
 
 ---
 
-## Phase 2: SQLite Implementations — NEXT
+## Phase 2: SQLite Implementations — COMPLETE
 
-Implement SQLite backends for all repository interfaces.
+Implemented SQLite backends for all repository interfaces plus a new `ProfileRepository` ABC.
 
 ### Feature Flag
-- [ ] Add `USE_SQLITE_STORAGE` to `shared/src/idea_shared/feature_flags/flags.py` (`FeatureFlag` enum and `FlagDefaults`)
+- [x] Add `USE_SQLITE_STORAGE` to `shared/src/idea_shared/feature_flags/flags.py` (`FeatureFlag` enum and `FlagDefaults`)
 
 ### Schema Migration
-- [ ] Create `shared/src/idea_shared/data/migrations/001_initial.sql`
-  - `segments` table (segment_id PK, geometry, geometry_hash, updated_at)
-  - `segment_changelog` table (autoincrement PK, segment_id FK, geometry, geometry_hash, change_type, recorded_at)
+- [x] Create `shared/src/idea_shared/data/migrations/001_initial.sql`
+  - `segments` table (segment_id PK, geometry, geometry_hash, srid, updated_at)
+  - `segment_changelog` table (autoincrement PK, segment_id, geometry, geometry_hash, change_type, recorded_at)
   - `segment_archive` table (segment_id PK, last_geometry, last_hash, date_added, date_archived)
   - `disturbances` table (segment_id PK, geometry, detailed_collisions JSON, updated_at)
   - `profiles` table (segment_id PK, profile_data BLOB, computed_at, expires_at)
+  - `schema_version` table for migration tracking
+  - `segments_rtree` R-tree virtual table for bounding box spatial pre-filtering
+  - SpatiaLite upgrade path documented in SQL comments
 
 ### Repository Implementations
-- [ ] Create `shared/src/idea_shared/data/sqlite_backend.py`
-- [ ] Implement `SqliteSegmentRepository(SegmentRepository)`
-  - Schema creation from migration file
+- [x] Create `shared/src/idea_shared/data/sqlite_backend.py`
+- [x] Implement `SqliteSegmentRepository(SegmentRepository)`
+  - Schema creation from migration file via `importlib.resources`
   - CRUD for segments, changelog, archive
-  - Retention: `DELETE FROM segment_changelog WHERE rowid NOT IN (SELECT rowid FROM segment_changelog WHERE segment_id = ? ORDER BY recorded_at DESC LIMIT 50)`
-  - `PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;`
-- [ ] Implement `SqliteDisturbanceRepository(DisturbanceRepository)`
-  - Schema creation from migration file
-  - Full CRUD, upsert semantics
-- [ ] Add `ProfileRepository` ABC to `shared/src/idea_shared/data/repositories.py`
-- [ ] Implement `SqliteProfileRepository(ProfileRepository)`
-  - Parquet serialization for profile DataFrames
-  - Lazy-load: `get_profile(segment_id)` returns single profile
-  - Bulk write: `save_profile(segment_id, dataframe)`
+  - R-tree bounding box maintenance on segment save
+  - Retention: max 50 changelog entries per segment
+  - `PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA foreign_keys=ON;`
+- [x] Implement `SqliteDisturbanceRepository(DisturbanceRepository)`
+  - Full-replace semantics (DELETE all + INSERT)
+  - JSON serialization for `detailed_collisions`
+- [x] Add `ProfileRepository` ABC to `shared/src/idea_shared/data/repositories.py`
+- [x] Implement `SqliteProfileRepository(ProfileRepository)`
+  - BLOB storage with UPSERT semantics
+  - Expiration-based cleanup (`delete_expired_profiles()`)
+- [x] Create `shared/src/idea_shared/data/profile_serialization.py`
+  - `serialize_profile()` / `deserialize_profile()` for DataFrame ↔ Parquet bytes
+- [x] `create_sqlite_repositories(db_path)` factory for shared connection
 
 ### Profile Integration
-- [ ] Modify `shared/src/idea_shared/classes/IdeaHelsinkiRoadSegment.py`
+- [ ] Modify `shared/src/idea_shared/classes/IdeaHelsinkiRoadSegment.py` (deferred to Phase 4 — service wiring)
   - `segment_profile` property: lazy-load from `ProfileRepository` when configured
   - Fall back to in-memory dict when repository is `None`
 
 ### Tests
-- [ ] Unit tests using `:memory:` SQLite for all three repositories
-- [ ] Test retention logic (verify max 50 changelog entries per segment)
-- [ ] Test schema migration idempotency
-- [ ] Test Parquet round-trip serialization
-- [ ] `just test` passes
+- [x] Unit tests using `:memory:` SQLite for all three repositories
+- [x] Test retention logic (verify max 50 changelog entries per segment)
+- [x] Test schema migration idempotency
+- [x] Test Parquet round-trip serialization
+- [x] `just test` passes
 
 ---
 

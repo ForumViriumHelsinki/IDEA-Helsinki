@@ -104,3 +104,65 @@ class DisturbanceRepository(ABC):
         Returns:
             True if successful, False otherwise.
         """
+
+
+class ProfileRepository(ABC):
+    """Repository for disk-backed segment profile data.
+
+    Stores serialized segment profiles (e.g., Parquet-encoded DataFrames)
+    as BLOBs with expiration tracking for automatic cleanup.
+    """
+
+    @abstractmethod
+    def get_profile(self, segment_id: str) -> bytes | None:
+        """Get serialized profile data for a segment.
+
+        Args:
+            segment_id: The segment identifier.
+
+        Returns:
+            Serialized profile bytes, or None if not found.
+        """
+
+    @abstractmethod
+    def save_profile(
+        self,
+        segment_id: str,
+        profile_data: bytes,
+        computed_at: str,
+        expires_at: str,
+    ) -> None:
+        """Save serialized profile data for a segment.
+
+        Uses UPSERT semantics — inserts or replaces existing profile.
+
+        Args:
+            segment_id: The segment identifier.
+            profile_data: Serialized profile bytes.
+            computed_at: ISO 8601 timestamp of when the profile was computed.
+            expires_at: ISO 8601 timestamp of when the profile expires.
+        """
+
+    @abstractmethod
+    def delete_profile(self, segment_id: str) -> None:
+        """Delete profile data for a segment.
+
+        Args:
+            segment_id: The segment identifier.
+        """
+
+    @abstractmethod
+    def get_all_profile_ids(self) -> list[str]:
+        """Get all segment IDs that have stored profiles.
+
+        Returns:
+            List of segment IDs with stored profiles.
+        """
+
+    @abstractmethod
+    def delete_expired_profiles(self) -> int:
+        """Delete all profiles whose expires_at is in the past.
+
+        Returns:
+            Number of profiles deleted.
+        """
