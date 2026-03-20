@@ -251,9 +251,13 @@ def find_matching_historical_segments(
         try:
             old_geom = project(old_geom_dict)
             projected_old[old_id] = old_geom
-            buffered_old[old_id] = old_geom.buffer(buffer_distance_meters, cap_style="flat")
+            buffered_old[old_id] = old_geom.buffer(
+                buffer_distance_meters, cap_style="flat"
+            )
         except Exception as e:
-            logger.warning(f"Could not project removed segment '{old_id}' for geo-matching: {e}")
+            logger.warning(
+                f"Could not project removed segment '{old_id}' for geo-matching: {e}"
+            )
 
     if not projected_old:
         return {}
@@ -267,7 +271,9 @@ def find_matching_historical_segments(
                 continue
             new_buffer = new_geom.buffer(buffer_distance_meters, cap_style="flat")
         except Exception as e:
-            logger.warning(f"Could not project new segment '{new_id}' for geo-matching: {e}")
+            logger.warning(
+                f"Could not project new segment '{new_id}' for geo-matching: {e}"
+            )
             continue
 
         best_score = 0.0
@@ -278,7 +284,9 @@ def find_matching_historical_segments(
                 continue
             try:
                 # Fraction of the new segment covered by the old segment's buffer.
-                new_overlap = new_geom.intersection(buffered_old[old_id]).length / new_geom.length
+                new_overlap = (
+                    new_geom.intersection(buffered_old[old_id]).length / new_geom.length
+                )
                 # Fraction of the old segment covered by the new segment's buffer.
                 old_overlap = old_geom.intersection(new_buffer).length / old_geom.length
                 # Both sides must overlap substantially.
@@ -464,7 +472,9 @@ def update_segment_changelog(
                 }
             )
             # Prepend inherited entries so they appear before any changes on the new segment.
-            changelog[new_id]["history"] = inherited_history + changelog[new_id]["history"]
+            changelog[new_id]["history"] = (
+                inherited_history + changelog[new_id]["history"]
+            )
             changelog[new_id]["geo_inherited_from"] = old_id
             logger.info(
                 f"Segment '{new_id}' inherited {len(inherited_history)} history "

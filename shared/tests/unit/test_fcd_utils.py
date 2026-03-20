@@ -401,7 +401,9 @@ class TestFindMatchingHistoricalSegments:
         """A threshold of 1.0 prevents a near-but-not-identical match."""
         new = {"new1": _make_linestring(SEG_B_COORDS)}
         removed = {"old1": _make_removed_record(SEG_A_COORDS)}
-        result = FcdUtils.find_matching_historical_segments(new, removed, match_threshold=1.0)
+        result = FcdUtils.find_matching_historical_segments(
+            new, removed, match_threshold=1.0
+        )
         assert result == {}
 
     @pytest.mark.unit
@@ -437,7 +439,12 @@ class TestUpdateSegmentChangelogGeoInheritance:
     @pytest.mark.unit
     def test_history_inherited_when_segment_replaced_at_same_location(self, tmp_path):
         """A new segment at the same location as a removed segment inherits its history."""
-        old_history = [{"date_archived": "2024-06-01T00:00:00", "geometry": _make_linestring(SEG_A_COORDS)}]
+        old_history = [
+            {
+                "date_archived": "2024-06-01T00:00:00",
+                "geometry": _make_linestring(SEG_A_COORDS),
+            }
+        ]
         changelog = {
             "old1": {
                 "current_geometry": _make_linestring(SEG_A_COORDS),
