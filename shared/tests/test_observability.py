@@ -50,9 +50,7 @@ class TestDetectRelease:
 
         assert _detect_release() == "idea-helsinki@0.18.1"
 
-    @patch.dict(
-        "os.environ", {"SENTRY_RELEASE": "explicit@9.9.9"}, clear=False
-    )
+    @patch.dict("os.environ", {"SENTRY_RELEASE": "explicit@9.9.9"}, clear=False)
     @patch("idea_shared.observability.sentry.VERSION_FILE")
     def test_env_var_takes_precedence_over_version_file(self, mock_path):
         mock_path.is_file.return_value = True
@@ -62,6 +60,15 @@ class TestDetectRelease:
 
         assert _detect_release() == "explicit@9.9.9"
 
+    @patch.dict("os.environ", {}, clear=True)
+    @patch("idea_shared.observability.sentry.VERSION_FILE")
+    def test_returns_none_on_version_file_read_error(self, mock_path):
+        mock_path.is_file.side_effect = OSError("Permission denied")
+
+        from idea_shared.observability.sentry import _detect_release
+
+        assert _detect_release() is None
+
 
 @pytest.mark.unit
 class TestConfigureSentry:
@@ -70,9 +77,12 @@ class TestConfigureSentry:
     @patch.dict(
         "os.environ", {"SENTRY_DSN": "https://key@sentry.io/123", "ENVIRONMENT": "test"}
     )
-    @patch("idea_shared.observability.sentry._detect_release", return_value="idea-helsinki@1.0.0")
+    @patch(
+        "idea_shared.observability.sentry._detect_release",
+        return_value="idea-helsinki@1.0.0",
+    )
     @patch("idea_shared.observability.sentry.sentry_sdk")
-    def test_initializes_sentry_when_dsn_set(self, mock_sentry, _mock_release):
+    def test_initializes_sentry_when_dsn_set(self, mock_sentry, _mock_detect_release):
         from idea_shared.observability.sentry import configure_sentry
 
         configure_sentry("test-service")
@@ -105,7 +115,7 @@ class TestConfigureSentry:
     )
     @patch("idea_shared.observability.sentry._detect_release", return_value=None)
     @patch("idea_shared.observability.sentry.sentry_sdk")
-    def test_strips_whitespace_from_dsn(self, mock_sentry, _mock_release):
+    def test_strips_whitespace_from_dsn(self, mock_sentry, _mock_detect_release):
         from idea_shared.observability.sentry import configure_sentry
 
         configure_sentry("test-service")
@@ -117,7 +127,9 @@ class TestConfigureSentry:
     )
     @patch("idea_shared.observability.sentry._detect_release", return_value=None)
     @patch("idea_shared.observability.sentry.sentry_sdk")
-    def test_passes_none_release_when_not_detected(self, mock_sentry, _mock_release):
+    def test_passes_none_release_when_not_detected(
+        self, mock_sentry, _mock_detect_release
+    ):
         from idea_shared.observability.sentry import configure_sentry
 
         configure_sentry("test-service")

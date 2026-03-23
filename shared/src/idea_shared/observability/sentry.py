@@ -26,10 +26,13 @@ def _detect_release() -> str | None:
     if release:
         return release
 
-    if VERSION_FILE.is_file():
-        version = VERSION_FILE.read_text().strip()
-        if version:
-            return f"idea-helsinki@{version}"
+    try:
+        if VERSION_FILE.is_file():
+            version = VERSION_FILE.read_text().strip()
+            if version:
+                return f"idea-helsinki@{version}"
+    except OSError as e:
+        logger.warning(f"Could not read version file at {VERSION_FILE}: {e}")
 
     return None
 
