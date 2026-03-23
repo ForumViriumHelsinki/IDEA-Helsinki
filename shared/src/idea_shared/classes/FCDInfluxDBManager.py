@@ -478,7 +478,12 @@ class FCDInfluxDBManager:
         Returns:
             A CSV formated string for the found measurements or None if nothing was found.
         """
-        if not latest_only and start_time is not None and end_time is not None and start_time >= end_time:
+        if (
+            not latest_only
+            and start_time is not None
+            and end_time is not None
+            and start_time >= end_time
+        ):
             self.logger.warning(
                 f"Skipping query: start_time ({start_time.isoformat()}) >= end_time ({end_time.isoformat()}). "
                 "Would produce an empty range."
@@ -560,7 +565,12 @@ class FCDInfluxDBManager:
         Returns:
             A Pandas DataFrame containing the queried data, or None if an error occurs.
         """
-        if not latest_only and start_time is not None and end_time is not None and start_time >= end_time:
+        if (
+            not latest_only
+            and start_time is not None
+            and end_time is not None
+            and start_time >= end_time
+        ):
             self.logger.warning(
                 f"Skipping query: start_time ({start_time.isoformat()}) >= end_time ({end_time.isoformat()}). "
                 "Would produce an empty range."

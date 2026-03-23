@@ -377,7 +377,9 @@ class TestValidationHistoryWindow:
 
         current_date = datetime(2026, 3, 23, 10, 47, 4, tzinfo=UTC)
         # profiling_end_date is today — the condition that caused the bug
-        segment.profiling_end_date = current_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        segment.profiling_end_date = current_date.replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
 
         segment._initialize_last_validation_update(current_date)
 
@@ -393,7 +395,9 @@ class TestValidationHistoryWindow:
         segment = _make_segment(validation_history_weeks=4, validation_frequency=5)
 
         current_date = datetime(2026, 3, 23, 10, 47, 4, tzinfo=UTC)
-        segment.profiling_end_date = current_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        segment.profiling_end_date = current_date.replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
 
         segment._initialize_last_validation_update(current_date)
 

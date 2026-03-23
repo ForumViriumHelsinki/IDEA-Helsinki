@@ -113,7 +113,9 @@ class TestWFSNoRetryOnPermanentErrors:
         with patch.object(client.logger, "warning") as mock_warning:
             client.get_feature("TestFeature")
 
-        mock_warning.assert_any_call("Response body: No such layer: Kaivuilmoitus_alue...")
+        mock_warning.assert_any_call(
+            "Response body: No such layer: Kaivuilmoitus_alue..."
+        )
 
 
 class TestWFSRequestFromList:
