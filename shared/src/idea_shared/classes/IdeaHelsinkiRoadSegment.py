@@ -125,7 +125,13 @@ class IdeaHelsinkiRoadSegment:
             )
             self.last_validation_update = max(candidate, earliest_allowed)
         else:
-            self.last_validation_update = current_date
+            # profiling_end_date is today: start one cycle before now so the
+            # first validation query covers a non-empty time window.
+            # Setting last_validation_update = current_date would produce an
+            # empty range (start == stop) and cause InfluxDB to return 400.
+            self.last_validation_update = current_date - timedelta(
+                minutes=self.validation_frequency
+            )
 
     async def _wait_for_next_cycle(self):
         """
