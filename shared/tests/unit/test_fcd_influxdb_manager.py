@@ -360,3 +360,107 @@ class TestGetSegmentDataDataframe:
         assert query_fields == original_fields
 
         manager.close()
+
+    @pytest.mark.unit
+    @patch("idea_shared.classes.FCDInfluxDBManager.InfluxDBClient")
+    def test_empty_range_returns_none_without_querying(self, mock_client_class):
+        """When start_time == end_time, should return None without hitting InfluxDB.
+
+        Regression test for: https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/315
+        InfluxDB returns HTTP 400 'cannot query an empty range' when start == stop.
+        """
+        from datetime import UTC, datetime
+
+        mock_client = MagicMock()
+        mock_query_api = MagicMock()
+        mock_client.query_api.return_value = mock_query_api
+        mock_client_class.return_value = mock_client
+
+        manager = FCDInfluxDBManager(
+            url="http://localhost:8086",
+            token="test-token",
+            org="test-org",
+            bucket="test-bucket",
+        )
+
+        ts = datetime(2026, 3, 23, 10, 47, 4, tzinfo=UTC)
+        result = manager.get_segment_data_dataframe(
+            segment_id="seg-1",
+            measurement_name="segment_data",
+            start_time=ts,
+            end_time=ts,
+        )
+
+        assert result is None
+        mock_query_api.query_data_frame.assert_not_called()
+
+        manager.close()
+
+    @pytest.mark.unit
+    @patch("idea_shared.classes.FCDInfluxDBManager.InfluxDBClient")
+    def test_start_after_end_returns_none_without_querying(self, mock_client_class):
+        """When start_time > end_time, should return None without hitting InfluxDB."""
+        from datetime import UTC, datetime, timedelta
+
+        mock_client = MagicMock()
+        mock_query_api = MagicMock()
+        mock_client.query_api.return_value = mock_query_api
+        mock_client_class.return_value = mock_client
+
+        manager = FCDInfluxDBManager(
+            url="http://localhost:8086",
+            token="test-token",
+            org="test-org",
+            bucket="test-bucket",
+        )
+
+        now = datetime(2026, 3, 23, 10, 47, 4, tzinfo=UTC)
+        result = manager.get_segment_data_dataframe(
+            segment_id="seg-1",
+            measurement_name="segment_data",
+            start_time=now,
+            end_time=now - timedelta(minutes=5),
+        )
+
+        assert result is None
+        mock_query_api.query_data_frame.assert_not_called()
+
+        manager.close()
+
+
+class TestGetSegmentDataCsv:
+    """Tests for get_segment_data_csv method."""
+
+    @pytest.mark.unit
+    @patch("idea_shared.classes.FCDInfluxDBManager.InfluxDBClient")
+    def test_empty_range_returns_none_without_querying(self, mock_client_class):
+        """When start_time == end_time, get_segment_data_csv should return None.
+
+        Regression test for: https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/315
+        """
+        from datetime import UTC, datetime
+
+        mock_client = MagicMock()
+        mock_query_api = MagicMock()
+        mock_client.query_api.return_value = mock_query_api
+        mock_client_class.return_value = mock_client
+
+        manager = FCDInfluxDBManager(
+            url="http://localhost:8086",
+            token="test-token",
+            org="test-org",
+            bucket="test-bucket",
+        )
+
+        ts = datetime(2026, 3, 23, 10, 47, 4, tzinfo=UTC)
+        result = manager.get_segment_data_csv(
+            segment_id="seg-1",
+            measurement_name="segment_data",
+            start_time=ts,
+            end_time=ts,
+        )
+
+        assert result is None
+        mock_query_api.query_csv.assert_not_called()
+
+        manager.close()
