@@ -332,7 +332,7 @@ class TestDateRangeRetry:
         start = datetime(2025, 1, 1, tzinfo=UTC)
 
         # Add one more than the cap to the dead-letter queue
-        for i in range(DEAD_LETTER_QUEUE_MAX_SIZE + 1):
+        for _ in range(DEAD_LETTER_QUEUE_MAX_SIZE + 1):
             end = start + timedelta(days=1)
             dr = DateRange(start=start, end=end, retry_count=3)
             queue.move_to_dead_letter(dr)

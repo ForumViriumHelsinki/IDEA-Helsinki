@@ -82,3 +82,33 @@ jobs:
           # SBOM and provenance only for release tags (saves ~30s on regular builds)
           provenance: ${{ startsWith(github.ref, 'refs/tags/') && 'mode=max' || 'false' }}
           sbom: ${{ startsWith(github.ref, 'refs/tags/') }}
+
+  sentry-release:
+    # Create Sentry release with commit association and deploy notification.
+    # Runs once per tag push; creating the same release multiple times is idempotent.
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          # Tag format: {service}-v{version} (e.g., orchestrator-v0.18.1)
+          VERSION="${GITHUB_REF_NAME#*-v}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "release=idea-helsinki@${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Create Sentry release
+        uses: getsentry/action-release@v3
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: forum-virium-helsinki
+          SENTRY_PROJECT: idea-helsinki
+        with:
+          version: ${{ steps.version.outputs.release }}
+          environment: production

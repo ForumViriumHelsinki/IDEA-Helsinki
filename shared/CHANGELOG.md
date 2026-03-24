@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.18.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.18.0...idea-shared-v0.18.1) (2026-03-20)
+
+
+### Bug Fixes
+
+* improve WFS 400 error diagnostics and logging clarity ([#306](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/306)) ([2b5ff88](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/2b5ff881952c6c567843f0bd10b64250e617e55e))
+
+## [0.18.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.17.0...idea-shared-v0.18.0) (2026-03-20)
+
+
+### Features
+
+* add data access layer for SQLite migration (Phase 1) ([#294](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/294)) ([c701e7f](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/c701e7f42681740326e184038144f08c5fd6c1b9))
+
+## [0.17.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.16.0...idea-shared-v0.17.0) (2026-03-20)
+
+
+### Features
+
+* inherit segment history when replaced segments match geographically ([#290](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/290)) ([4a6f6c2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/4a6f6c2996ce8ce85e1b67e12009a94b648aa5ba))
+
+## [0.16.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.15.0...idea-shared-v0.16.0) (2026-03-18)
+
+
+### Features
+
+* add health check execution time tracking and slow check warnings ([#285](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/285)) ([1fedb4b](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/1fedb4bd676c0684e625be0b930c6ad479bad3c8))
+
+
+### Bug Fixes
+
+* avoid mutating caller's query_fields list in get_segment_data_dataframe ([#288](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/288)) ([f3b4bde](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/f3b4bde9f02d4e38bbb60b1822931feb1e837949))
+* cap dead-letter queue size in DateRangeQueue ([#286](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/286)) ([a9a4756](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/a9a47567f32c9a56b9772b87e8a0eea97a46bef5))
+* store and cancel health server asyncio task on shutdown ([#287](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/287)) ([2d74130](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/2d7413018ac9d0e8a9bceb332039f4bf976e67d9))
+
 ## [0.15.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.14.4...idea-shared-v0.15.0) (2026-03-18)
 
 

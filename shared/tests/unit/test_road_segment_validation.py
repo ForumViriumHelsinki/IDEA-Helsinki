@@ -366,3 +366,42 @@ class TestValidationHistoryWindow:
         assert (
             segment_old.last_validation_update == segment_recent.last_validation_update
         )
+
+    def test_profiling_end_date_is_today_starts_one_cycle_before_now(self):
+        """When profiling_end_date == current_date (today), last_validation_update must be
+        set to one cycle before current_date to avoid an empty InfluxDB range query.
+
+        Regression test for: https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/315
+        """
+        segment = _make_segment(validation_history_weeks=4, validation_frequency=5)
+
+        current_date = datetime(2026, 3, 23, 10, 47, 4, tzinfo=UTC)
+        # profiling_end_date is today — the condition that caused the bug
+        segment.profiling_end_date = current_date.replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+
+        segment._initialize_last_validation_update(current_date)
+
+        expected = current_date - timedelta(minutes=5)
+        assert segment.last_validation_update == expected, (
+            "When profiling_end_date is today, last_validation_update must be "
+            "one cycle before current_date, not current_date itself"
+        )
+
+    def test_profiling_end_date_is_today_result_is_before_current_date(self):
+        """When profiling_end_date is today, last_validation_update must be strictly
+        before current_date so the validation query range is non-empty."""
+        segment = _make_segment(validation_history_weeks=4, validation_frequency=5)
+
+        current_date = datetime(2026, 3, 23, 10, 47, 4, tzinfo=UTC)
+        segment.profiling_end_date = current_date.replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+
+        segment._initialize_last_validation_update(current_date)
+
+        assert segment.last_validation_update < current_date, (
+            "last_validation_update must be strictly before current_date to avoid "
+            "empty InfluxDB range query (start == stop causes HTTP 400)"
+        )
