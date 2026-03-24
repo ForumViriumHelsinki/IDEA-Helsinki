@@ -46,7 +46,7 @@ def _make_segment(**kwargs) -> IdeaHelsinkiRoadSegment:
         "db_validation_token": "test-token",
     }
     defaults.update(kwargs)
-    return IdeaHelsinkiRoadSegment(**defaults)
+    return IdeaHelsinkiRoadSegment(**defaults)  # ty: ignore[invalid-argument-type]
 
 
 def _make_hourly_df(n_weeks: int = 4) -> pd.DataFrame:
@@ -158,9 +158,9 @@ class TestChunkedProfileDataFetching:
             call_count += 1
             return self._make_raw_chunk_df(start_time, end_time)
 
-        segment._IdeaHelsinkiRoadSegment__get_idea_formated_segment_data_from_influxdb = fake_fetch
+        segment._IdeaHelsinkiRoadSegment__get_idea_formated_segment_data_from_influxdb = fake_fetch  # ty: ignore[unresolved-attribute]
 
-        result = await segment._IdeaHelsinkiRoadSegment__get_hourly_profile_data()
+        result = await segment._IdeaHelsinkiRoadSegment__get_hourly_profile_data()  # ty: ignore[unresolved-attribute]
 
         assert result is not None
         assert not result.empty
@@ -175,9 +175,9 @@ class TestChunkedProfileDataFetching:
         async def fake_fetch(segment_id, start_time, end_time):
             return self._make_raw_chunk_df(start_time, end_time)
 
-        segment._IdeaHelsinkiRoadSegment__get_idea_formated_segment_data_from_influxdb = fake_fetch
+        segment._IdeaHelsinkiRoadSegment__get_idea_formated_segment_data_from_influxdb = fake_fetch  # ty: ignore[unresolved-attribute]
 
-        result = await segment._IdeaHelsinkiRoadSegment__get_hourly_profile_data()
+        result = await segment._IdeaHelsinkiRoadSegment__get_hourly_profile_data()  # ty: ignore[unresolved-attribute]
 
         assert result is not None
         assert "hour_of_date" in result.columns
@@ -193,9 +193,9 @@ class TestChunkedProfileDataFetching:
         async def fake_fetch_empty(segment_id, start_time, end_time):
             return None
 
-        segment._IdeaHelsinkiRoadSegment__get_idea_formated_segment_data_from_influxdb = fake_fetch_empty
+        segment._IdeaHelsinkiRoadSegment__get_idea_formated_segment_data_from_influxdb = fake_fetch_empty  # ty: ignore[unresolved-attribute]
 
-        result = await segment._IdeaHelsinkiRoadSegment__get_hourly_profile_data()
+        result = await segment._IdeaHelsinkiRoadSegment__get_hourly_profile_data()  # ty: ignore[unresolved-attribute]
 
         assert result is None
 
@@ -211,9 +211,9 @@ class TestChunkedProfileDataFetching:
             raw_rows.append(len(df))
             return df
 
-        segment._IdeaHelsinkiRoadSegment__get_idea_formated_segment_data_from_influxdb = fake_fetch
+        segment._IdeaHelsinkiRoadSegment__get_idea_formated_segment_data_from_influxdb = fake_fetch  # ty: ignore[unresolved-attribute]
 
-        result = await segment._IdeaHelsinkiRoadSegment__get_hourly_profile_data()
+        result = await segment._IdeaHelsinkiRoadSegment__get_hourly_profile_data()  # ty: ignore[unresolved-attribute]
 
         assert result is not None
         total_raw = sum(raw_rows)
@@ -263,7 +263,7 @@ class TestProfilingSemaphore:
             "_IdeaHelsinkiRoadSegment__get_hourly_profile_data",
             side_effect=fake_get_hourly,
         ):
-            await segment._IdeaHelsinkiRoadSegment__validate_segment(datetime.now(UTC))
+            await segment._IdeaHelsinkiRoadSegment__validate_segment(datetime.now(UTC))  # ty: ignore[unresolved-attribute]
 
         assert acquired_during_call, "Semaphore was not acquired during profiling"
 
@@ -281,7 +281,7 @@ class TestProfilingSemaphore:
             "_IdeaHelsinkiRoadSegment__get_hourly_profile_data",
             side_effect=fake_get_hourly,
         ):
-            await segment._IdeaHelsinkiRoadSegment__validate_segment(datetime.now(UTC))
+            await segment._IdeaHelsinkiRoadSegment__validate_segment(datetime.now(UTC))  # ty: ignore[unresolved-attribute]
 
         assert sem._value == 3, "Semaphore not fully released after profiling"
 
@@ -310,7 +310,7 @@ class TestProfilingSemaphore:
                 side_effect=IDEAError("not enough data"),
             ),
         ):
-            await segment._IdeaHelsinkiRoadSegment__validate_segment(datetime.now(UTC))
+            await segment._IdeaHelsinkiRoadSegment__validate_segment(datetime.now(UTC))  # ty: ignore[unresolved-attribute]
 
         assert sem._value == 3, (
             "Semaphore not released after IDEAError during profiling"

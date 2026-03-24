@@ -632,7 +632,7 @@ class FCDInfluxDBManager:
             if df is not None and not df.empty and query_fields:
                 fields = ["_time", *query_fields]
                 df = df[fields]
-            return df  # type: ignore[reportReturnType] - df[list] always returns DataFrame
+            return df
         except Exception as e:
             self.logger.error(f"An error occurred during segment data query. {e}")
             raise

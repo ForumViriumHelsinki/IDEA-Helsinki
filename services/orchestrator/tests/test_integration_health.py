@@ -9,7 +9,7 @@ import pytest
 from idea_shared.classes.IdeaHelsinkiManager import IdeaHelsinkiManager
 from idea_shared.health.server import HealthServer
 
-from health_checks import (
+from health_checks import (  # ty: ignore[unresolved-import]
     DisturbanceDataHealthCheck,
     FCDDatabaseHealthCheck,
     OrchestratorHealthCheck,

@@ -5,11 +5,13 @@ Useful for local development and testing.
 """
 
 import logging
+import typing
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
 from openfeature.evaluation_context import EvaluationContext
-from openfeature.flag_evaluation import FlagResolutionDetails, Reason
+from openfeature.flag_evaluation import FlagResolutionDetails, FlagValueType, Reason
 from openfeature.provider import AbstractProvider, Metadata
 
 from idea_shared.threading.file_locks import read_json_with_retry
@@ -229,9 +231,9 @@ class JsonFileProvider(AbstractProvider):
     def resolve_object_details(
         self,
         flag_key: str,
-        default_value: dict,
+        default_value: typing.Union[Sequence[FlagValueType], Mapping[str, FlagValueType]],
         evaluation_context: EvaluationContext | None = None,
-    ) -> FlagResolutionDetails[dict]:
+    ) -> FlagResolutionDetails[typing.Union[Sequence[FlagValueType], Mapping[str, FlagValueType]]]:
         """Resolve an object/dict feature flag.
 
         Args:

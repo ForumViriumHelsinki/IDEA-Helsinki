@@ -6,9 +6,11 @@ Useful for production deployments and containerized environments.
 
 import logging
 import os
+import typing
+from collections.abc import Mapping, Sequence
 
 from openfeature.evaluation_context import EvaluationContext
-from openfeature.flag_evaluation import FlagResolutionDetails, Reason
+from openfeature.flag_evaluation import FlagResolutionDetails, FlagValueType, Reason
 from openfeature.provider import AbstractProvider, Metadata
 
 logger = logging.getLogger(__name__)
@@ -211,9 +213,9 @@ class EnvironmentVariableProvider(AbstractProvider):
     def resolve_object_details(
         self,
         flag_key: str,
-        default_value: dict,
+        default_value: typing.Union[Sequence[FlagValueType], Mapping[str, FlagValueType]],
         evaluation_context: EvaluationContext | None = None,
-    ) -> FlagResolutionDetails[dict]:
+    ) -> FlagResolutionDetails[typing.Union[Sequence[FlagValueType], Mapping[str, FlagValueType]]]:
         """Resolve an object/dict feature flag.
 
         Note: Environment variables are parsed as JSON strings for objects.

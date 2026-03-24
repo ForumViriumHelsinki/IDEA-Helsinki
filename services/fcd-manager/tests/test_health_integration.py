@@ -28,7 +28,7 @@ sys.modules["openfeature.provider.provider"] = MagicMock()
 
 from idea_shared.health.server import HealthServer  # noqa: E402
 
-from health_checks import (  # noqa: E402
+from health_checks import (  # noqa: E402  # ty: ignore[unresolved-import]
     ProcessingPipelineHealthCheck,
     SegmentMappingFreshnessHealthCheck,
     UpdateCycleHealthCheck,
@@ -525,7 +525,7 @@ class TestSignalHandling:
         allowing verification of the exit code (0 = clean shutdown).
         """
         with patch("sys.exit") as mock_exit:
-            from main import handle_shutdown
+            from main import handle_shutdown  # ty: ignore[unresolved-import]
 
             # Mock health server
             with patch("main.health_server") as mock_server:
@@ -549,7 +549,7 @@ class TestSignalHandling:
         This test verifies the shutdown sequence matches SIGTERM behavior.
         """
         with patch("sys.exit") as mock_exit:
-            from main import handle_shutdown
+            from main import handle_shutdown  # ty: ignore[unresolved-import]
 
             # Mock health server
             with patch("main.health_server") as mock_server:

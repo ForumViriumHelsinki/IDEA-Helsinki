@@ -6,11 +6,14 @@ for easy access to feature flags throughout the application.
 
 import logging
 import threading
+import typing
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from openfeature import api
 from openfeature.client import OpenFeatureClient
 from openfeature.evaluation_context import EvaluationContext
+from openfeature.flag_evaluation import FlagValueType
 from openfeature.provider import AbstractProvider
 
 from .flags import FeatureFlag, FlagDefaults
@@ -170,9 +173,9 @@ class FeatureFlagManager:
     def get_object(
         self,
         flag: FeatureFlag | str,
-        default: dict,
+        default: typing.Union[Sequence[FlagValueType], Mapping[str, FlagValueType]],
         context: EvaluationContext | None = None,
-    ) -> dict | list:
+    ) -> typing.Union[Sequence[FlagValueType], Mapping[str, FlagValueType]]:
         """Get a dict/object feature flag value.
 
         Args:

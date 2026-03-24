@@ -19,12 +19,12 @@ from idea_shared.lib.Constants.Constants import (
 )
 
 from src.health_checks import (
-    DisturbanceDataHealthCheck,
-    FCDDatabaseHealthCheck,
-    InfluxDBConnectionManager,
-    OrchestratorHealthCheck,
-    ValidationDatabaseHealthCheck,
-    WorkerStatusHealthCheck,
+    DisturbanceDataHealthCheck,  # ty: ignore[unresolved-import]
+    FCDDatabaseHealthCheck,  # ty: ignore[unresolved-import]
+    InfluxDBConnectionManager,  # ty: ignore[unresolved-import]
+    OrchestratorHealthCheck,  # ty: ignore[unresolved-import]
+    ValidationDatabaseHealthCheck,  # ty: ignore[unresolved-import]
+    WorkerStatusHealthCheck,  # ty: ignore[unresolved-import]
 )
 
 
@@ -991,7 +991,7 @@ class TestInfluxDBConnectionManager:
         # Store original max connections
         original_max = InfluxDBConnectionManager.MAX_CONNECTIONS
         test_limit = 3
-        InfluxDBConnectionManager.MAX_CONNECTIONS = test_limit  # type: ignore[assignment]
+        InfluxDBConnectionManager.MAX_CONNECTIONS = test_limit
 
         try:
             url = "http://localhost:8086"
@@ -1010,7 +1010,7 @@ class TestInfluxDBConnectionManager:
 
         finally:
             # Restore and clean up
-            InfluxDBConnectionManager.MAX_CONNECTIONS = original_max  # type: ignore[assignment]
+            InfluxDBConnectionManager.MAX_CONNECTIONS = original_max
             await InfluxDBConnectionManager.cleanup_all()
 
     @pytest.mark.asyncio
@@ -1018,7 +1018,7 @@ class TestInfluxDBConnectionManager:
         """Test that stale connections are cleaned up."""
         # Store original TTL
         original_ttl = InfluxDBConnectionManager.CONNECTION_TTL_SECONDS
-        InfluxDBConnectionManager.CONNECTION_TTL_SECONDS = 0.001  # type: ignore[assignment]  # Very short TTL
+        InfluxDBConnectionManager.CONNECTION_TTL_SECONDS = 0.001  # Very short TTL
 
         try:
             url = "http://localhost:8086"
@@ -1041,7 +1041,7 @@ class TestInfluxDBConnectionManager:
 
         finally:
             # Restore and clean up
-            InfluxDBConnectionManager.CONNECTION_TTL_SECONDS = original_ttl  # type: ignore[assignment]
+            InfluxDBConnectionManager.CONNECTION_TTL_SECONDS = original_ttl
             await InfluxDBConnectionManager.cleanup_all()
 
     @pytest.mark.asyncio

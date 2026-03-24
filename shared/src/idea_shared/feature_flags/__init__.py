@@ -66,5 +66,5 @@ __all__ = [
     # Providers
     "JsonFileProvider",
     "EnvironmentVariableProvider",
-    "GoFeatureFlagProvider",  # type: ignore[reportUnsupportedDunderAll] - lazy import via __getattr__
+    "GoFeatureFlagProvider",
 ]
