@@ -45,7 +45,7 @@ sys.modules["openfeature.provider.provider"] = MagicMock()
 from idea_shared.threading import ThreadCoordinator  # noqa: E402
 from mocks import MockAzureBlobStorage  # noqa: E402
 
-from fcd_processing import process_date_range_streaming  # noqa: E402
+from fcd_processing import process_date_range_streaming  # noqa: E402  # ty: ignore[unresolved-import]
 
 
 class TestMultithreadingEquivalence:

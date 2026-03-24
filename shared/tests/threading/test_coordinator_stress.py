@@ -322,7 +322,7 @@ class TestDataIntegrity:
 
         # Patch write queue
         original_put = coordinator.write_queue.put_write_request
-        coordinator.write_queue.put_write_request = tracking_put_write_request
+        coordinator.write_queue.put_write_request = tracking_put_write_request  # ty: ignore[invalid-assignment]
 
         start_date = datetime(2025, 1, 1, tzinfo=UTC)
         end_date = datetime(2025, 1, 3, tzinfo=UTC)

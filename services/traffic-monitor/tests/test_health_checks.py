@@ -11,11 +11,11 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import pytest
 
 from src.health_checks import (
-    DetectorHealthCheck,
-    FCDMappingHealthCheck,
-    OutputFileHealthCheck,
-    UpdateFreshnessHealthCheck,
-    WFSAPIHealthCheck,
+    DetectorHealthCheck,  # ty: ignore[unresolved-import]
+    FCDMappingHealthCheck,  # ty: ignore[unresolved-import]
+    OutputFileHealthCheck,  # ty: ignore[unresolved-import]
+    UpdateFreshnessHealthCheck,  # ty: ignore[unresolved-import]
+    WFSAPIHealthCheck,  # ty: ignore[unresolved-import]
 )
 from src.service_state import ServiceState
 
@@ -83,7 +83,7 @@ class TestWFSAPIHealthCheck:
         check = WFSAPIHealthCheck(
             cache_ttl=0,
             circuit_breaker_threshold=2,
-            circuit_breaker_timeout=1.0,  # type: ignore[call-arg]
+            circuit_breaker_timeout=1.0,
         )
 
         mock_session = AsyncMock()
