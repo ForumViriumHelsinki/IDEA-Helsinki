@@ -126,7 +126,10 @@ class TestSqliteSegmentRepository:
                 "recorded_at": "2024-01-01T00:00:00+00:00",
             }
         )
-        retrieved["seg_dup"]["current_geometry"] = {"type": "Point", "coordinates": [2, 2]}
+        retrieved["seg_dup"]["current_geometry"] = {
+            "type": "Point",
+            "coordinates": [2, 2],
+        }
         retrieved["seg_dup"]["current_hash"] = "h2"
         segment_repo.save_changelog(retrieved)
 

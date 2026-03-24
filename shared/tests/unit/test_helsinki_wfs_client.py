@@ -5,7 +5,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
-from idea_shared.classes.HelsinkiWFSClient import HelsinkiAlluWFSClient, HelsinkiWFSClient
+from idea_shared.classes.HelsinkiWFSClient import (
+    HelsinkiAlluWFSClient,
+    HelsinkiWFSClient,
+)
 
 
 @pytest.fixture

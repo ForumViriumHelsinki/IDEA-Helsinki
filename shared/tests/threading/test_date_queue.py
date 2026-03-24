@@ -6,7 +6,11 @@ Following TDD RED-GREEN-REFACTOR cycle.
 
 from datetime import UTC, datetime, timedelta
 
-from idea_shared.threading.date_queue import DEAD_LETTER_QUEUE_MAX_SIZE, DateRange, DateRangeQueue
+from idea_shared.threading.date_queue import (
+    DEAD_LETTER_QUEUE_MAX_SIZE,
+    DateRange,
+    DateRangeQueue,
+)
 
 
 class TestDateRange:
