@@ -20,4 +20,4 @@ def __getattr__(name: str):
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
-__all__ = ["JsonFileProvider", "EnvironmentVariableProvider", "GoFeatureFlagProvider"]  # type: ignore[reportUnsupportedDunderAll] - lazy import via __getattr__
+__all__ = ["JsonFileProvider", "EnvironmentVariableProvider", "GoFeatureFlagProvider"]

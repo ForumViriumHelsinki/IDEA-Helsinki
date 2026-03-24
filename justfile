@@ -75,8 +75,14 @@ format-check *args:
     uv run ruff format --check {{ args }}
     @echo "Formatting check passed!"
 
-# Composite: format-check + lint (code quality only, no tests)
-check: format-check lint
+# Run type checking with ty
+typecheck *args:
+    @echo "Running type checks..."
+    uv run ty check {{ args }}
+    @echo "Type checks passed!"
+
+# Composite: format-check + lint + typecheck (code quality only, no tests)
+check: format-check lint typecheck
     @echo "Quality checks passed!"
 
 ####################

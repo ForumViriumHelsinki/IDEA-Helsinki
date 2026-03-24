@@ -21,7 +21,7 @@ from unittest.mock import MagicMock
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from fcd_processing import process_date_range_streaming
+from fcd_processing import process_date_range_streaming  # ty: ignore[unresolved-import]
 
 
 # Test fixture: Realistic TomTom JSON data

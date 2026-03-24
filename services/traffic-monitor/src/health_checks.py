@@ -8,6 +8,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import aiohttp
+from typing import Any
+
 from idea_shared.health.checks import (
     ExternalAPIHealthCheck,
     FileSystemHealthCheck,
@@ -384,7 +386,10 @@ class OutputFileHealthCheck(FileSystemHealthCheck):
 
             def check_output():
                 """Check output file specific conditions."""
-                metadata = {"output_path": str(self.output_file_path), "writable": True}
+                metadata: dict[str, Any] = {
+                    "output_path": str(self.output_file_path),
+                    "writable": True,
+                }
 
                 # If file exists, check its properties
                 if self.output_file_path.exists():

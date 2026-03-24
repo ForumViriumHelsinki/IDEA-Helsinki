@@ -86,7 +86,7 @@ def async_retry(
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
         async def wrapper(*args, **kwargs):
-            logger = Logger(logger_name or func.__name__)
+            logger = Logger(logger_name or getattr(func, "__name__", repr(func)))
             last_exception: Exception | None = None
 
             for attempt in range(1, max_attempts + 1):
@@ -163,7 +163,7 @@ async def with_retry[T](
             base_delay=2.0
         )
     """
-    logger = Logger(logger_name or func.__name__)
+    logger = Logger(logger_name or getattr(func, "__name__", repr(func)))
     last_exception: Exception | None = None
 
     for attempt in range(1, max_attempts + 1):

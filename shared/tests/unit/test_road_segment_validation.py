@@ -46,7 +46,7 @@ def _make_segment(**kwargs) -> IdeaHelsinkiRoadSegment:
         "db_validation_token": "test-token",
     }
     defaults.update(kwargs)
-    return IdeaHelsinkiRoadSegment(**defaults)
+    return IdeaHelsinkiRoadSegment(**defaults)  # ty: ignore[invalid-argument-type]
 
 
 def _make_manager(**kwargs):
@@ -68,7 +68,7 @@ def _make_manager(**kwargs):
         "db_validation_token": "test-token",
     }
     defaults.update(kwargs)
-    return IdeaHelsinkiManager(**defaults)
+    return IdeaHelsinkiManager(**defaults)  # ty: ignore[invalid-argument-type]
 
 
 # ---------------------------------------------------------------------------
@@ -112,12 +112,12 @@ class TestValidationSemaphore:
             # Return None to short-circuit before validate_roadwork
             return None
 
-        segment._IdeaHelsinkiRoadSegment__get_validation_dataframe_from_influxdb = (
+        segment._IdeaHelsinkiRoadSegment__get_validation_dataframe_from_influxdb = (  # ty: ignore[unresolved-attribute]
             fake_get_validation
         )
-        segment._IdeaHelsinkiRoadSegment__get_idea_formated_segment_data_from_influxdb = fake_get_segment_data
+        segment._IdeaHelsinkiRoadSegment__get_idea_formated_segment_data_from_influxdb = fake_get_segment_data  # ty: ignore[unresolved-attribute]
 
-        await segment._IdeaHelsinkiRoadSegment__validate_segment(datetime.now(UTC))
+        await segment._IdeaHelsinkiRoadSegment__validate_segment(datetime.now(UTC))  # ty: ignore[unresolved-attribute]
 
         assert acquired_during_call, (
             "Semaphore was not acquired during validation history fetch"
@@ -139,12 +139,12 @@ class TestValidationSemaphore:
             # Return None to short-circuit before validate_roadwork
             return None
 
-        segment._IdeaHelsinkiRoadSegment__get_validation_dataframe_from_influxdb = (
+        segment._IdeaHelsinkiRoadSegment__get_validation_dataframe_from_influxdb = (  # ty: ignore[unresolved-attribute]
             fake_get_validation
         )
-        segment._IdeaHelsinkiRoadSegment__get_idea_formated_segment_data_from_influxdb = fake_get_segment_data
+        segment._IdeaHelsinkiRoadSegment__get_idea_formated_segment_data_from_influxdb = fake_get_segment_data  # ty: ignore[unresolved-attribute]
 
-        await segment._IdeaHelsinkiRoadSegment__validate_segment(datetime.now(UTC))
+        await segment._IdeaHelsinkiRoadSegment__validate_segment(datetime.now(UTC))  # ty: ignore[unresolved-attribute]
 
         assert sem._value == 3, (
             "Semaphore not fully released after validation history fetch"
@@ -165,13 +165,13 @@ class TestValidationSemaphore:
         async def fake_get_segment_data(segment_id, start_time, end_time):
             return None
 
-        segment._IdeaHelsinkiRoadSegment__get_validation_dataframe_from_influxdb = (
+        segment._IdeaHelsinkiRoadSegment__get_validation_dataframe_from_influxdb = (  # ty: ignore[unresolved-attribute]
             fake_get_validation
         )
-        segment._IdeaHelsinkiRoadSegment__get_idea_formated_segment_data_from_influxdb = fake_get_segment_data
+        segment._IdeaHelsinkiRoadSegment__get_idea_formated_segment_data_from_influxdb = fake_get_segment_data  # ty: ignore[unresolved-attribute]
 
         with pytest.raises(RuntimeError):
-            await segment._IdeaHelsinkiRoadSegment__validate_segment(datetime.now(UTC))
+            await segment._IdeaHelsinkiRoadSegment__validate_segment(datetime.now(UTC))  # ty: ignore[unresolved-attribute]
 
         assert sem._value == 3, (
             "Semaphore not released after error during validation history fetch"
@@ -192,9 +192,9 @@ class TestValidationSemaphore:
             assert sem._value == 3, "Semaphore was acquired when it shouldn't have been"
             return None
 
-        segment._IdeaHelsinkiRoadSegment__get_idea_formated_segment_data_from_influxdb = fake_get_segment_data
+        segment._IdeaHelsinkiRoadSegment__get_idea_formated_segment_data_from_influxdb = fake_get_segment_data  # ty: ignore[unresolved-attribute]
 
-        await segment._IdeaHelsinkiRoadSegment__validate_segment(datetime.now(UTC))
+        await segment._IdeaHelsinkiRoadSegment__validate_segment(datetime.now(UTC))  # ty: ignore[unresolved-attribute]
 
         assert sem._value == 3
 
@@ -401,6 +401,7 @@ class TestValidationHistoryWindow:
 
         segment._initialize_last_validation_update(current_date)
 
+        assert segment.last_validation_update is not None
         assert segment.last_validation_update < current_date, (
             "last_validation_update must be strictly before current_date to avoid "
             "empty InfluxDB range query (start == stop causes HTTP 400)"
