@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.19.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.18.1...idea-shared-v0.19.0) (2026-03-24)
+
+
+### Features
+
+* configure Sentry release tracking and deploy notifications ([#318](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/318)) ([342528e](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/342528ed3e557d4f1f072b6f4b3fb1f750597a8f))
+* replace pyright with ty for type checking ([#319](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/319)) ([3cd7594](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/3cd75945f578b41125a3a838eba77a16137348cf))
+
+
+### Bug Fixes
+
+* prevent empty InfluxDB range query when profiling ends today ([#316](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/316)) ([76eeffe](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/76eeffe450f161391ad7a5e5c11fa671e96d50bb))
+
 ## [0.18.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.18.0...idea-shared-v0.18.1) (2026-03-20)
 
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.18.1...traffic-monitor-v0.19.0) (2026-03-24)
+
+
+### Features
+
+* replace pyright with ty for type checking ([#319](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/319)) ([3cd7594](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/3cd75945f578b41125a3a838eba77a16137348cf))
+
 ## [0.18.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.18.0...traffic-monitor-v0.18.1) (2026-03-20)
 
 
