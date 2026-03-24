@@ -386,7 +386,10 @@ class OutputFileHealthCheck(FileSystemHealthCheck):
 
             def check_output():
                 """Check output file specific conditions."""
-                metadata: dict[str, Any] = {"output_path": str(self.output_file_path), "writable": True}
+                metadata: dict[str, Any] = {
+                    "output_path": str(self.output_file_path),
+                    "writable": True,
+                }
 
                 # If file exists, check its properties
                 if self.output_file_path.exists():
