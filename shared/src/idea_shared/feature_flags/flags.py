@@ -27,6 +27,9 @@ class FeatureFlag(StrEnum):
     ENABLE_ENHANCED_LOGGING = "enable_enhanced_logging"
     ENABLE_DEBUG_METRICS = "enable_debug_metrics"
 
+    # Storage backend flags
+    USE_SQLITE_STORAGE = "use_sqlite_storage"
+
     # Configuration override flags
     FCD_UPDATE_INTERVAL_OVERRIDE = "fcd_update_interval_override"
     DISTURBANCE_UPDATE_INTERVAL_OVERRIDE = "disturbance_update_interval_override"
@@ -46,6 +49,7 @@ class FlagDefaults:
     ENABLE_BATCH_PROCESSING: bool = False
     ENABLE_ENHANCED_LOGGING: bool = False
     ENABLE_DEBUG_METRICS: bool = False
+    USE_SQLITE_STORAGE: bool = False
 
     # Numeric flag defaults (None means no override)
     FCD_UPDATE_INTERVAL_OVERRIDE: int | None = None

@@ -89,3 +89,32 @@ Each service:
 - **Migration complexity**: Five-phase migration requires careful sequencing and dual-write validation.
 - **TFDS_Dashboard dependency**: JSON export must be maintained until Dashboard is updated.
 - **Pod restart data loss**: emptyDir storage is ephemeral. Services must re-download from GCS on startup. This is acceptable because GCS is the durable store.
+
+## SpatiaLite Evaluation (Issue #303)
+
+### Current Approach
+
+Geometries are stored as GeoJSON TEXT columns with a built-in SQLite R-tree virtual table (`segments_rtree`) for bounding box pre-filtering. This provides spatial query capability without requiring the `mod_spatialite` extension in containers.
+
+The R-tree index stores bounding boxes (min_x, max_x, min_y, max_y) extracted from GeoJSON coordinates at write time. Queries can use the R-tree for fast rectangular area filtering before performing precise geometry operations in application code.
+
+### When to Upgrade to SpatiaLite
+
+Consider loading `mod_spatialite` when:
+- Segment count exceeds ~50K and bounding box pre-filtering is insufficient
+- Spatial query performance becomes a bottleneck (e.g., intersection detection taking >1s)
+- Need for accurate spatial operations (ST_Intersects, ST_Buffer, ST_Distance) that cannot be approximated by bounding box checks
+
+### How to Upgrade
+
+The migration SQL (`001_initial.sql`) documents the upgrade path:
+1. Add WKB geometry column to `segments` table
+2. Load `mod_spatialite` extension and initialize spatial metadata
+3. Register geometry column with `AddGeometryColumn()`
+4. Populate from existing GeoJSON with `GeomFromGeoJSON()`
+5. Create SpatiaLite spatial index with `CreateSpatialIndex()`
+6. Drop the R-tree virtual table (`segments_rtree`) once SpatiaLite indexes are in place
+
+### Container Impact
+
+Adding SpatiaLite requires `libspatialite` in the container image (~15 MB). This would be added to the Dockerfile only when the upgrade is justified by segment volume or query complexity.
