@@ -107,10 +107,86 @@ async def main():
         port=HEALTH_CHECK_PORT, app_name="IDEA Helsinki Service"
     )
 
-    # Create repository for disturbance data access
-    disturbance_repo = JsonDisturbanceRepository(
-        data_path=TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION
-    )
+    # Create repositories for data access
+    from idea_shared.feature_flags import FeatureFlag, get_feature_flags
+
+    flags = get_feature_flags()
+    use_sqlite = flags.is_enabled(FeatureFlag.USE_SQLITE_STORAGE)
+
+    if use_sqlite:
+        from pathlib import Path
+
+        from idea_shared.data.gcs_sync import GCSSync
+        from idea_shared.data.sqlite_backend import create_sqlite_repositories
+        from idea_shared.health.idea_checks import SqliteHealthCheck
+        from idea_shared.lib.Constants.Constants import (
+            GCS_BUCKET_NAME,
+            GCS_PREFIX,
+            SQLITE_DIR,
+            SQLITE_DISTURBANCES_DB,
+            SQLITE_PROFILES_DB,
+            SQLITE_SEGMENTS_DB,
+        )
+
+        # Ensure SQLite directory exists
+        sqlite_dir = Path(SQLITE_DIR)
+        sqlite_dir.mkdir(parents=True, exist_ok=True)
+
+        # Initialize GCS sync
+        gcs_sync = GCSSync(bucket_name=GCS_BUCKET_NAME, prefix=GCS_PREFIX)
+
+        # Download databases from GCS (written by other services)
+        segments_db_path = sqlite_dir / SQLITE_SEGMENTS_DB
+        disturbances_db_path = sqlite_dir / SQLITE_DISTURBANCES_DB
+        profiles_db_path = sqlite_dir / SQLITE_PROFILES_DB
+
+        logger.info("Downloading databases from GCS...")
+        gcs_sync.download_if_changed(SQLITE_SEGMENTS_DB, segments_db_path)
+        gcs_sync.download_if_changed(SQLITE_DISTURBANCES_DB, disturbances_db_path)
+
+        # Create repos from downloaded databases
+        seg_repos = create_sqlite_repositories(segments_db_path)
+        _segment_repo = seg_repos[0]  # Available for future use
+
+        dist_repos = create_sqlite_repositories(disturbances_db_path)
+        disturbance_repo = dist_repos[1]  # SqliteDisturbanceRepository
+
+        # Create local profiles database (not shared via GCS)
+        profile_repos = create_sqlite_repositories(profiles_db_path)
+        _profile_repo = profile_repos[2]  # SqliteProfileRepository
+
+        # Add SQLite health checks
+        health_server.add_check(
+            "sqlite_disturbances",
+            SqliteHealthCheck(
+                name="sqlite_disturbances",
+                db_path=disturbances_db_path,
+                expected_tables=["disturbances"],
+                critical=False,
+                cache_ttl=60.0,
+                startup_grace_minutes=10,
+            ),
+        )
+        health_server.add_check(
+            "sqlite_profiles",
+            SqliteHealthCheck(
+                name="sqlite_profiles",
+                db_path=profiles_db_path,
+                expected_tables=["profiles"],
+                critical=False,
+                cache_ttl=60.0,
+                startup_grace_minutes=15,
+            ),
+        )
+
+        logger.info(
+            f"Using SQLite storage backend: disturbances={disturbances_db_path}, profiles={profiles_db_path}"
+        )
+    else:
+        disturbance_repo = JsonDisturbanceRepository(
+            data_path=TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION
+        )
+        logger.info("Using JSON file storage backend")
 
     # Create an instance of the manager with the required configuration.
     # The target_fcd_segments argument is omitted to process all segments by default.
