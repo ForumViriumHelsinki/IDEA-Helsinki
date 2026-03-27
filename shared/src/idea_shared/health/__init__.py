@@ -12,6 +12,7 @@ from .idea_checks import (
     FCDDataFreshnessHealthCheck,
     InfluxDBHealthCheck,
     SegmentMappingIntegrityHealthCheck,
+    SqliteHealthCheck,
     WFSServiceHealthCheck,
 )
 from .models import (
@@ -38,6 +39,7 @@ __all__ = [
     "FCDDataFreshnessHealthCheck",
     "InfluxDBHealthCheck",
     "SegmentMappingIntegrityHealthCheck",
+    "SqliteHealthCheck",
     "WFSServiceHealthCheck",
     "check_backfill_mode",
 ]

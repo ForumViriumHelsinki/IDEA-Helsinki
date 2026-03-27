@@ -5,6 +5,7 @@ and profile data. Backends (JSON, SQLite) implement the abstract interfaces.
 GCSSync provides cross-service data sharing via GCS Object API.
 """
 
+from idea_shared.data.factory import create_repositories
 from idea_shared.data.gcs_sync import GCSSync
 from idea_shared.data.repositories import (
     DisturbanceRepository,
@@ -26,5 +27,6 @@ __all__ = [
     "SqliteDisturbanceRepository",
     "SqliteProfileRepository",
     "SqliteSegmentRepository",
+    "create_repositories",
     "create_sqlite_repositories",
 ]

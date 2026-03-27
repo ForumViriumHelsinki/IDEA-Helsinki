@@ -1,6 +1,7 @@
 """IDEA-Helsinki specific health check implementations."""
 
 import asyncio
+import sqlite3
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -510,5 +511,144 @@ class SegmentMappingIntegrityHealthCheck(FileSystemHealthCheck):
                 name=self.name,
                 status="unhealthy",
                 message=f"Segment mapping check failed: {str(e)}",
+                metadata={"error": str(e)},
+            )
+
+
+class SqliteHealthCheck(HealthCheck):
+    """Health check for SQLite database integrity.
+
+    Verifies that the database file exists, expected tables are present,
+    and optional minimum row counts are met.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        db_path: str | Path,
+        expected_tables: list[str],
+        *,
+        min_row_counts: dict[str, int] | None = None,
+        timeout: float = 5.0,
+        critical: bool = True,
+        cache_ttl: float = 30.0,
+        startup_grace_minutes: float = 0,
+    ):
+        """Initialize SQLite health check.
+
+        Args:
+            name: Name of the health check.
+            db_path: Path to the SQLite database file.
+            expected_tables: Table names that must exist.
+            min_row_counts: Optional mapping of table name to minimum row count.
+            timeout: Timeout in seconds for the check.
+            critical: Whether this check is critical for readiness.
+            cache_ttl: Cache time-to-live in seconds.
+            startup_grace_minutes: Grace period in minutes during initial data population.
+        """
+        super().__init__(name, timeout, critical, cache_ttl)
+        self.db_path = Path(db_path)
+        self.expected_tables = expected_tables
+        self.min_row_counts = min_row_counts or {}
+        self._startup_time = datetime.now(UTC)
+        self._startup_grace_period = timedelta(minutes=startup_grace_minutes)
+
+    async def check(self) -> HealthCheckResult:
+        """Check SQLite database integrity.
+
+        Returns:
+            HealthCheckResult indicating database status.
+        """
+        # Grace period for initial data population
+        elapsed = datetime.now(UTC) - self._startup_time
+        if elapsed < self._startup_grace_period:
+            remaining = (self._startup_grace_period - elapsed).total_seconds()
+            return HealthCheckResult(
+                name=self.name,
+                status="healthy",
+                message="Startup grace period - initial data population in progress",
+                metadata={
+                    "grace_period_remaining_seconds": round(remaining),
+                },
+            )
+
+        # Verify database file exists
+        if not self.db_path.exists():
+            return HealthCheckResult(
+                name=self.name,
+                status="unhealthy",
+                message=f"SQLite database file not found: {self.db_path}",
+            )
+
+        try:
+            loop = asyncio.get_running_loop()
+
+            def check_db():
+                """Synchronous SQLite integrity check."""
+                conn = sqlite3.connect(
+                    f"file:{self.db_path}?mode=ro", uri=True
+                )
+                try:
+                    cursor = conn.execute(
+                        "SELECT name FROM sqlite_master WHERE type='table'"
+                    )
+                    existing_tables = {row[0] for row in cursor.fetchall()}
+
+                    missing = [
+                        t for t in self.expected_tables if t not in existing_tables
+                    ]
+                    if missing:
+                        return HealthCheckResult(
+                            name=self.name,
+                            status="unhealthy",
+                            message=f"Missing expected tables: {', '.join(missing)}",
+                            metadata={
+                                "missing_tables": missing,
+                                "existing_tables": sorted(existing_tables),
+                            },
+                        )
+
+                    # Check minimum row counts
+                    row_counts: dict[str, int] = {}
+                    below_threshold: list[str] = []
+                    for table, min_count in self.min_row_counts.items():
+                        cursor = conn.execute(f"SELECT COUNT(*) FROM [{table}]")  # noqa: S608
+                        count = cursor.fetchone()[0]
+                        row_counts[table] = count
+                        if count < min_count:
+                            below_threshold.append(
+                                f"{table}: {count}/{min_count}"
+                            )
+
+                    if below_threshold:
+                        return HealthCheckResult(
+                            name=self.name,
+                            status="degraded",
+                            message=f"Row counts below threshold: {', '.join(below_threshold)}",
+                            metadata={
+                                "table_count": len(existing_tables),
+                                "row_counts": row_counts,
+                            },
+                        )
+
+                    return HealthCheckResult(
+                        name=self.name,
+                        status="healthy",
+                        message="SQLite database is healthy",
+                        metadata={
+                            "table_count": len(existing_tables),
+                            "row_counts": row_counts,
+                        },
+                    )
+                finally:
+                    conn.close()
+
+            return await loop.run_in_executor(None, check_db)
+
+        except sqlite3.Error as e:
+            return HealthCheckResult(
+                name=self.name,
+                status="unhealthy",
+                message=f"SQLite check failed: {e}",
                 metadata={"error": str(e)},
             )
