@@ -37,15 +37,9 @@ python-version = "3.12"
 
 [tool.ty.src]
 exclude = [
-    "shared/src/idea_shared/lib/idea/profile/util.py",
-    "shared/src/idea_shared/lib/idea/validation/util.py",
+    ".claude/worktrees/",
     "shared/src/idea_shared/lib/TomTomFcdAggregator.py",
-    "shared/src/idea_shared/classes/IdeaHelsinkiRoadSegment.py",
-    "shared/src/idea_shared/classes/IntersectionDetector.py",
-    "shared/src/idea_shared/classes/AzureBlobContainerManager.py",
     "shared/src/idea_shared/classes/HelsinkiWFSClient.py",
-    "shared/src/idea_shared/feature_flags/examples.py",
-    "shared/src/idea_shared/feature_flags/providers/goff_provider.py",
     "shared/src/idea_shared/health/example_usage.py",
 ]
 

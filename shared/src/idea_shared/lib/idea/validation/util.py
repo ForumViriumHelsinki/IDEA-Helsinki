@@ -146,8 +146,9 @@ def match_no_coverage_profile(
     """
     df = df_with_coverage.copy()
     # Extract day_of_week and hour to merge with profile data
-    df["day_of_week"] = df.index.day_name()
-    df["hour_of_day"] = df.index.hour
+    idx = pd.DatetimeIndex(df.index)
+    df["day_of_week"] = idx.day_name()  # ty: ignore[unresolved-attribute]
+    df["hour_of_day"] = idx.hour  # ty: ignore[unresolved-attribute]
     df.index.name = "time"
     df = df.reset_index()
 
@@ -237,8 +238,8 @@ def calculate_running_mean(
 
 def handle_profile_value(profile_value: float | None) -> float:
     """Ensure the profile value is within allowed bounds and not NaN."""
-    if np.isnan(profile_value):
-        return 60  # Default value when profile_value is NaN
+    if profile_value is None or np.isnan(profile_value):
+        return 60  # Default value when profile_value is NaN or None
     return max(profile_value, MINIMUM_PROFILE_VALUE)
 
 

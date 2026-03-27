@@ -6,10 +6,9 @@ import logging
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-
-import aiohttp
 from typing import Any
 
+import aiohttp
 from idea_shared.health.checks import (
     ExternalAPIHealthCheck,
     FileSystemHealthCheck,

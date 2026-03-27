@@ -250,7 +250,10 @@ def example_gradual_rollout():
         - Percentage-based rollouts
         """
         # Create evaluation context
-        context = EvaluationContext(segment_id=segment_id, environment=environment)
+        context = EvaluationContext(
+            targeting_key=segment_id,
+            attributes={"environment": environment},
+        )
 
         # Evaluate flag with context
         # Note: Basic providers ignore context, but cloud providers use it

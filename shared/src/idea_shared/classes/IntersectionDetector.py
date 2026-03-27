@@ -95,6 +95,7 @@ class IntersectionDetector:
             if self.wfs_crs:  # Proceed only if self.wfs_crs is defined
                 initial_crs = gdf.crs
                 gdf = gdf.set_crs(self.wfs_crs, allow_override=True)
+                assert gdf is not None  # set_crs with allow_override always returns GeoDataFrame
 
                 if initial_crs is None and gdf.crs is not None:
                     self.logger.info(

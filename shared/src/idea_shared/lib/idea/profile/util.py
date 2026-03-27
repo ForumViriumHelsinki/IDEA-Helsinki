@@ -47,8 +47,9 @@ def fill_nan_columns_with_zeros(df: pd.DataFrame, column_subset: list):
 
 def add_periods(df: pd.DataFrame):
     """Adds period-related columns to the DataFrame based on its DatetimeIndex."""
-    df["day_of_week"] = df.index.day_of_week
-    df["hour_of_day"] = df.index.hour
+    idx = pd.DatetimeIndex(df.index)
+    df["day_of_week"] = idx.day_of_week  # ty: ignore[unresolved-attribute]
+    df["hour_of_day"] = idx.hour  # ty: ignore[unresolved-attribute]
     return df
 
 
@@ -117,7 +118,7 @@ def max_consecutive_zeros_or_ones(series: pd.Series) -> int:
 
 def aggregate_by_hour(df: pd.DataFrame) -> pd.DataFrame:
     """Aggregate fcd by hour."""
-    df["hour_of_date"] = df.index.floor("h")
+    df["hour_of_date"] = pd.DatetimeIndex(df.index).floor("h")  # ty: ignore[unresolved-attribute]
     df = (
         df.groupby(["hour_of_date"])
         .agg(

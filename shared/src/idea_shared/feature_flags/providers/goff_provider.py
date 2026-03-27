@@ -47,7 +47,7 @@ class GoFeatureFlagProvider(AbstractProvider):
         self._endpoint = endpoint
         self._timeout = timeout
 
-        options = GoFeatureFlagOptions(endpoint=endpoint)
+        options = GoFeatureFlagOptions(endpoint=endpoint)  # ty: ignore[invalid-argument-type]
         self._provider = GOFFProvider(options=options)
 
         logger.info(
@@ -139,7 +139,7 @@ class GoFeatureFlagProvider(AbstractProvider):
             flag_key, default_value, evaluation_context
         )
 
-    def resolve_object_details(
+    def resolve_object_details(  # ty: ignore[invalid-method-override]
         self,
         flag_key: str,
         default_value: dict,
@@ -155,6 +155,6 @@ class GoFeatureFlagProvider(AbstractProvider):
         Returns:
             Resolution details containing the flag value
         """
-        return self._provider.resolve_object_details(
+        return self._provider.resolve_object_details(  # ty: ignore[invalid-return-type]
             flag_key, default_value, evaluation_context
         )
