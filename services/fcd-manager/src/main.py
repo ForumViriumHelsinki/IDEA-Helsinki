@@ -20,7 +20,8 @@ from idea_shared.classes.AzureBlobContainerManager import (
 from idea_shared.classes.FCDInfluxDBManager import FCDInfluxDBManager
 from idea_shared.classes.Logger import Logger
 from idea_shared.data.json_backend import JsonSegmentRepository
-from idea_shared.feature_flags import init_feature_flags
+from idea_shared.data.repositories import SegmentRepository
+from idea_shared.feature_flags import FeatureFlag, get_feature_flags, init_feature_flags
 from idea_shared.health.idea_checks import (
     AzureBlobStorageHealthCheck,
     FCDDataFreshnessHealthCheck,
@@ -46,9 +47,13 @@ from idea_shared.lib.Constants.Constants import (
     FCD_SHUTDOWN_TIMEOUT_SECONDS,
     FCD_UPDATE_FREQUENCY,
     FCD_WRITE_QUEUE_MAX_SIZE,
+    GCS_BUCKET_NAME,
+    GCS_PREFIX,
     HEALTH_CHECK_CACHE_TTL_SECONDS,
     HEALTH_CHECK_PORT,
     MASTER_SEGMENT_HISTORY_FILE_LOCATION,
+    SQLITE_DIR,
+    SQLITE_SEGMENTS_DB,
     UPDATE_FRESHNESS_DEGRADED_MINUTES,
     UPDATE_FRESHNESS_HEALTHY_MINUTES,
 )
@@ -86,6 +91,11 @@ pipeline_check = None
 
 # Global thread coordinator
 thread_coordinator = None
+
+# SQLite migration globals
+gcs_sync = None
+use_sqlite = False
+sqlite_dir = None
 
 # Write protection: tracks when critical file writes are in progress
 # to prevent data corruption during shutdown
@@ -132,7 +142,7 @@ def handle_shutdown(signum, frame):
 
 def run(
     azure_manager: AzureBlobContainerManager,
-    segment_repo: JsonSegmentRepository | None = None,
+    segment_repo: SegmentRepository | None = None,
 ):
     """
     Run FCD synchronization with ThreadCoordinator.
@@ -281,6 +291,21 @@ def run(
                         )
                 finally:
                     _write_in_progress.clear()
+
+                # When using SQLite, upload DB to GCS and export JSON for compatibility
+                if use_sqlite and gcs_sync is not None:
+                    from pathlib import Path
+
+                    from idea_shared.data.json_export import export_segments_json
+
+                    gcs_sync.upload(
+                        sqlite_dir / SQLITE_SEGMENTS_DB,
+                        SQLITE_SEGMENTS_DB,
+                    )
+                    export_segments_json(
+                        segment_repo,
+                        Path(FCD_MAP_DATA_FILE_LOCATION),
+                    )
 
             # Update health check timestamp
             if update_cycle_check:
@@ -472,11 +497,50 @@ def main():
     logger.info(f"  - Details:   http://0.0.0.0:{HEALTH_CHECK_PORT}/health/detail")
 
     # Initialize segment repository for data access
-    segment_repo = JsonSegmentRepository(
-        mapping_path=FCD_MAP_DATA_FILE_LOCATION,
-        changelog_path=MASTER_SEGMENT_HISTORY_FILE_LOCATION,
-        archive_path=ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION,
-    )
+    global gcs_sync, use_sqlite, sqlite_dir
+
+    flags = get_feature_flags()
+    use_sqlite = flags.is_enabled(FeatureFlag.USE_SQLITE_STORAGE)
+
+    if use_sqlite:
+        from pathlib import Path
+
+        from idea_shared.data.gcs_sync import GCSSync
+        from idea_shared.data.sqlite_backend import create_sqlite_repositories
+        from idea_shared.health.idea_checks import SqliteHealthCheck
+
+        # Ensure SQLite directory exists
+        sqlite_dir = Path(SQLITE_DIR)
+        sqlite_dir.mkdir(parents=True, exist_ok=True)
+
+        db_path = sqlite_dir / SQLITE_SEGMENTS_DB
+        segment_repo, _, _ = create_sqlite_repositories(db_path)
+
+        # Initialize GCS sync for uploading database to other services
+        gcs_sync = GCSSync(
+            bucket_name=GCS_BUCKET_NAME,
+            prefix=GCS_PREFIX,
+        )
+
+        # Add SQLite health check
+        sqlite_health = SqliteHealthCheck(
+            name="sqlite_segments",
+            db_path=db_path,
+            expected_tables=["segments", "segment_changelog", "segment_archive"],
+            critical=False,  # Not critical during transition
+            cache_ttl=60.0,
+            startup_grace_minutes=15,
+        )
+        health_server.add_check("sqlite_segments", sqlite_health)
+
+        logger.info(f"Using SQLite storage backend: {db_path}")
+    else:
+        segment_repo = JsonSegmentRepository(
+            mapping_path=FCD_MAP_DATA_FILE_LOCATION,
+            changelog_path=MASTER_SEGMENT_HISTORY_FILE_LOCATION,
+            archive_path=ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION,
+        )
+        logger.info("Using JSON file storage backend")
 
     # Initialize Azure manager
     azure_manager = AzureBlobContainerManager(

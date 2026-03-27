@@ -56,6 +56,7 @@ class TestSqliteHealthCheck:
         result = await check.check()
 
         assert result.status == "unhealthy"
+        assert result.message is not None
         assert "not found" in result.message
 
     @pytest.mark.unit
@@ -70,6 +71,7 @@ class TestSqliteHealthCheck:
         result = await check.check()
 
         assert result.status == "unhealthy"
+        assert result.message is not None
         assert "nonexistent_table" in result.message
         assert result.metadata is not None
         assert "nonexistent_table" in result.metadata["missing_tables"]
@@ -87,6 +89,7 @@ class TestSqliteHealthCheck:
         result = await check.check()
 
         assert result.status == "degraded"
+        assert result.message is not None
         assert "below threshold" in result.message
         assert result.metadata is not None
         assert result.metadata["row_counts"]["segments"] == 2
@@ -118,6 +121,7 @@ class TestSqliteHealthCheck:
         result = await check.check()
 
         assert result.status == "healthy"
+        assert result.message is not None
         assert "grace period" in result.message.lower()
 
     @pytest.mark.unit
