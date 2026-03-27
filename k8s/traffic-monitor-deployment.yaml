@@ -29,9 +29,19 @@ spec:
         env:
         - name: HELSINKI_WFS_URL
           value: "https://kartta.hel.fi/ws/geoserver/avoindata/wfs"
+        - name: STORAGE_EMULATOR_HOST
+          value: "http://fake-gcs-server:4443"
+        - name: GCS_BUCKET_NAME
+          value: "idea-helsinki-dev"
+        - name: GCS_PREFIX
+          value: "idea-helsinki/"
+        - name: USE_SQLITE_STORAGE
+          value: "false"
         volumeMounts:
         - name: data-volume
           mountPath: /app/data
+        - name: sqlite-data
+          mountPath: /app/sqlite
         resources:
           requests:
             memory: "256Mi"
@@ -71,6 +81,8 @@ spec:
         hostPath:
           path: /Users/lgates/repos/IDEA-Helsinki/data
           type: Directory
+      - name: sqlite-data
+        emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
