@@ -96,14 +96,6 @@ FCD_RETRY_DELAY_SECONDS = int(os.getenv("FCD_RETRY_DELAY_SECONDS", "10"))
 ## Workers will attempt to finish current tasks within this timeframe
 FCD_SHUTDOWN_TIMEOUT_SECONDS = int(os.getenv("FCD_SHUTDOWN_TIMEOUT_SECONDS", "300"))
 
-# SQLITE / GCS SYNC DEFAULTS
-SQLITE_DIR = os.getenv("SQLITE_DIR", os.path.join(DATA_DIR, "sqlite"))
-SQLITE_SEGMENTS_DB = "segments.db"
-SQLITE_DISTURBANCES_DB = "disturbances.db"
-SQLITE_PROFILES_DB = "profiles.db"
-GCS_BUCKET_NAME = os.getenv("GCS_BUCKET_NAME", "idea-helsinki-dev")
-GCS_PREFIX = os.getenv("GCS_PREFIX", "idea-helsinki/")
-
 # HEALTH CHECK DEFAULTS
 HEALTH_CHECK_PORT = 8080
 HEALTH_CHECK_TIMEOUT_SECONDS = 10

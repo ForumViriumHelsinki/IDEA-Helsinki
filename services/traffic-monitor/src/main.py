@@ -22,7 +22,7 @@ from idea_shared.data.json_backend import (
     JsonDisturbanceRepository,
     JsonSegmentRepository,
 )
-from idea_shared.feature_flags import init_feature_flags
+from idea_shared.feature_flags import FeatureFlag, get_feature_flags, init_feature_flags
 from idea_shared.health.server import HealthServer
 
 # ------------------------------------------------------#
@@ -34,8 +34,13 @@ from idea_shared.lib.Constants.Constants import (
     FCD_HISTORY_START_DATE,
     FCD_MAP_DATA_FILE_LOCATION,
     FCD_MAPPING_MAX_AGE_MINUTES,
+    GCS_BUCKET_NAME,
+    GCS_PREFIX,
     HEALTH_CHECK_PORT,
     PROFILE_TIME_FRAME_WEEKS,
+    SQLITE_DIR,
+    SQLITE_DISTURBANCES_DB,
+    SQLITE_SEGMENTS_DB,
     TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION,
     TRAFFIC_DISTURBANCE_UPDATE_FREQUENCY,
     TRAFFIC_DISTURBANCES_TO_MONITOR,
@@ -78,15 +83,51 @@ def main():
     logger.info("Initializing feature flags...")
     init_feature_flags(data_dir="/app/data", service_name="traffic-monitor")
 
-    # Initialize repositories for data access
-    segment_repo = JsonSegmentRepository(
-        mapping_path=FCD_MAP_DATA_FILE_LOCATION,
-        changelog_path="",  # Traffic monitor doesn't use changelog
-        archive_path="",  # Traffic monitor doesn't use archive
-    )
-    disturbance_repo = JsonDisturbanceRepository(
-        data_path=TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION
-    )
+    # Initialize repositories for data access (feature-flag-gated)
+    flags = get_feature_flags()
+    use_sqlite = flags.is_enabled(FeatureFlag.USE_SQLITE_STORAGE)
+    gcs_sync = None
+    segments_db_path = None
+    disturbances_db_path = None
+
+    if use_sqlite:
+        from idea_shared.data.gcs_sync import GCSSync
+        from idea_shared.data.sqlite_backend import create_sqlite_repositories
+
+        # Ensure SQLite directory exists
+        sqlite_dir = Path(SQLITE_DIR)
+        sqlite_dir.mkdir(parents=True, exist_ok=True)
+
+        # Initialize GCS sync
+        gcs_sync = GCSSync(bucket_name=GCS_BUCKET_NAME, prefix=GCS_PREFIX)
+
+        # Download segments.db from GCS (written by fcd-manager)
+        segments_db_path = sqlite_dir / SQLITE_SEGMENTS_DB
+        logger.info("Downloading segments database from GCS...")
+        gcs_sync.download_if_changed(SQLITE_SEGMENTS_DB, segments_db_path)
+
+        # Create segment repo from downloaded database (read-only usage)
+        seg_repos = create_sqlite_repositories(segments_db_path)
+        segment_repo = seg_repos[0]  # SqliteSegmentRepository
+
+        # Create disturbance repo in separate local database
+        disturbances_db_path = sqlite_dir / SQLITE_DISTURBANCES_DB
+        dist_repos = create_sqlite_repositories(disturbances_db_path)
+        disturbance_repo = dist_repos[1]  # SqliteDisturbanceRepository
+
+        logger.info(
+            f"Using SQLite storage backend: segments={segments_db_path}, disturbances={disturbances_db_path}"
+        )
+    else:
+        segment_repo = JsonSegmentRepository(
+            mapping_path=FCD_MAP_DATA_FILE_LOCATION,
+            changelog_path="",  # Traffic monitor doesn't use changelog
+            archive_path="",  # Traffic monitor doesn't use archive
+        )
+        disturbance_repo = JsonDisturbanceRepository(
+            data_path=TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION
+        )
+        logger.info("Using JSON file storage backend")
 
     # Initialize core components
     detector = IntersectionDetector()
@@ -151,6 +192,34 @@ def main():
         DetectorHealthCheck(detector=detector),
     )
 
+    # Add SQLite health checks when using SQLite backend
+    if use_sqlite and segments_db_path is not None and disturbances_db_path is not None:
+        from idea_shared.health.idea_checks import SqliteHealthCheck
+
+        health_server.add_check(
+            "sqlite_segments",
+            SqliteHealthCheck(
+                name="sqlite_segments",
+                db_path=segments_db_path,
+                expected_tables=["segments"],
+                critical=False,
+                cache_ttl=60.0,
+                startup_grace_minutes=10,
+            ),
+        )
+        health_server.add_check(
+            "sqlite_disturbances",
+            SqliteHealthCheck(
+                name="sqlite_disturbances",
+                db_path=disturbances_db_path,
+                expected_tables=["disturbances"],
+                critical=False,
+                cache_ttl=60.0,
+                startup_grace_minutes=10,
+            ),
+        )
+        logger.info("Registered SQLite health checks")
+
     # Define graceful shutdown handler
     def handle_shutdown(signum, frame):
         import time
@@ -205,10 +274,18 @@ def main():
         # Mark as processing
         service_state.set_processing(True)
 
+        # Refresh segments from GCS if using SQLite
+        if use_sqlite and gcs_sync is not None and segments_db_path is not None:
+            if gcs_sync.download_if_changed(SQLITE_SEGMENTS_DB, segments_db_path):
+                logger.info("Downloaded updated segments database from GCS")
+
         # The loop needs the FCD mapping file to be available.
+        # When using SQLite, segments come from the downloaded GCS database.
         # Check is the file location exists, if not, pause and start the loop again.
 
-        if not detector.check_if_file_path_exists(FCD_MAP_DATA_FILE_LOCATION):
+        if not use_sqlite and not detector.check_if_file_path_exists(
+            FCD_MAP_DATA_FILE_LOCATION
+        ):
             logger.warning(
                 f"FCD mapping file not found : {FCD_MAP_DATA_FILE_LOCATION}. Update cycle paused for FCD mapping retry.s"
             )
@@ -378,6 +455,26 @@ def main():
                         final_model_data, disturbance_repo
                     )
                     service_state.update_file_write(success=True)
+
+                    # Upload disturbances DB to GCS and export JSON for
+                    # TFDS_Dashboard backwards compatibility
+                    if (
+                        use_sqlite
+                        and gcs_sync is not None
+                        and disturbances_db_path is not None
+                    ):
+                        from idea_shared.data.json_export import (
+                            export_disturbances_json,
+                        )
+
+                        gcs_sync.upload(
+                            disturbances_db_path,
+                            SQLITE_DISTURBANCES_DB,
+                        )
+                        export_disturbances_json(
+                            disturbance_repo,
+                            Path(TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION),
+                        )
                 except Exception as e:
                     logger.error(f"Failed to write output file: {e}")
                     service_state.update_file_write(success=False, error=str(e))
