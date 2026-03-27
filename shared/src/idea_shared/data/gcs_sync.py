@@ -69,10 +69,14 @@ class GCSSync:
         self._bucket = self._client.bucket(bucket_name)
         self._prefix = prefix.rstrip("/") + "/" if prefix else ""
         self._etag_cache: dict[str, str] = {}
-        logger.info("GCSSync initialized: bucket=%s prefix=%s", bucket_name, self._prefix)
+        logger.info(
+            "GCSSync initialized: bucket=%s prefix=%s",
+            bucket_name,
+            self._prefix,
+        )
 
     @staticmethod
-    def _normalize_etag(etag: str | None) -> str | None:
+    def _normalize_etag(etag: str | None) -> str:
         """Strip surrounding quotes from ETags for consistent comparison.
 
         The GCS SDK returns ETags with or without quotes depending on the
@@ -80,7 +84,7 @@ class GCSSync:
         values for reliable cache hits.
         """
         if etag is None:
-            return None
+            return ""
         return etag.strip('"')
 
     def _full_key(self, remote_key: str) -> str:
@@ -98,7 +102,12 @@ class GCSSync:
             blob = self._bucket.blob(full_key)
             blob.upload_from_filename(str(local_path))
             self._etag_cache[remote_key] = self._normalize_etag(blob.etag)
-            logger.info("Uploaded %s → gs://%s/%s", local_path, self._bucket.name, full_key)
+            logger.info(
+                "Uploaded %s → gs://%s/%s",
+                local_path,
+                self._bucket.name,
+                full_key,
+            )
             return True
         except _TRANSIENT_GCS_EXCEPTIONS:
             raise
@@ -112,7 +121,8 @@ class GCSSync:
 
         Uses ETag comparison to skip redundant downloads.
 
-        Returns True if a new version was downloaded, False if unchanged or not found.
+        Returns True if a new version was downloaded, False if unchanged,
+        not found, or on permanent errors.
         """
         full_key = self._full_key(remote_key)
         try:
@@ -130,7 +140,11 @@ class GCSSync:
         cached_etag = self._etag_cache.get(remote_key)
         current_etag = self._normalize_etag(blob.etag)
         if cached_etag == current_etag:
-            logger.debug("No change for %s (ETag: %s), skipping download", remote_key, cached_etag)
+            logger.debug(
+                "No change for %s (ETag: %s), skipping download",
+                remote_key,
+                cached_etag,
+            )
             return False
 
         try:

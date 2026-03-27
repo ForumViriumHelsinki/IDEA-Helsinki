@@ -88,7 +88,9 @@ class TestUpload:
     def test_upload_returns_false_on_permission_error(self, sync, mock_gcs, tmp_path):
         f = tmp_path / "test.db"
         f.write_text("data")
-        mock_gcs["blob"].upload_from_filename.side_effect = gcs_exceptions.Forbidden("nope")
+        mock_gcs["blob"].upload_from_filename.side_effect = gcs_exceptions.Forbidden(
+            "nope"
+        )
 
         result = sync.upload(f, "segments.db")
 
@@ -96,7 +98,9 @@ class TestUpload:
         assert "segments.db" not in sync.etag_cache
 
     @patch("time.sleep")
-    def test_upload_retries_on_transient_error(self, mock_sleep, sync, mock_gcs, tmp_path):
+    def test_upload_retries_on_transient_error(
+        self, mock_sleep, sync, mock_gcs, tmp_path
+    ):
         f = tmp_path / "test.db"
         f.write_text("data")
         mock_gcs["blob"].upload_from_filename.side_effect = [
