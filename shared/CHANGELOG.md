@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.20.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.19.0...idea-shared-v0.20.0) (2026-03-30)
+
+
+### Features
+
+* GCS Object API sync layer (Phase 3) ([#324](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/324)) ([fe03f29](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/fe03f29712f39ec6253c039752f3eae39e1e0989))
+* SQLite backend implementations (Phase 2) ([#311](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/311)) ([c547133](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/c5471334c7bf6122b6e04c580a8f5a2a46925ad9))
+
+
+### Bug Fixes
+
+* resolve ty type checker errors across shared library and services ([#332](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/332)) ([89d5a6b](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/89d5a6b1ab045f3d676949556e92cc07408ad3a6))
+
 ## [0.19.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.18.1...idea-shared-v0.19.0) (2026-03-24)
 
 
