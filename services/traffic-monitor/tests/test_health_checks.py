@@ -10,6 +10,8 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
+from idea_shared.health.checks import ExternalAPIHealthCheck
+from idea_shared.health.models import HealthCheckResult
 from src.health_checks import (
     DetectorHealthCheck,  # ty: ignore[unresolved-import]
     FCDMappingHealthCheck,  # ty: ignore[unresolved-import]
@@ -45,27 +47,27 @@ class TestWFSAPIHealthCheck:
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session.__aexit__ = AsyncMock(return_value=None)
 
-        # Patch aiohttp.ClientSession so super().check() uses our mock,
-        # and patch get_session so the feature type check also uses it.
-        with (
-            patch(
-                "idea_shared.health.checks.aiohttp.ClientSession",
-                return_value=mock_session,
-            ),
-            patch.object(
-                WFSAPIHealthCheck,
-                "get_session",
-                new_callable=AsyncMock,
-                return_value=mock_session,
+        # Mock the base class check to avoid real HTTP calls to kartta.hel.fi
+        with patch.object(
+            ExternalAPIHealthCheck,
+            "check",
+            new_callable=AsyncMock,
+            return_value=HealthCheckResult(
+                name="wfs_api", status="healthy", message="OK"
             ),
         ):
-            result = await check.check()
+            with patch.object(
+                WFSAPIHealthCheck, "get_session", new_callable=AsyncMock
+            ) as mock_get_session:
+                mock_get_session.return_value = mock_session
 
-            assert result.message is not None
-            assert result.metadata is not None
-            assert result.status == "healthy"
-            assert "feature type" in result.message
-            assert result.metadata["feature_count"] == 42
+                result = await check.check()
+
+                assert result.message is not None
+                assert result.metadata is not None
+                assert result.status == "healthy"
+                assert "feature type" in result.message
+                assert result.metadata["feature_count"] == 42
 
     @pytest.mark.asyncio
     async def test_wfs_unhealthy(self):
@@ -79,19 +81,27 @@ class TestWFSAPIHealthCheck:
         mock_response.__aexit__ = AsyncMock(return_value=None)
 
         mock_session = MagicMock()
-        mock_session.request = MagicMock(return_value=mock_response)
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session.get = MagicMock(side_effect=Exception("Connection failed"))
 
-        with patch(
-            "idea_shared.health.checks.aiohttp.ClientSession",
-            return_value=mock_session,
+        # Mock the base class check to avoid real HTTP calls to kartta.hel.fi
+        with patch.object(
+            ExternalAPIHealthCheck,
+            "check",
+            new_callable=AsyncMock,
+            return_value=HealthCheckResult(
+                name="wfs_api", status="healthy", message="OK"
+            ),
         ):
-            result = await check.check()
+            with patch.object(
+                WFSAPIHealthCheck, "get_session", new_callable=AsyncMock
+            ) as mock_get_session:
+                mock_get_session.return_value = mock_session
 
-            assert result.message is not None
-            assert result.status == "unhealthy"
-            assert "Connection failed" in result.message
+                result = await check.check()
+
+                assert result.message is not None
+                assert result.status == "unhealthy"
+                assert "Connection failed" in result.message
 
     @pytest.mark.asyncio
     @pytest.mark.skip(reason="Circuit breaker feature not yet implemented")
