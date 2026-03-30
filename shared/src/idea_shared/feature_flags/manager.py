@@ -6,7 +6,6 @@ for easy access to feature flags throughout the application.
 
 import logging
 import threading
-import typing
 from collections.abc import Mapping, Sequence
 from typing import Any
 
@@ -173,9 +172,9 @@ class FeatureFlagManager:
     def get_object(
         self,
         flag: FeatureFlag | str,
-        default: typing.Union[Sequence[FlagValueType], Mapping[str, FlagValueType]],
+        default: Sequence[FlagValueType] | Mapping[str, FlagValueType],
         context: EvaluationContext | None = None,
-    ) -> typing.Union[Sequence[FlagValueType], Mapping[str, FlagValueType]]:
+    ) -> Sequence[FlagValueType] | Mapping[str, FlagValueType]:
         """Get a dict/object feature flag value.
 
         Args:

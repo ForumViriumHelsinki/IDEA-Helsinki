@@ -37,17 +37,28 @@ class TestWFSAPIHealthCheck:
         mock_response.__aenter__ = AsyncMock(return_value=mock_response)
         mock_response.__aexit__ = AsyncMock(return_value=None)
 
-        # Mock the session - get() returns a regular Mock that acts as context manager
+        # Mock the session - request() for super().check(), get() for feature type check
         mock_session = MagicMock()
+        mock_session.request = MagicMock(return_value=mock_response)
         mock_session.get = MagicMock(return_value=mock_response)
         mock_session.closed = False
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
 
-        # Patch get_session to return our mock
-        with patch.object(
-            WFSAPIHealthCheck, "get_session", new_callable=AsyncMock
-        ) as mock_get_session:
-            mock_get_session.return_value = mock_session
-
+        # Patch aiohttp.ClientSession so super().check() uses our mock,
+        # and patch get_session so the feature type check also uses it.
+        with (
+            patch(
+                "idea_shared.health.checks.aiohttp.ClientSession",
+                return_value=mock_session,
+            ),
+            patch.object(
+                WFSAPIHealthCheck,
+                "get_session",
+                new_callable=AsyncMock,
+                return_value=mock_session,
+            ),
+        ):
             result = await check.check()
 
             assert result.message is not None
@@ -61,15 +72,21 @@ class TestWFSAPIHealthCheck:
         """Test WFS API health check when service is unavailable."""
         check = WFSAPIHealthCheck(cache_ttl=0)
 
-        # Mock the session with get() that raises an exception
+        # Mock session whose request() raises, simulating connection failure.
+        # super().check() calls session.request() inside "async with ClientSession()".
+        mock_response = MagicMock()
+        mock_response.__aenter__ = AsyncMock(side_effect=Exception("Connection failed"))
+        mock_response.__aexit__ = AsyncMock(return_value=None)
+
         mock_session = MagicMock()
-        mock_session.get = MagicMock(side_effect=Exception("Connection failed"))
+        mock_session.request = MagicMock(return_value=mock_response)
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
 
-        with patch.object(
-            WFSAPIHealthCheck, "get_session", new_callable=AsyncMock
-        ) as mock_get_session:
-            mock_get_session.return_value = mock_session
-
+        with patch(
+            "idea_shared.health.checks.aiohttp.ClientSession",
+            return_value=mock_session,
+        ):
             result = await check.check()
 
             assert result.message is not None

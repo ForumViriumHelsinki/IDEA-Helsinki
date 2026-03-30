@@ -5,7 +5,6 @@ Useful for local development and testing.
 """
 
 import logging
-import typing
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
@@ -231,9 +230,9 @@ class JsonFileProvider(AbstractProvider):
     def resolve_object_details(
         self,
         flag_key: str,
-        default_value: typing.Union[Sequence[FlagValueType], Mapping[str, FlagValueType]],
+        default_value: Sequence[FlagValueType] | Mapping[str, FlagValueType],
         evaluation_context: EvaluationContext | None = None,
-    ) -> FlagResolutionDetails[typing.Union[Sequence[FlagValueType], Mapping[str, FlagValueType]]]:
+    ) -> FlagResolutionDetails[Sequence[FlagValueType] | Mapping[str, FlagValueType]]:
         """Resolve an object/dict feature flag.
 
         Args:

@@ -145,7 +145,7 @@ class AzureBlobContainerManager:
             self.logger.info(
                 f"Successfully downloaded content of '{blob_name}' ({len(content)} bytes)."
             )
-            return content
+            return content  # ty: ignore[invalid-return-type]
         except Exception as e:
             self.logger.error(
                 f"Failed to download blob content for '{blob_name}'. Error: {e}"
