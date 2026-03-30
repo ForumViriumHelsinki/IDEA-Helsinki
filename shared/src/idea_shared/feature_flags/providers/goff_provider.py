@@ -7,6 +7,8 @@ See: https://gofeatureflag.org/docs/relay-proxy/
 """
 
 import logging
+import typing
+from collections.abc import Mapping, Sequence
 
 from gofeatureflag_python_provider.options import GoFeatureFlagOptions
 from gofeatureflag_python_provider.provider import (
@@ -15,6 +17,9 @@ from gofeatureflag_python_provider.provider import (
 from openfeature.evaluation_context import EvaluationContext
 from openfeature.flag_evaluation import FlagResolutionDetails
 from openfeature.provider import AbstractProvider, Metadata
+
+if typing.TYPE_CHECKING:
+    from openfeature.flag_evaluation import FlagValueType
 
 logger = logging.getLogger(__name__)
 
@@ -139,12 +144,14 @@ class GoFeatureFlagProvider(AbstractProvider):
             flag_key, default_value, evaluation_context
         )
 
-    def resolve_object_details(  # ty: ignore[invalid-method-override]
+    def resolve_object_details(
         self,
         flag_key: str,
-        default_value: dict,
+        default_value: Sequence["FlagValueType"] | Mapping[str, "FlagValueType"],
         evaluation_context: EvaluationContext | None = None,
-    ) -> FlagResolutionDetails[dict]:
+    ) -> FlagResolutionDetails[
+        Sequence["FlagValueType"] | Mapping[str, "FlagValueType"]
+    ]:
         """Resolve an object/dict feature flag.
 
         Args:
@@ -155,6 +162,11 @@ class GoFeatureFlagProvider(AbstractProvider):
         Returns:
             Resolution details containing the flag value
         """
-        return self._provider.resolve_object_details(  # ty: ignore[invalid-return-type]
-            flag_key, default_value, evaluation_context
+        # The GOFF library's resolve_object_details accepts only dict, while the
+        # openfeature AbstractProvider contract is Sequence | Mapping. The GOFF
+        # relay proxy exclusively returns JSON objects (dicts), so cast at the
+        # delegation boundary to bridge the impedance mismatch between the two
+        # libraries without altering runtime behaviour.
+        return self._provider.resolve_object_details(
+            flag_key, typing.cast(dict, default_value), evaluation_context
         )

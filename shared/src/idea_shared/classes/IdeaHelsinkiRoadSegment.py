@@ -209,7 +209,9 @@ class IdeaHelsinkiRoadSegment:
                     )
                     return
 
-        assert self.last_validation_update is not None, "last_validation_update must be set before validation"
+        assert self.last_validation_update is not None, (
+            "last_validation_update must be set before validation"
+        )
 
         self.logger.info(
             f"Validating segment for timestamps {self.last_validation_update} - {current_time} "
@@ -241,7 +243,9 @@ class IdeaHelsinkiRoadSegment:
                 validate_roadwork,
                 fcd_during_roadwork=segment_data_to_validate,
                 profile=self.segment_profile,
-                last_segment_validation=self.last_segment_validation if self.last_segment_validation is not None else pd.DataFrame(),
+                last_segment_validation=self.last_segment_validation
+                if self.last_segment_validation is not None
+                else pd.DataFrame(),
             )
             if not segment_validation.empty:
                 if await self.__write_dataframe_to_influxdb(
@@ -575,7 +579,10 @@ class IdeaHelsinkiRoadSegment:
             return None
 
     async def __get_validation_dataframe_from_influxdb(
-        self, segment_id: str, start_time: datetime | None = None, end_time: datetime | None = None
+        self,
+        segment_id: str,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
     ) -> pd.DataFrame | None:
         """
         Get segment data as a pandas dataframe.
