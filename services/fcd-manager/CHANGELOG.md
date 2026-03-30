@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.19.0...fcd-manager-v0.20.0) (2026-03-30)
+
+
+### Bug Fixes
+
+* resolve ty type checker errors across shared library and services ([#332](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/332)) ([89d5a6b](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/89d5a6b1ab045f3d676949556e92cc07408ad3a6))
+
 ## [0.19.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.18.1...fcd-manager-v0.19.0) (2026-03-24)
 
 
