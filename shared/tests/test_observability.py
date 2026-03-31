@@ -71,6 +71,164 @@ class TestDetectRelease:
 
 
 @pytest.mark.unit
+class TestGetSampleRateFromEnv:
+    """Tests for the _get_sample_rate_from_env helper."""
+
+    @patch.dict("os.environ", {}, clear=True)
+    def test_returns_default_when_env_var_absent(self):
+        from idea_shared.observability.sentry import _get_sample_rate_from_env
+
+        assert _get_sample_rate_from_env("SENTRY_SAMPLE_RATE", 0.5) == 0.5
+
+    @patch.dict("os.environ", {"SENTRY_SAMPLE_RATE": "0.3"}, clear=False)
+    def test_parses_valid_float(self):
+        from idea_shared.observability.sentry import _get_sample_rate_from_env
+
+        assert _get_sample_rate_from_env("SENTRY_SAMPLE_RATE", 0.5) == 0.3
+
+    @patch.dict("os.environ", {"SENTRY_SAMPLE_RATE": "0.0"}, clear=False)
+    def test_accepts_lower_bound(self):
+        from idea_shared.observability.sentry import _get_sample_rate_from_env
+
+        assert _get_sample_rate_from_env("SENTRY_SAMPLE_RATE", 0.5) == 0.0
+
+    @patch.dict("os.environ", {"SENTRY_SAMPLE_RATE": "1.0"}, clear=False)
+    def test_accepts_upper_bound(self):
+        from idea_shared.observability.sentry import _get_sample_rate_from_env
+
+        assert _get_sample_rate_from_env("SENTRY_SAMPLE_RATE", 0.5) == 1.0
+
+    @patch.dict("os.environ", {"SENTRY_SAMPLE_RATE": "1.5"}, clear=False)
+    def test_rejects_value_above_1(self):
+        from idea_shared.observability.sentry import _get_sample_rate_from_env
+
+        assert _get_sample_rate_from_env("SENTRY_SAMPLE_RATE", 0.5) == 0.5
+
+    @patch.dict("os.environ", {"SENTRY_SAMPLE_RATE": "-0.1"}, clear=False)
+    def test_rejects_negative_value(self):
+        from idea_shared.observability.sentry import _get_sample_rate_from_env
+
+        assert _get_sample_rate_from_env("SENTRY_SAMPLE_RATE", 0.5) == 0.5
+
+    @patch.dict("os.environ", {"SENTRY_SAMPLE_RATE": "not-a-float"}, clear=False)
+    def test_rejects_non_numeric_value(self):
+        from idea_shared.observability.sentry import _get_sample_rate_from_env
+
+        assert _get_sample_rate_from_env("SENTRY_SAMPLE_RATE", 0.5) == 0.5
+
+    @patch.dict("os.environ", {"SENTRY_SAMPLE_RATE": "  0.7  "}, clear=False)
+    def test_strips_whitespace(self):
+        from idea_shared.observability.sentry import _get_sample_rate_from_env
+
+        assert _get_sample_rate_from_env("SENTRY_SAMPLE_RATE", 0.5) == 0.7
+
+
+@pytest.mark.unit
+class TestGetSampleRate:
+    """Tests for _get_sample_rate function."""
+
+    @patch.dict("os.environ", {}, clear=True)
+    def test_returns_default_1_0(self):
+        from idea_shared.observability.sentry import _get_sample_rate
+
+        assert _get_sample_rate() == 1.0
+
+    @patch.dict("os.environ", {"SENTRY_SAMPLE_RATE": "0.5"}, clear=False)
+    def test_reads_from_env_var(self):
+        from idea_shared.observability.sentry import _get_sample_rate
+
+        assert _get_sample_rate() == 0.5
+
+    @patch.dict("os.environ", {"SENTRY_SAMPLE_RATE": "not-a-number"}, clear=False)
+    def test_falls_back_to_default_on_invalid_value(self):
+        from idea_shared.observability.sentry import _get_sample_rate
+
+        assert _get_sample_rate() == 1.0
+
+    @patch.dict("os.environ", {"SENTRY_SAMPLE_RATE": "  0.25  "}, clear=False)
+    def test_strips_whitespace(self):
+        from idea_shared.observability.sentry import _get_sample_rate
+
+        assert _get_sample_rate() == 0.25
+
+    @patch.dict("os.environ", {"SENTRY_SAMPLE_RATE": "1.5"}, clear=False)
+    def test_rejects_out_of_range_value(self):
+        from idea_shared.observability.sentry import _get_sample_rate
+
+        assert _get_sample_rate() == 1.0
+
+
+@pytest.mark.unit
+class TestGetTracesSampleRate:
+    """Tests for _get_traces_sample_rate function."""
+
+    @patch.dict("os.environ", {}, clear=True)
+    def test_returns_default_0_1(self):
+        from idea_shared.observability.sentry import _get_traces_sample_rate
+
+        assert _get_traces_sample_rate() == 0.1
+
+    @patch.dict("os.environ", {"SENTRY_TRACES_SAMPLE_RATE": "0.2"}, clear=False)
+    def test_reads_from_env_var(self):
+        from idea_shared.observability.sentry import _get_traces_sample_rate
+
+        assert _get_traces_sample_rate() == 0.2
+
+    @patch.dict("os.environ", {"SENTRY_TRACES_SAMPLE_RATE": "bad-value"}, clear=False)
+    def test_falls_back_to_default_on_invalid_value(self):
+        from idea_shared.observability.sentry import _get_traces_sample_rate
+
+        assert _get_traces_sample_rate() == 0.1
+
+    @patch.dict("os.environ", {"SENTRY_TRACES_SAMPLE_RATE": "1.0"}, clear=False)
+    def test_allows_full_sampling(self):
+        from idea_shared.observability.sentry import _get_traces_sample_rate
+
+        assert _get_traces_sample_rate() == 1.0
+
+    @patch.dict("os.environ", {"SENTRY_TRACES_SAMPLE_RATE": "2.0"}, clear=False)
+    def test_rejects_out_of_range_value(self):
+        from idea_shared.observability.sentry import _get_traces_sample_rate
+
+        assert _get_traces_sample_rate() == 0.1
+
+
+@pytest.mark.unit
+class TestGetProfilesSampleRate:
+    """Tests for _get_profiles_sample_rate function."""
+
+    @patch.dict("os.environ", {}, clear=True)
+    def test_returns_default_0_1(self):
+        from idea_shared.observability.sentry import _get_profiles_sample_rate
+
+        assert _get_profiles_sample_rate() == 0.1
+
+    @patch.dict("os.environ", {"SENTRY_PROFILES_SAMPLE_RATE": "0.05"}, clear=False)
+    def test_reads_from_env_var(self):
+        from idea_shared.observability.sentry import _get_profiles_sample_rate
+
+        assert _get_profiles_sample_rate() == 0.05
+
+    @patch.dict("os.environ", {"SENTRY_PROFILES_SAMPLE_RATE": "bad-value"}, clear=False)
+    def test_falls_back_to_default_on_invalid_value(self):
+        from idea_shared.observability.sentry import _get_profiles_sample_rate
+
+        assert _get_profiles_sample_rate() == 0.1
+
+    @patch.dict("os.environ", {"SENTRY_PROFILES_SAMPLE_RATE": "0.0"}, clear=False)
+    def test_allows_zero_sampling(self):
+        from idea_shared.observability.sentry import _get_profiles_sample_rate
+
+        assert _get_profiles_sample_rate() == 0.0
+
+    @patch.dict("os.environ", {"SENTRY_PROFILES_SAMPLE_RATE": "-1.0"}, clear=False)
+    def test_rejects_negative_value(self):
+        from idea_shared.observability.sentry import _get_profiles_sample_rate
+
+        assert _get_profiles_sample_rate() == 0.1
+
+
+@pytest.mark.unit
 class TestConfigureSentry:
     """Tests for configure_sentry function."""
 
@@ -91,7 +249,10 @@ class TestConfigureSentry:
         assert call_kwargs["dsn"] == "https://key@sentry.io/123"
         assert call_kwargs["environment"] == "test"
         assert call_kwargs["release"] == "idea-helsinki@1.0.0"
-        assert call_kwargs["sample_rate"] == 0.1
+        # Default: capture all errors (1.0), sample traces/profiles (0.1)
+        assert call_kwargs["sample_rate"] == 1.0
+        assert call_kwargs["traces_sample_rate"] == 0.1
+        assert call_kwargs["profiles_sample_rate"] == 0.1
 
     @patch.dict(
         "os.environ", {"SENTRY_DSN": "https://key@sentry.io/123", "ENVIRONMENT": "test"}
@@ -163,3 +324,26 @@ class TestConfigureSentry:
 
         configure_sentry("test-service")
         assert mock_sentry.init.call_args[1]["release"] is None
+
+    @patch.dict(
+        "os.environ",
+        {
+            "SENTRY_DSN": "https://key@sentry.io/123",
+            "ENVIRONMENT": "production",
+            "SENTRY_SAMPLE_RATE": "0.5",
+            "SENTRY_TRACES_SAMPLE_RATE": "0.2",
+            "SENTRY_PROFILES_SAMPLE_RATE": "0.05",
+        },
+    )
+    @patch("idea_shared.observability.sentry._detect_release", return_value=None)
+    @patch("idea_shared.observability.sentry.sentry_sdk")
+    def test_uses_env_var_overrides_for_sampling_rates(
+        self, mock_sentry, _mock_detect_release
+    ):
+        from idea_shared.observability.sentry import configure_sentry
+
+        configure_sentry("test-service")
+        call_kwargs = mock_sentry.init.call_args[1]
+        assert call_kwargs["sample_rate"] == 0.5
+        assert call_kwargs["traces_sample_rate"] == 0.2
+        assert call_kwargs["profiles_sample_rate"] == 0.05
