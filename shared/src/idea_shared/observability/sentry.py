@@ -37,6 +37,38 @@ def _detect_release() -> str | None:
     return None
 
 
+def _get_sample_rate_from_env(env_var: str, default: float) -> float:
+    """Parse a sampling rate from an environment variable.
+
+    Validates that the value is a float in the range [0.0, 1.0].  Falls back
+    to *default* and logs a warning for missing, non-numeric, or out-of-range
+    values.
+
+    Args:
+        env_var: Name of the environment variable to read.
+        default: Value to use when the env var is absent or invalid.
+
+    Returns:
+        Float between 0.0 and 1.0.
+    """
+    raw = os.getenv(env_var, "").strip()
+    if not raw:
+        return default
+    try:
+        val = float(raw)
+        if 0.0 <= val <= 1.0:
+            return val
+        logger.warning(
+            f"Invalid {env_var} value {val}: must be between 0.0 and 1.0. "
+            f"Using default {default}"
+        )
+    except ValueError:
+        logger.warning(
+            f"Invalid {env_var} value '{raw}': not a float. Using default {default}"
+        )
+    return default
+
+
 def _get_sample_rate() -> float:
     """Get error sample rate from environment or default to 1.0.
 
@@ -46,13 +78,7 @@ def _get_sample_rate() -> float:
     Returns:
         Float between 0.0 and 1.0.
     """
-    raw = os.getenv("SENTRY_SAMPLE_RATE", "").strip()
-    if raw:
-        try:
-            return float(raw)
-        except ValueError:
-            logger.warning(f"Invalid SENTRY_SAMPLE_RATE value '{raw}'; using default 1.0")
-    return 1.0
+    return _get_sample_rate_from_env("SENTRY_SAMPLE_RATE", 1.0)
 
 
 def _get_traces_sample_rate() -> float:
@@ -64,15 +90,7 @@ def _get_traces_sample_rate() -> float:
     Returns:
         Float between 0.0 and 1.0.
     """
-    raw = os.getenv("SENTRY_TRACES_SAMPLE_RATE", "").strip()
-    if raw:
-        try:
-            return float(raw)
-        except ValueError:
-            logger.warning(
-                f"Invalid SENTRY_TRACES_SAMPLE_RATE value '{raw}'; using default 0.1"
-            )
-    return 0.1
+    return _get_sample_rate_from_env("SENTRY_TRACES_SAMPLE_RATE", 0.1)
 
 
 def _get_profiles_sample_rate() -> float:
@@ -84,15 +102,7 @@ def _get_profiles_sample_rate() -> float:
     Returns:
         Float between 0.0 and 1.0.
     """
-    raw = os.getenv("SENTRY_PROFILES_SAMPLE_RATE", "").strip()
-    if raw:
-        try:
-            return float(raw)
-        except ValueError:
-            logger.warning(
-                f"Invalid SENTRY_PROFILES_SAMPLE_RATE value '{raw}'; using default 0.1"
-            )
-    return 0.1
+    return _get_sample_rate_from_env("SENTRY_PROFILES_SAMPLE_RATE", 0.1)
 
 
 def configure_sentry(service_name: str) -> None:
