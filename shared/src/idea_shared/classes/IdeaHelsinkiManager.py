@@ -27,7 +27,7 @@ class IdeaHelsinkiManager:
     _WORKER_MAX_ERRORS = 10
     # Maximum consecutive errors before escalating main loop failure
     _MAIN_LOOP_MAX_ERRORS = 10
-    # Maximum number of concurrent 26-week profile queries
+    # Maximum number of concurrent profile queries
     _PROFILING_CONCURRENCY_LIMIT = 3
     # Maximum number of concurrent validation history queries
     _VALIDATION_CONCURRENCY_LIMIT = 3
@@ -78,7 +78,7 @@ class IdeaHelsinkiManager:
         # Health monitoring attributes
         self.last_cycle_time = datetime.now(UTC)
         self.last_discovery_time = None
-        # Limits concurrent 26-week profile queries to cap peak memory usage.
+        # Limits concurrent profile queries to cap peak memory usage.
         # Each profiling query loads ~1 MB of data; without a limit all segments
         # that restart simultaneously would fire queries concurrently.
         self._profiling_semaphore = asyncio.Semaphore(self._PROFILING_CONCURRENCY_LIMIT)
