@@ -130,6 +130,7 @@ def configure_sentry(service_name: str) -> None:
             profiles_sample_rate=profiles_sample_rate,
             environment=os.getenv("ENVIRONMENT", "production"),
         )
+        sentry_sdk.set_tag("service", service_name)
         logger.info(
             f"Sentry initialized for {service_name} (release={release}, "
             f"sample_rate={sample_rate}, traces_sample_rate={traces_sample_rate}, "
