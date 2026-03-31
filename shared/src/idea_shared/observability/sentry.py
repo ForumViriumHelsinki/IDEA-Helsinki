@@ -54,6 +54,7 @@ def configure_sentry(service_name: str) -> None:
             profiles_sample_rate=1.0,
             environment=os.getenv("ENVIRONMENT", "production"),
         )
+        sentry_sdk.set_tag("service", service_name)
         logger.info(f"Sentry initialized for {service_name} (release={release})")
     else:
         logger.info("SENTRY_DSN not set, running without Sentry error tracking")
