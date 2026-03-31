@@ -93,6 +93,33 @@ class TestConfigureSentry:
         assert call_kwargs["release"] == "idea-helsinki@1.0.0"
         assert call_kwargs["sample_rate"] == 0.1
 
+    @patch.dict(
+        "os.environ", {"SENTRY_DSN": "https://key@sentry.io/123", "ENVIRONMENT": "test"}
+    )
+    @patch(
+        "idea_shared.observability.sentry._detect_release",
+        return_value="idea-helsinki@1.0.0",
+    )
+    @patch("idea_shared.observability.sentry.sentry_sdk")
+    def test_sets_service_tag_after_init(self, mock_sentry, _mock_detect_release):
+        from idea_shared.observability.sentry import configure_sentry
+
+        configure_sentry("orchestrator")
+        mock_sentry.set_tag.assert_called_once_with("service", "orchestrator")
+
+    @patch.dict(
+        "os.environ", {"SENTRY_DSN": "https://key@sentry.io/123", "ENVIRONMENT": "test"}
+    )
+    @patch("idea_shared.observability.sentry._detect_release", return_value=None)
+    @patch("idea_shared.observability.sentry.sentry_sdk")
+    def test_sets_service_tag_for_each_service(self, mock_sentry, _mock_detect_release):
+        from idea_shared.observability.sentry import configure_sentry
+
+        for service in ("orchestrator", "traffic-monitor", "fcd-manager"):
+            mock_sentry.reset_mock()
+            configure_sentry(service)
+            mock_sentry.set_tag.assert_called_once_with("service", service)
+
     @patch.dict("os.environ", {"SENTRY_DSN": ""}, clear=False)
     @patch("idea_shared.observability.sentry.sentry_sdk")
     def test_skips_sentry_when_dsn_empty(self, mock_sentry):
@@ -100,6 +127,7 @@ class TestConfigureSentry:
 
         configure_sentry("test-service")
         mock_sentry.init.assert_not_called()
+        mock_sentry.set_tag.assert_not_called()
 
     @patch.dict("os.environ", {}, clear=True)
     @patch("idea_shared.observability.sentry.sentry_sdk")
@@ -108,6 +136,7 @@ class TestConfigureSentry:
 
         configure_sentry("test-service")
         mock_sentry.init.assert_not_called()
+        mock_sentry.set_tag.assert_not_called()
 
     @patch.dict(
         "os.environ",
