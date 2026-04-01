@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.21.0...idea-shared-v0.22.0) (2026-04-01)
+
+
+### Features
+
+* SQLite migration Phase 4 — service wiring ([#329](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/329)) ([b9d51ed](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/b9d51ed1ce3446bb89a602d5fac8936be852e82b))
+
 ## [0.21.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.20.0...idea-shared-v0.21.0) (2026-03-31)
 
 
