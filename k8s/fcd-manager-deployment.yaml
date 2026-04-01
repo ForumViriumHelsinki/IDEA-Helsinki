@@ -37,7 +37,7 @@ spec:
         - name: GCS_PREFIX
           value: "idea-helsinki/"
         - name: USE_SQLITE_STORAGE
-          value: "false"
+          value: "true"
         volumeMounts:
         - name: data-volume
           mountPath: /app/data
