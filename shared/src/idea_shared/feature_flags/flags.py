@@ -49,7 +49,7 @@ class FlagDefaults:
     ENABLE_BATCH_PROCESSING: bool = False
     ENABLE_ENHANCED_LOGGING: bool = False
     ENABLE_DEBUG_METRICS: bool = False
-    USE_SQLITE_STORAGE: bool = False
+    USE_SQLITE_STORAGE: bool = True
 
     # Numeric flag defaults (None means no override)
     FCD_UPDATE_INTERVAL_OVERRIDE: int | None = None
