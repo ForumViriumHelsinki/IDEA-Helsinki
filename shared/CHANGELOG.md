@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.22.0...idea-shared-v0.23.0) (2026-04-01)
+
+
+### Features
+
+* sQLite storage by default across all deployments ([#350](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/350)) ([9ed4746](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/9ed4746aa3011c98a967129b3bf6f91e34c5f921))
+
 ## [0.22.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.21.0...idea-shared-v0.22.0) (2026-04-01)
 
 
