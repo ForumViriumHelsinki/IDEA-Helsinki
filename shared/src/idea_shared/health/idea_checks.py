@@ -585,9 +585,7 @@ class SqliteHealthCheck(HealthCheck):
 
             def check_db():
                 """Synchronous SQLite integrity check."""
-                conn = sqlite3.connect(
-                    f"file:{self.db_path}?mode=ro", uri=True
-                )
+                conn = sqlite3.connect(f"file:{self.db_path}?mode=ro", uri=True)
                 try:
                     cursor = conn.execute(
                         "SELECT name FROM sqlite_master WHERE type='table'"
@@ -616,9 +614,7 @@ class SqliteHealthCheck(HealthCheck):
                         count = cursor.fetchone()[0]
                         row_counts[table] = count
                         if count < min_count:
-                            below_threshold.append(
-                                f"{table}: {count}/{min_count}"
-                            )
+                            below_threshold.append(f"{table}: {count}/{min_count}")
 
                     if below_threshold:
                         return HealthCheckResult(
