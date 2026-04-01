@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.21.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.20.0...idea-shared-v0.21.0) (2026-03-31)
+
+
+### Features
+
+* **sentry:** add service tag to distinguish events per service ([#340](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/340)) ([e6663fd](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/e6663fdb0bcabdf2308ac7287c568bb4a4781a0c))
+
+
+### Bug Fixes
+
+* update profile time frame. ([#342](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/342)) ([28ce570](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/28ce570396f3752618585b8f57d288b4aef95b28))
+
+
+### Performance Improvements
+
+* **sentry:** tune sampling rates and make configurable via env vars ([#339](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/339)) ([3e218dc](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/3e218dc2118fd1ba5f3f4fbdab8a3ed3d4a919ac))
+
 ## [0.20.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.19.0...idea-shared-v0.20.0) (2026-03-30)
 
 
