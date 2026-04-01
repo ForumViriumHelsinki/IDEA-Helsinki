@@ -81,7 +81,9 @@ def export_segments_geojson(repo: SegmentRepository, path: Path) -> bool:
             "features": features,
         }
         atomic_write_json(path, collection)
-        logger.info("Exported segments GeoJSON to %s (%d features)", path, len(features))
+        logger.info(
+            "Exported segments GeoJSON to %s (%d features)", path, len(features)
+        )
         return True
     except Exception:
         logger.exception("Failed to export segments GeoJSON to %s", path)
