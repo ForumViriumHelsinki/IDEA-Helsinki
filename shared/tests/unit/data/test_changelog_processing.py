@@ -3,7 +3,7 @@
 import hashlib
 import json
 from datetime import UTC, datetime
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -303,3 +303,86 @@ class TestUpdateSegmentChangelogFromRepo:
         mock_repo.save_changelog.assert_called_once()
         saved_changelog = mock_repo.save_changelog.call_args[0][0]
         assert "seg_1" in saved_changelog
+
+
+class TestSegmentHistoryDepthCap:
+    """Tests for MAX_SEGMENT_HISTORY_DEPTH trimming (#240)."""
+
+    @pytest.mark.unit
+    @patch("idea_shared.lib.FcdUtils.MAX_SEGMENT_HISTORY_DEPTH", 3)
+    def test_history_trimmed_at_max_depth(self):
+        """History exceeding max depth is trimmed to keep most recent entries."""
+        existing_changelog = {
+            "seg_1": {
+                "current_geometry": GEOM_A,
+                "current_hash": _geometry_hash(GEOM_A),
+                "date_added": "2024-01-01T00:00:00",
+                "history": [
+                    {"date_archived": f"2024-0{i}-01", "geometry": GEOM_A}
+                    for i in range(1, 4)  # 3 existing entries (at max)
+                ],
+            }
+        }
+        fresh = {"seg_1": GEOM_A_MODIFIED}
+
+        result = process_segment_changelog(
+            fresh, existing_changelog, {}, PROCESSING_DATE
+        )
+
+        # With max=3, after appending a 4th entry, oldest should be trimmed
+        assert len(result.changelog["seg_1"]["history"]) == 3
+        # Most recent entry should be the newly archived geometry
+        assert result.changelog["seg_1"]["history"][-1]["geometry"] == GEOM_A
+        assert (
+            result.changelog["seg_1"]["history"][-1]["date_archived"]
+            == PROCESSING_DATE.isoformat()
+        )
+        # Oldest entry (2024-01-01) should have been trimmed
+        assert result.changelog["seg_1"]["history"][0]["date_archived"] == "2024-02-01"
+
+    @pytest.mark.unit
+    @patch("idea_shared.lib.FcdUtils.MAX_SEGMENT_HISTORY_DEPTH", 5)
+    def test_history_below_max_not_trimmed(self):
+        """History below max depth is left untouched."""
+        existing_changelog = {
+            "seg_1": {
+                "current_geometry": GEOM_A,
+                "current_hash": _geometry_hash(GEOM_A),
+                "date_added": "2024-01-01T00:00:00",
+                "history": [
+                    {"date_archived": "2024-01-01", "geometry": GEOM_B},
+                ],
+            }
+        }
+        fresh = {"seg_1": GEOM_A_MODIFIED}
+
+        result = process_segment_changelog(
+            fresh, existing_changelog, {}, PROCESSING_DATE
+        )
+
+        # 1 existing + 1 new = 2, well below max of 5
+        assert len(result.changelog["seg_1"]["history"]) == 2
+
+    @pytest.mark.unit
+    @patch("idea_shared.lib.FcdUtils.MAX_SEGMENT_HISTORY_DEPTH", 2)
+    def test_repeated_modifications_stay_capped(self):
+        """Multiple sequential modifications keep history at max depth."""
+        changelog = {
+            "seg_1": {
+                "current_geometry": GEOM_A,
+                "current_hash": _geometry_hash(GEOM_A),
+                "date_added": "2024-01-01T00:00:00",
+                "history": [],
+            }
+        }
+
+        geometries = [GEOM_A_MODIFIED, GEOM_B, GEOM_A]
+        for i, geom in enumerate(geometries):
+            fresh = {"seg_1": geom}
+            result = process_segment_changelog(
+                fresh, changelog, {}, PROCESSING_DATE
+            )
+            changelog = result.changelog
+
+        # After 3 modifications with max=2, only last 2 should remain
+        assert len(changelog["seg_1"]["history"]) == 2

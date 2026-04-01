@@ -21,6 +21,7 @@ from shapely.ops import transform as shapely_transform
 # -------------- PROJECT CLASS IMPORTS -----------------#
 # ------------------------------------------------------#
 from idea_shared.classes.Logger import Logger
+from idea_shared.lib.Constants.Constants import MAX_SEGMENT_HISTORY_DEPTH
 from idea_shared.threading.file_locks import atomic_write_json, read_json_with_retry
 
 if TYPE_CHECKING:
@@ -445,6 +446,10 @@ def update_segment_changelog(
                 "geometry": changelog[seg_id]["current_geometry"],
             }
             changelog[seg_id]["history"].append(archive_entry)
+            if len(changelog[seg_id]["history"]) > MAX_SEGMENT_HISTORY_DEPTH:
+                changelog[seg_id]["history"] = changelog[seg_id]["history"][
+                    -MAX_SEGMENT_HISTORY_DEPTH:
+                ]
 
             # Update the changelog to the new state
             changelog[seg_id]["current_geometry"] = geometry
@@ -491,9 +496,10 @@ def update_segment_changelog(
                 }
             )
             # Prepend inherited entries so they appear before any changes on the new segment.
-            changelog[new_id]["history"] = (
-                inherited_history + changelog[new_id]["history"]
-            )
+            combined = inherited_history + changelog[new_id]["history"]
+            if len(combined) > MAX_SEGMENT_HISTORY_DEPTH:
+                combined = combined[-MAX_SEGMENT_HISTORY_DEPTH:]
+            changelog[new_id]["history"] = combined
             changelog[new_id]["geo_inherited_from"] = old_id
             logger.info(
                 f"Segment '{new_id}' inherited {len(inherited_history)} history "
@@ -594,6 +600,10 @@ def process_segment_changelog(
                 "geometry": changelog[seg_id]["current_geometry"],
             }
             changelog[seg_id]["history"].append(archive_entry)
+            if len(changelog[seg_id]["history"]) > MAX_SEGMENT_HISTORY_DEPTH:
+                changelog[seg_id]["history"] = changelog[seg_id]["history"][
+                    -MAX_SEGMENT_HISTORY_DEPTH:
+                ]
             changelog[seg_id]["current_geometry"] = geometry
             changelog[seg_id]["current_hash"] = geom_hash
 

@@ -52,6 +52,10 @@ BUFFERING_DISTANCE = 20.0
 # The previous start date "2024-12-05" is being updated because data from that period may be inconsistent with current routes.
 FCD_HISTORY_START_DATE = "2025-01-01"
 
+# Maximum number of geometry history entries to retain per segment.
+# Older entries are trimmed to prevent unbounded growth over years of operation.
+MAX_SEGMENT_HISTORY_DEPTH = int(os.getenv("MAX_SEGMENT_HISTORY_DEPTH", "50"))
+
 # FCD MULTI-THREADING CONFIGURATION
 ## Number of parallel backfill worker threads for historical data processing
 ## Default: 4 (recommended for systems with 1500m CPU allocation)
