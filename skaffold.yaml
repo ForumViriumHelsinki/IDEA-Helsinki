@@ -26,6 +26,7 @@ manifests:
     - k8s/namespace.yaml
     - k8s/secrets.yaml
     - k8s/influxdb-deployment.yaml
+    - k8s/fake-gcs-server-deployment.yaml
     - k8s/idea-helsinki-deployment.yaml
     - k8s/fcd-manager-deployment.yaml
     - k8s/traffic-monitor-deployment.yaml
