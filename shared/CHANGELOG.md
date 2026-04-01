@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.23.0...idea-shared-v0.23.1) (2026-04-01)
+
+
+### Bug Fixes
+
+* IDEA profile creation with less FCD ([#353](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/353)) ([8501f5b](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/8501f5b32d14f88fa5843fb1205983f60aba316f))
+
 ## [0.23.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.22.0...idea-shared-v0.23.0) (2026-04-01)
 
 
