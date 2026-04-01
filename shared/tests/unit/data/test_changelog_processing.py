@@ -377,7 +377,7 @@ class TestSegmentHistoryDepthCap:
         }
 
         geometries = [GEOM_A_MODIFIED, GEOM_B, GEOM_A]
-        for i, geom in enumerate(geometries):
+        for geom in geometries:
             fresh = {"seg_1": geom}
             result = process_segment_changelog(
                 fresh, changelog, {}, PROCESSING_DATE
