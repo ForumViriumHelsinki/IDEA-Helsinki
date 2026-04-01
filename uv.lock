@@ -505,7 +505,7 @@ wheels = [
 
 [[package]]
 name = "fcd-manager"
-version = "0.22.0"
+version = "0.23.0"
 source = { editable = "services/fcd-manager" }
 dependencies = [
     { name = "azure-storage-blob" },
@@ -873,7 +873,7 @@ dev = [{ name = "ty", specifier = ">=0.0.24" }]
 
 [[package]]
 name = "idea-shared"
-version = "0.22.0"
+version = "0.23.0"
 source = { editable = "shared" }
 dependencies = [
     { name = "aiohttp" },
@@ -1148,7 +1148,7 @@ wheels = [
 
 [[package]]
 name = "orchestrator"
-version = "0.22.0"
+version = "0.23.0"
 source = { editable = "services/orchestrator" }
 dependencies = [
     { name = "azure-storage-blob" },
@@ -1975,7 +1975,7 @@ wheels = [
 
 [[package]]
 name = "traffic-monitor"
-version = "0.22.0"
+version = "0.23.0"
 source = { editable = "services/traffic-monitor" }
 dependencies = [
     { name = "geopandas" },
