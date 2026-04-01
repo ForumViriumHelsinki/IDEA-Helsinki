@@ -447,6 +447,11 @@ def update_segment_changelog(
             }
             changelog[seg_id]["history"].append(archive_entry)
             if len(changelog[seg_id]["history"]) > MAX_SEGMENT_HISTORY_DEPTH:
+                trimmed = len(changelog[seg_id]["history"]) - MAX_SEGMENT_HISTORY_DEPTH
+                logger.warning(
+                    f"Trimming {trimmed} oldest history entries for segment "
+                    f"'{seg_id}' (limit={MAX_SEGMENT_HISTORY_DEPTH})."
+                )
                 changelog[seg_id]["history"] = changelog[seg_id]["history"][
                     -MAX_SEGMENT_HISTORY_DEPTH:
                 ]
@@ -498,6 +503,11 @@ def update_segment_changelog(
             # Prepend inherited entries so they appear before any changes on the new segment.
             combined = inherited_history + changelog[new_id]["history"]
             if len(combined) > MAX_SEGMENT_HISTORY_DEPTH:
+                trimmed = len(combined) - MAX_SEGMENT_HISTORY_DEPTH
+                logger.warning(
+                    f"Trimming {trimmed} oldest history entries for segment "
+                    f"'{new_id}' after geo-inheritance (limit={MAX_SEGMENT_HISTORY_DEPTH})."
+                )
                 combined = combined[-MAX_SEGMENT_HISTORY_DEPTH:]
             changelog[new_id]["history"] = combined
             changelog[new_id]["geo_inherited_from"] = old_id
@@ -601,6 +611,11 @@ def process_segment_changelog(
             }
             changelog[seg_id]["history"].append(archive_entry)
             if len(changelog[seg_id]["history"]) > MAX_SEGMENT_HISTORY_DEPTH:
+                trimmed = len(changelog[seg_id]["history"]) - MAX_SEGMENT_HISTORY_DEPTH
+                logger.warning(
+                    f"Trimming {trimmed} oldest history entries for segment "
+                    f"'{seg_id}' (limit={MAX_SEGMENT_HISTORY_DEPTH})."
+                )
                 changelog[seg_id]["history"] = changelog[seg_id]["history"][
                     -MAX_SEGMENT_HISTORY_DEPTH:
                 ]
