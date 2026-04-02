@@ -7,7 +7,7 @@
 
 image:
   repository: ghcr.io/forumviriumhelsinki/idea-helsinki/orchestrator
-  tag: "0.23.0" # Updated by ArgoCD Image Updater
+  tag: "0.23.1" # Updated by ArgoCD Image Updater
 replicaCount: 1
 progressDeadlineSeconds: 1800 # 30 min: 20-min startup probe + GCS download on startup
 serviceAccount:
