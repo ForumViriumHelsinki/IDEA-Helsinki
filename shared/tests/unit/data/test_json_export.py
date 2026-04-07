@@ -14,7 +14,6 @@ from idea_shared.data.json_export import (
 )
 from idea_shared.data.repositories import DisturbanceRepository, SegmentRepository
 
-
 # ---------------------------------------------------------------------------
 # Concrete test implementations of the abstract repositories
 # ---------------------------------------------------------------------------
@@ -100,8 +99,8 @@ class TestExportSegmentsJson:
         repo = StubSegmentRepository({"segmentId": {}})
         # atomic_write_json creates parent dirs, so use a path blocked by a file
         # occupying the parent name to trigger an error
-        from pathlib import Path
         import tempfile
+        from pathlib import Path
 
         with tempfile.NamedTemporaryFile() as f:
             # Try to write inside a file (not a directory)
@@ -337,8 +336,8 @@ class TestExportDisturbancesGeoJson:
     def test_returns_false_on_write_error(self):
         """Returns False when writing to an invalid path."""
         repo = StubDisturbanceRepository({"segmentId": {}})
-        from pathlib import Path
         import tempfile
+        from pathlib import Path
 
         with tempfile.NamedTemporaryFile() as f:
             bad_path = Path(f.name) / "subdir" / "disturbances.geojson"
