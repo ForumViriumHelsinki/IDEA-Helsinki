@@ -15,6 +15,10 @@ from .models import LivenessResponse, MetricsResponse, ReadinessResponse
 
 logger = logging.getLogger(__name__)
 
+# Timeout (seconds) to wait for uvicorn's lifespan shutdown to complete
+# before falling back to task cancellation.
+_GRACEFUL_SHUTDOWN_TIMEOUT = 5.0
+
 
 class HealthServer:
     """Health check server for Kubernetes probes."""
@@ -64,6 +68,11 @@ class HealthServer:
         self._thread: threading.Thread | None = None
         self._shutdown_event = threading.Event()
         self._startup_complete = False
+        # Reference to the asyncio Task running start_async() / serve().
+        # Set in start_async() so that stop_async() can wait for a clean exit
+        # instead of relying on an external task.cancel(), which would race with
+        # uvicorn's ASGI lifespan shutdown and cause asyncio.CancelledError.
+        self._serve_task: asyncio.Task | None = None
         self._app: FastAPI = self._create_app()
 
     def _create_app(self) -> FastAPI:
@@ -321,7 +330,19 @@ class HealthServer:
             self._server = uvicorn.Server(config)
 
             logger.info(f"Starting async health server on {self.host}:{self.port}")
+            # Store the current task so stop_async() can wait for a graceful exit.
+            # This prevents asyncio.CancelledError from propagating through
+            # uvicorn's ASGI lifespan receive queue during pod termination.
+            self._serve_task = asyncio.current_task()
             await self._server.serve()
+        except asyncio.CancelledError:
+            # Expected when the task is cancelled as a last resort after the
+            # graceful-shutdown timeout in stop_async().  Log at DEBUG to avoid
+            # noise during normal pod recycling.
+            logger.debug(
+                "Health server task cancelled during shutdown (normal during pod termination)"
+            )
+            raise
         except OSError as e:
             if "Address already in use" in str(e) or "bind" in str(e).lower():
                 logger.error(
@@ -330,6 +351,8 @@ class HealthServer:
             else:
                 logger.error(f"Failed to start async health server: {e}")
             raise
+        finally:
+            self._serve_task = None
 
     def stop(self) -> None:
         """Stop the health server gracefully."""
@@ -346,13 +369,52 @@ class HealthServer:
         logger.info("Health server stopped")
 
     async def stop_async(self) -> None:
-        """Stop the async health server gracefully."""
-        if self._server:
-            logger.info("Stopping async health server...")
-            self._server.should_exit = True
-            # Give the server a moment to shut down gracefully
-            await asyncio.sleep(0.1)
-            logger.info("Async health server stopped")
+        """Stop the async health server gracefully.
+
+        Sets ``should_exit = True`` on the uvicorn server and then *waits* for
+        the ``serve()`` coroutine to complete its ASGI lifespan shutdown
+        sequence (startup → yield → cleanup).  Waiting rather than immediately
+        cancelling the task prevents ``asyncio.CancelledError`` from being
+        raised inside starlette's lifespan receive queue, which uvicorn would
+        otherwise log as an error on every normal pod termination (SIGTERM).
+
+        If the server does not exit within ``_GRACEFUL_SHUTDOWN_TIMEOUT`` seconds
+        the method returns anyway; the caller is responsible for any further
+        cleanup (e.g. task cancellation).
+        """
+        if self._server is None:
+            return
+
+        logger.info("Stopping async health server...")
+        self._server.should_exit = True
+
+        serve_task = self._serve_task
+        if serve_task is not None and not serve_task.done():
+            try:
+                # shield() ensures that if *this* coroutine is itself cancelled
+                # (e.g. from a finally block) the underlying serve_task is not
+                # immediately cancelled — it keeps running until uvicorn finishes
+                # its lifespan shutdown, or until the timeout fires.
+                await asyncio.wait_for(
+                    asyncio.shield(serve_task),
+                    timeout=_GRACEFUL_SHUTDOWN_TIMEOUT,
+                )
+                logger.info("Async health server stopped gracefully")
+            except asyncio.TimeoutError:
+                logger.warning(
+                    "Health server did not shut down within "
+                    f"{_GRACEFUL_SHUTDOWN_TIMEOUT}s; "
+                    "caller should cancel the task as a fallback"
+                )
+            except asyncio.CancelledError:
+                # stop_async() itself was cancelled (e.g. we are inside a
+                # finally block of an already-cancelled task).  The serve_task
+                # is shielded so it continues running; re-raise so the caller's
+                # cancellation propagates correctly.
+                logger.debug("stop_async cancelled while waiting for health server shutdown")
+                raise
+        else:
+            logger.info("Async health server already stopped")
 
     def __enter__(self):
         """Context manager entry."""
