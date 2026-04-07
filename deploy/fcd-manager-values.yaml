@@ -76,7 +76,7 @@ env:
   GCS_BUCKET_NAME:
     value: "idea-helsinki"
   GCS_PREFIX:
-    value: "idea-helsinki/"
+    value: ""
   SQLITE_DIR:
     value: "/app/sqlite"
   AZURE_ACCOUNT_NAME:
