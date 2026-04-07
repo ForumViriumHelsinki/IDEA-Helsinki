@@ -9,9 +9,9 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
-
 from idea_shared.health.checks import ExternalAPIHealthCheck
 from idea_shared.health.models import HealthCheckResult
+
 from src.health_checks import (
     DetectorHealthCheck,  # ty: ignore[unresolved-import]
     FCDMappingHealthCheck,  # ty: ignore[unresolved-import]
