@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.3](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.23.2...fcd-manager-v0.23.3) (2026-04-07)
+
+
+### Bug Fixes
+
+* **fcd-manager:** save segments to SQLite repository before GCS upload ([#372](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/372)) ([32ae414](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/32ae414517383de6842913d651917dac8347dd91))
+
 ## [0.23.2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.23.1...fcd-manager-v0.23.2) (2026-04-07)
 
 
