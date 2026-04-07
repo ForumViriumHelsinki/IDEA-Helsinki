@@ -274,7 +274,7 @@ def run(
                 influx_manager.write_fcd_model(fcd_data)
 
             # Update segment mapping
-            if update_fcd_segment_mapping(fcd_data):
+            if update_fcd_segment_mapping(fcd_data, segment_repo=segment_repo):
                 logger.info("FCD segment mapping updated")
                 _write_in_progress.set()
                 try:
@@ -562,26 +562,37 @@ def main():
         sys.exit(1)
 
 
-def update_fcd_segment_mapping(fcd_segments: dict) -> bool:
+def update_fcd_segment_mapping(
+    fcd_segments: dict,
+    segment_repo: SegmentRepository | None = None,
+) -> bool:
     """
-    This function updates the fcd segment mapping and writes it in a JSON file (FCD_MAP_DATA_FILE_LOCATION),
-    this is used for intersection detection with road disturbances.
+    Update FCD segment mapping in the repository (SQLite) or JSON file.
+
+    When a segment repository is provided, segments are saved via the
+    repository interface (SQLite).  The JSON file is always written as
+    well for backwards compatibility with services that haven't migrated.
 
     Args:
-        fcd_segments: A dictionary containing FCD segment data in the FCD data model (docs/data_models.md).
+        fcd_segments: FCD segment data in the FCD data model (docs/data_models.md).
+        segment_repo: Optional repository to persist segments to SQLite.
 
     Returns:
-        bool: True or False depending on if the fcd segment mapping was updated and written.
+        True if the segment mapping was updated, False otherwise.
     """
-
     logger.info("Updating FCD segment mapping")
     mapped_fcd_segments = FcdUtils.get_fcd_geometries(fcd_segments)
-    if mapped_fcd_segments:
-        return FcdUtils.write_json_records(
-            mapped_fcd_segments, FCD_MAP_DATA_FILE_LOCATION
-        )
-    else:
+    if not mapped_fcd_segments:
         return False
+
+    # Write to repository when available (SQLite or JSON backend)
+    if segment_repo is not None:
+        return segment_repo.save_segments(mapped_fcd_segments)
+
+    # Fallback for backwards compatibility if no repository is provided
+    return FcdUtils.write_json_records(
+        mapped_fcd_segments, FCD_MAP_DATA_FILE_LOCATION
+    )
 
 
 def _process_and_update_blob_list(
