@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.23.1...idea-shared-v0.23.2) (2026-04-07)
+
+
+### Bug Fixes
+
+* remove doubled GCS prefix ([#363](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/363)) ([d861be2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/d861be2ead0e6d3d1aa5f440f49edae25cbedc9b))
+
 ## [0.23.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.23.0...idea-shared-v0.23.1) (2026-04-01)
 
 
