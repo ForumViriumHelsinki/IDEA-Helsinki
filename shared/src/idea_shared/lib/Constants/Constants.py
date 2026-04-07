@@ -136,7 +136,7 @@ WFS_HEALTH_CHECK_MAX_FEATURES = 1  # Max features to request in health check
 WFS_HEALTH_CHECK_CACHE_TTL = 30  # Cache WFS health check results for 30 seconds
 
 # GCS Object API configuration (for SQLite migration)
-GCS_BUCKET_NAME = os.getenv("GCS_BUCKET_NAME", "idea-helsinki")
+GCS_BUCKET_NAME = os.getenv("GCS_BUCKET_NAME", "idea-helsinki-dev")
 GCS_PREFIX = os.getenv("GCS_PREFIX", "")
 
 # SQLite database paths
