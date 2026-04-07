@@ -585,14 +585,11 @@ def update_fcd_segment_mapping(
     if not mapped_fcd_segments:
         return False
 
-    # Write to repository when available (SQLite backend)
+    # Write to repository when available (SQLite or JSON backend)
     if segment_repo is not None:
-        if not segment_repo.save_segments(mapped_fcd_segments):
-            logger.error("Failed to save segments to repository")
-            return False
-        logger.info("Segments saved to repository")
+        return segment_repo.save_segments(mapped_fcd_segments)
 
-    # Always write JSON for backwards compatibility
+    # Fallback for backwards compatibility if no repository is provided
     return FcdUtils.write_json_records(
         mapped_fcd_segments, FCD_MAP_DATA_FILE_LOCATION
     )
