@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.4](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/orchestrator-v0.23.3...orchestrator-v0.23.4) (2026-04-08)
+
+
+### Bug Fixes
+
+* prevent CancelledError in uvicorn lifespan during graceful shutdown ([#377](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/377)) ([e6f4f9f](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/e6f4f9f5c73895f4d0f3ea0f43f4a19e0a6d517f))
+
 ## [0.23.3](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/orchestrator-v0.23.2...orchestrator-v0.23.3) (2026-04-07)
 
 
