@@ -402,17 +402,120 @@ class TestHealthServerLifecycle:
 
     @pytest.mark.asyncio
     async def test_stop_async_server(self):
-        """Test stopping the async server.
+        """Test stopping the async server when no serve_task is running.
 
         Verifies that the async version of server shutdown works correctly,
-        setting the should_exit flag without blocking. This is used when the
-        server is running in async mode.
+        setting the should_exit flag without blocking when there is no active
+        serve task.  This is the common case when called from a finally block
+        after the serve task has already completed.
         """
         server = HealthServer()
         server._server = MagicMock()
+        # _serve_task is None — stop_async should complete without error
+        assert server._serve_task is None
 
         await server.stop_async()
         assert server._server.should_exit is True
+
+    @pytest.mark.asyncio
+    async def test_stop_async_waits_for_serve_task(self):
+        """Test that stop_async waits for the serve task to complete naturally.
+
+        This is the key behaviour that prevents asyncio.CancelledError from
+        propagating through uvicorn's lifespan receive queue during normal pod
+        termination (SIGTERM).  When stop_async() is called, it should wait for
+        the serve() coroutine to finish rather than relying on an external
+        task.cancel() call, which would race with uvicorn's ASGI lifespan
+        shutdown sequence.
+        """
+
+        async def fake_serve():
+            """Simulates uvicorn serve() completing after should_exit is set."""
+            await asyncio.sleep(0.05)
+
+        server = HealthServer()
+        server._server = MagicMock()
+
+        # Simulate a running serve task
+        serve_task = asyncio.create_task(fake_serve())
+        server._serve_task = serve_task
+
+        # stop_async should set should_exit and wait for the task
+        await server.stop_async()
+
+        assert server._server.should_exit is True
+        assert serve_task.done()
+
+    @pytest.mark.asyncio
+    async def test_stop_async_timeout_fallback(self):
+        """Test that stop_async returns after timeout if serve task hangs.
+
+        Verifies that stop_async does not block forever if the serve task does
+        not complete within the graceful shutdown timeout.  The method should
+        log a warning and return so the caller can cancel the task as a fallback.
+        """
+        import asyncio
+
+        from idea_shared.health import server as server_module
+
+        async def hanging_serve():
+            """Simulates a serve() that does not exit promptly."""
+            await asyncio.sleep(60)
+
+        health_server = HealthServer()
+        health_server._server = MagicMock()
+        serve_task = asyncio.create_task(hanging_serve())
+        health_server._serve_task = serve_task
+
+        # Patch timeout to a small value so the test runs quickly
+        original_timeout = server_module._GRACEFUL_SHUTDOWN_TIMEOUT
+        server_module._GRACEFUL_SHUTDOWN_TIMEOUT = 0.05
+        try:
+            await health_server.stop_async()  # should return after ~0.05s
+        finally:
+            server_module._GRACEFUL_SHUTDOWN_TIMEOUT = original_timeout
+            serve_task.cancel()
+            try:
+                await serve_task
+            except asyncio.CancelledError:
+                pass
+
+        assert health_server._server.should_exit is True
+
+    @pytest.mark.asyncio
+    async def test_stop_async_already_stopped(self):
+        """Test stop_async when the serve task is already done.
+
+        Verifies that stop_async handles a completed task gracefully without
+        waiting or raising an error.  This covers the case where uvicorn has
+        already exited before stop_async is called.
+        """
+
+        async def immediate_return():
+            return
+
+        server = HealthServer()
+        server._server = MagicMock()
+        serve_task = asyncio.create_task(immediate_return())
+        # Wait for the task to complete before calling stop_async
+        await serve_task
+        server._serve_task = serve_task
+
+        await server.stop_async()
+        assert server._server.should_exit is True
+
+    @pytest.mark.asyncio
+    async def test_stop_async_no_server(self):
+        """Test stop_async when no server has been started.
+
+        Verifies that stop_async is a no-op when _server is None, which can
+        happen if start_async() was never called or failed during startup.
+        """
+        server = HealthServer()
+        assert server._server is None
+
+        # Should complete without raising
+        await server.stop_async()
 
     def test_context_manager(self):
         """Test using server as a context manager.

@@ -321,8 +321,16 @@ async def main():
         )
         sys.exit(1)  # Exit with an error code
     finally:
+        # stop_async() sets should_exit=True and waits for uvicorn to complete
+        # its ASGI lifespan shutdown sequence before returning.  This prevents
+        # asyncio.CancelledError from propagating through starlette's lifespan
+        # receive queue (see https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/371).
         await health_server.stop_async()
-        health_task.cancel()
+        # By the time stop_async() returns, health_task should already be done.
+        # Cancel only as a fallback in case of a timeout or unexpected state.
+        if not health_task.done():
+            logger.debug("Health task still running after stop_async(); cancelling as fallback")
+            health_task.cancel()
         await asyncio.gather(health_task, return_exceptions=True)
 
 
