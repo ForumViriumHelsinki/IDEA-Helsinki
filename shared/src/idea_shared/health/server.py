@@ -411,7 +411,9 @@ class HealthServer:
                 # finally block of an already-cancelled task).  The serve_task
                 # is shielded so it continues running; re-raise so the caller's
                 # cancellation propagates correctly.
-                logger.debug("stop_async cancelled while waiting for health server shutdown")
+                logger.debug(
+                    "stop_async cancelled while waiting for health server shutdown"
+                )
                 raise
         else:
             logger.info("Async health server already stopped")
