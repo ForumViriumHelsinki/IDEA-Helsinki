@@ -278,6 +278,10 @@ def main():
         if use_sqlite and gcs_sync is not None and segments_db_path is not None:
             if gcs_sync.download_if_changed(SQLITE_SEGMENTS_DB, segments_db_path):
                 logger.info("Downloaded updated segments database from GCS")
+                from idea_shared.data.sqlite_backend import SqliteSegmentRepository
+
+                assert isinstance(segment_repo, SqliteSegmentRepository)
+                segment_repo.reconnect()
 
         # The loop needs the FCD mapping file to be available.
         # When using SQLite, segments come from the downloaded GCS database.
