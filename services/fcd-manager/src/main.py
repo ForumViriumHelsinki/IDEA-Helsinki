@@ -590,9 +590,7 @@ def update_fcd_segment_mapping(
         return segment_repo.save_segments(mapped_fcd_segments)
 
     # Fallback for backwards compatibility if no repository is provided
-    return FcdUtils.write_json_records(
-        mapped_fcd_segments, FCD_MAP_DATA_FILE_LOCATION
-    )
+    return FcdUtils.write_json_records(mapped_fcd_segments, FCD_MAP_DATA_FILE_LOCATION)
 
 
 def _process_and_update_blob_list(

@@ -329,7 +329,9 @@ async def main():
         # By the time stop_async() returns, health_task should already be done.
         # Cancel only as a fallback in case of a timeout or unexpected state.
         if not health_task.done():
-            logger.debug("Health task still running after stop_async(); cancelling as fallback")
+            logger.debug(
+                "Health task still running after stop_async(); cancelling as fallback"
+            )
             health_task.cancel()
         await asyncio.gather(health_task, return_exceptions=True)
 
