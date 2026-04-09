@@ -73,6 +73,21 @@ class _SqliteConnectionManager:
             conn.executescript(migration_sql)
             logger.info("Applied schema migration 001_initial")
 
+    def reconnect(self) -> None:
+        """Close and reopen the connection to pick up a replaced database file.
+
+        Also removes stale WAL/SHM journal files left by the previous
+        connection, which would otherwise cause SQLite to replay old
+        transactions on top of the newly downloaded database.
+        """
+        self.close()
+        # Remove WAL/SHM files so the new connection reads the replaced file cleanly
+        if self._db_path != ":memory:":
+            for suffix in ("-wal", "-shm"):
+                journal = Path(self._db_path + suffix)
+                journal.unlink(missing_ok=True)
+        logger.info("SQLite connection reset; will reconnect on next access.")
+
     def close(self) -> None:
         if self._conn is not None:
             self._conn.close()
@@ -123,6 +138,10 @@ class SqliteSegmentRepository(SegmentRepository):
     @property
     def _conn(self) -> sqlite3.Connection:
         return self._cm.connection
+
+    def reconnect(self) -> None:
+        """Reset the database connection to pick up a replaced file on disk."""
+        self._cm.reconnect()
 
     def get_segments(self) -> dict:
         """Read all segments, reconstructing the JSON dict format."""

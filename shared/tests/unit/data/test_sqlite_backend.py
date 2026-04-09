@@ -328,6 +328,81 @@ class TestSqliteProfileRepository:
         assert profile_repo.get_profile("seg_valid") is not None
 
 
+class TestSqliteReconnect:
+    """Tests for SQLite connection reconnection after file replacement."""
+
+    @pytest.mark.unit
+    def test_reconnect_picks_up_new_data(self, tmp_path):
+        """After reconnect(), queries reflect the current database file."""
+        db_path = tmp_path / "segments.db"
+
+        # Create repo and save initial data
+        seg_repo, _, _ = create_sqlite_repositories(db_path)
+        seg_repo.save_segments(
+            {
+                "segmentId": {
+                    "seg_old": {
+                        "geometry": {
+                            "type": "LineString",
+                            "coordinates": [[0, 0], [1, 1]],
+                        }
+                    }
+                }
+            }
+        )
+        assert "seg_old" in seg_repo.get_segments()["segmentId"]
+
+        # Simulate file replacement (like GCS download overwriting the file):
+        # create a new database at a temp path, then replace the original
+        replacement = tmp_path / "segments_new.db"
+        new_repo, _, _ = create_sqlite_repositories(replacement)
+        new_repo.save_segments(
+            {
+                "segmentId": {
+                    "seg_new": {
+                        "geometry": {
+                            "type": "LineString",
+                            "coordinates": [[2, 2], [3, 3]],
+                        }
+                    }
+                }
+            }
+        )
+        new_repo._cm.close()
+
+        # Replace the file on disk
+        replacement.replace(db_path)
+
+        # Before reconnect: stale connection may still return old data
+        # After reconnect: should see new data
+        seg_repo.reconnect()
+        result = seg_repo.get_segments()
+        assert "seg_new" in result["segmentId"]
+        assert "seg_old" not in result["segmentId"]
+
+    @pytest.mark.unit
+    def test_reconnect_on_in_memory_db(self):
+        """reconnect() on in-memory DB resets to empty state."""
+        seg_repo, _, _ = create_sqlite_repositories(":memory:")
+        seg_repo.save_segments(
+            {
+                "segmentId": {
+                    "seg_1": {
+                        "geometry": {
+                            "type": "LineString",
+                            "coordinates": [[0, 0], [1, 1]],
+                        }
+                    }
+                }
+            }
+        )
+        seg_repo.reconnect()
+        # In-memory DB is gone after close; reconnect creates a fresh one
+        # but schema needs to be re-applied
+        seg_repo._cm.ensure_schema()
+        assert seg_repo.get_segments() == {}
+
+
 class TestSchemaIdempotency:
     """Test that schema migration is idempotent."""
 
