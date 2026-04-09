@@ -92,7 +92,10 @@ def main():
 
     if use_sqlite:
         from idea_shared.data.gcs_sync import GCSSync
-        from idea_shared.data.sqlite_backend import create_sqlite_repositories
+        from idea_shared.data.sqlite_backend import (
+            SqliteSegmentRepository,
+            create_sqlite_repositories,
+        )
 
         # Ensure SQLite directory exists
         sqlite_dir = Path(SQLITE_DIR)
@@ -278,8 +281,6 @@ def main():
         if use_sqlite and gcs_sync is not None and segments_db_path is not None:
             if gcs_sync.download_if_changed(SQLITE_SEGMENTS_DB, segments_db_path):
                 logger.info("Downloaded updated segments database from GCS")
-                from idea_shared.data.sqlite_backend import SqliteSegmentRepository
-
                 assert isinstance(segment_repo, SqliteSegmentRepository)
                 segment_repo.reconnect()
 
