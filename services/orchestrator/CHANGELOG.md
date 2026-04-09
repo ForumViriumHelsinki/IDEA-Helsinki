@@ -3,41 +3,9 @@
 ## [0.24.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/orchestrator-v0.23.4...orchestrator-v0.24.0) (2026-04-09)
 
 
-### Features
+### Miscellaneous Chores
 
-* add data access layer for SQLite migration (Phase 1) ([#294](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/294)) ([c701e7f](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/c701e7f42681740326e184038144f08c5fd6c1b9))
-* add validation semaphore and configurable history window ([#280](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/280)) ([f6fa4e3](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/f6fa4e3721704e687f0dc79b07a83b6951c1e373))
-* **health:** add startup-specific health checks to orchestrator service ([#140](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/140)) ([3f29264](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/3f292640ea3e1e5e84f2a8e141d24a733d0113bd))
-* **health:** add startup-specific health checks to traffic-monitor service ([#141](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/141)) ([0d33a6f](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/0d33a6f7bf8d34ef0f558aa9478cf9400d6850a0))
-* implement async context manager for InfluxDBConnectionManager ([#127](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/127)) ([f7fc26f](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/f7fc26f61fb40a779ccca27e9f76ff9a669bbb8d)), closes [#31](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/31)
-* Implement multi-threaded processing for FCD Manager ([#105](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/105)) ([#114](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/114)) ([b90f486](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/b90f486659f62f444245379a049329cb6e49a607))
-* migrate IDEA-Helsinki to GoFeatureFlag relay proxy ([#149](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/149)) ([c8fcd2e](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/c8fcd2eb6323d3e9dca1df36ca7184e6f673df4f))
-* migrate IDEA-Helsinki to uv workspace ([#174](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/174)) ([76c5daa](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/76c5daaff941909f6f1d1ef671ab2fe264de840a))
-* rename container image to orchestrator ([#83](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/83)) ([230e15f](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/230e15ff14c22b8b85f4f475024b534ce75e5bb7))
-* replace pyright with ty for type checking ([#319](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/319)) ([3cd7594](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/3cd75945f578b41125a3a838eba77a16137348cf))
-* SQLite migration Phase 4 — service wiring ([#329](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/329)) ([b9d51ed](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/b9d51ed1ce3446bb89a602d5fac8936be852e82b))
-
-
-### Bug Fixes
-
-* add pytest asyncio_mode configuration to prevent test hangs ([#120](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/120)) ([260b1bf](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/260b1bf038705ddb496eea8ee96160b98e48c1e0)), closes [#119](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/119)
-* add retry logic for WFS and InfluxDB transient failures ([#185](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/185)) ([347a311](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/347a311fa48fa6a2301932fd09cf3d3ca43d5307))
-* **deps:** update dependency openfeature-sdk to &gt;=0.8.4,&lt;0.9.0 ([#243](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/243)) ([92328ae](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/92328ae3f975ee187a1652e7e02a45f77e00575f))
-* **health:** convert PosixPath to string in health check metadata ([#130](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/130)) ([78ebae0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/78ebae051a0791d33fe7656bb347e0d2d579ee10))
-* optimize InfluxDB health check queries with field filters ([#176](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/176)) ([02955a6](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/02955a682c65d74a84bf78aff4a8a3cbaf3d23be)), closes [#35](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/35)
-* preserve repo directory structure in Docker builds instead of sed hack ([b2c68dd](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/b2c68dd0551ac924f3fdd4e56745aeae46b15001))
-* prevent CancelledError in uvicorn lifespan during graceful shutdown ([#377](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/377)) ([e6f4f9f](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/e6f4f9f5c73895f4d0f3ea0f43f4a19e0a6d517f))
-* resolve container build and lint workflow issues from uv workspace migration ([#178](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/178)) ([d19f203](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/d19f2030ff67c3c925cdafc1090bd2790b0d5087)), closes [#174](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/174)
-* rewrite shared library path in Dockerfiles for container builds ([9d7550d](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/9d7550d28fc7afa62cd0e844296daaa4ee9853c6))
-* **services:** update for idea-shared module changes ([#121](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/121)) ([26039d3](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/26039d32ec5b4244635272628054742bba85afea))
-* store and cancel health server asyncio task on shutdown ([#287](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/287)) ([2d74130](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/2d7413018ac9d0e8a9bceb332039f4bf976e67d9))
-* trigger service releases for idea-shared 0.2.1 ([#76](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/76)) ([296b85c](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/296b85c507e6861ceac6cd000df50f263425965d))
-
-
-### Documentation
-
-* add project rules and apply ruff formatting ([#265](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/265)) ([4bd90da](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/4bd90da7bc12ba2c41916f0b0bc5210c8519316f))
-* improve documentation and apply formatting corrections ([#255](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/255)) ([385edae](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/385edaefe62c030c5254fb32f24d9557ab6e803d)), closes [#13](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/13)
+* **orchestrator:** Synchronize idea-helsinki versions
 
 ## [0.23.4](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/orchestrator-v0.23.3...orchestrator-v0.23.4) (2026-04-08)
 
