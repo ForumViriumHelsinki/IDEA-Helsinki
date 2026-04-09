@@ -1,5 +1,86 @@
 # Changelog
 
+## [0.24.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.23.4...idea-shared-v0.24.0) (2026-04-09)
+
+
+### Features
+
+* add backfill mode detection to health checks ([#107](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/107)) ([6de35df](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/6de35df21db131c578ee331304ac5980950d9713))
+* Add comprehensive testing infrastructure with pytest ([#100](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/100)) ([0bb57dd](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/0bb57dd565d6b9cccefd4d7a09af5ae2ae3baddc))
+* add data access layer for SQLite migration (Phase 1) ([#294](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/294)) ([c701e7f](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/c701e7f42681740326e184038144f08c5fd6c1b9))
+* add health check execution time tracking and slow check warnings ([#285](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/285)) ([1fedb4b](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/1fedb4bd676c0684e625be0b930c6ad479bad3c8))
+* add production-grade resilience infrastructure to prevent cascade failures ([#211](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/211)) ([8784acc](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/8784acc66b3b0d58098f358345f244c7fc766111))
+* add segment buffering and improve validation initialization from dev branch ([#231](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/231)) ([bbbc33a](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/bbbc33ab324f0b3dedd16a8c1b34607c46743ea3))
+* add validation semaphore and configurable history window ([#280](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/280)) ([f6fa4e3](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/f6fa4e3721704e687f0dc79b07a83b6951c1e373))
+* configure Sentry release tracking and deploy notifications ([#318](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/318)) ([342528e](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/342528ed3e557d4f1f072b6f4b3fb1f750597a8f))
+* Containerize Python services with modern development workflow ([c20441a](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/c20441a493c94af665182ed360685c67cb0053c7))
+* GCS Object API sync layer (Phase 3) ([#324](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/324)) ([fe03f29](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/fe03f29712f39ec6253c039752f3eae39e1e0989))
+* Implement health checks for FCD Manager service ([#42](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/42)) ([e3755a6](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/e3755a6c4b04c9ca93ba96e7d877fe778e1d42ed))
+* Implement health checks for IDEA Helsinki service ([#30](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/30)) ([6fb327f](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/6fb327f52e43fc3344a342e8841a8c6155b6b893))
+* Implement multi-threaded processing for FCD Manager ([#105](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/105)) ([#114](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/114)) ([b90f486](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/b90f486659f62f444245379a049329cb6e49a607))
+* implement OpenFeature-based feature flags system ([#118](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/118)) ([ca1d1be](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/ca1d1be14c3ceb0b00d2d28eaa403f921dada71c))
+* Implement shared health check module for Kubernetes probes ([#29](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/29)) ([b07650a](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/b07650a3512a18a4d276a75bc29529a62c8c962b))
+* InfluxDB batching improvements and K8s secrets templating ([#87](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/87)) ([2ae130b](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/2ae130b9d62623c9b27f6da634679ab845144812))
+* inherit segment history when replaced segments match geographically ([#290](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/290)) ([4a6f6c2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/4a6f6c2996ce8ce85e1b67e12009a94b648aa5ba))
+* migrate IDEA-Helsinki to GoFeatureFlag relay proxy ([#149](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/149)) ([c8fcd2e](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/c8fcd2eb6323d3e9dca1df36ca7184e6f673df4f))
+* replace pyright with ty for type checking ([#319](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/319)) ([3cd7594](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/3cd75945f578b41125a3a838eba77a16137348cf))
+* **sentry:** add service tag to distinguish events per service ([#340](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/340)) ([e6663fd](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/e6663fdb0bcabdf2308ac7287c568bb4a4781a0c))
+* SQLite backend implementations (Phase 2) ([#311](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/311)) ([c547133](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/c5471334c7bf6122b6e04c580a8f5a2a46925ad9))
+* SQLite migration Phase 4 — service wiring ([#329](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/329)) ([b9d51ed](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/b9d51ed1ce3446bb89a602d5fac8936be852e82b))
+* sQLite storage by default across all deployments ([#350](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/350)) ([9ed4746](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/9ed4746aa3011c98a967129b3bf6f91e34c5f921))
+* **traffic-monitor:** implement health checks for Traffic Monitor service ([#43](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/43)) ([187f8f8](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/187f8f85532290a8e875ff11b385057a9fd53751))
+
+
+### Bug Fixes
+
+* add ESTALE retry to JSON file reads for GCS FUSE ([#217](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/217)) ([0974f2b](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/0974f2b01ef35d2bd00b19027c76020456759494))
+* add resilience to segment changelog corruption and graceful shutdown ([#158](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/158)) ([aab7b5e](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/aab7b5e5e617bff55447606ae1cb9414718ee4a9))
+* add retry logic for WFS and InfluxDB transient failures ([#185](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/185)) ([347a311](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/347a311fa48fa6a2301932fd09cf3d3ca43d5307))
+* address PR [#185](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/185) review feedback ([#190](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/190)) ([311fb60](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/311fb6028e14e1341c39eb8b243b27fac344a699))
+* avoid mutating caller's query_fields list in get_segment_data_dataframe ([#288](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/288)) ([f3b4bde](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/f3b4bde9f02d4e38bbb60b1822931feb1e837949))
+* bound InfluxDB Flux queries to avoid full-shard scans ([#172](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/172)) ([a58787d](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/a58787d967438d96fb4e7793e8a0aee0e0ad82fc))
+* cap dead-letter queue size in DateRangeQueue ([#286](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/286)) ([a9a4756](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/a9a47567f32c9a56b9772b87e8a0eea97a46bef5))
+* configure DATA_DIR for GCS bucket file storage ([#69](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/69)) ([7eb00bd](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/7eb00bd0cda060772343ffd506d5be1c8e7f8adc))
+* **deploy:** correct feature flag env var for fcd-manager multithreading ([#143](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/143)) ([043e26c](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/043e26cbb03e4921f09b9aa837de1b4dbd114810))
+* **deps:** update dependency openfeature-sdk to &gt;=0.8.4,&lt;0.9.0 ([#243](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/243)) ([92328ae](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/92328ae3f975ee187a1652e7e02a45f77e00575f))
+* externalize health check configuration constants ([#55](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/55)) ([8b19327](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/8b19327b040d9038ad507904d546cf4e27f415cd))
+* **health:** convert PosixPath to string in health check metadata ([#130](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/130)) ([78ebae0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/78ebae051a0791d33fe7656bb347e0d2d579ee10))
+* IDEA profile creation with less FCD ([#353](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/353)) ([8501f5b](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/8501f5b32d14f88fa5843fb1205983f60aba316f))
+* **idea-helsinki:** add required parameters to DatabaseHealthCheck initialization ([#48](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/48)) ([6ecac59](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/6ecac59193c2376fccc75f2203a53b877e02ff96))
+* improve WFS 400 error diagnostics and logging clarity ([#306](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/306)) ([2b5ff88](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/2b5ff881952c6c567843f0bd10b64250e617e55e))
+* increase InfluxDB client timeout from 60s to 300s ([#160](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/160)) ([ce56b8b](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/ce56b8b82ac9e3f7e56bab395296556baef1c304))
+* optimize InfluxDB health check queries with field filters ([#176](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/176)) ([02955a6](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/02955a682c65d74a84bf78aff4a8a3cbaf3d23be)), closes [#35](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/35)
+* prevent CancelledError in uvicorn lifespan during graceful shutdown ([#377](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/377)) ([e6f4f9f](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/e6f4f9f5c73895f4d0f3ea0f43f4a19e0a6d517f))
+* prevent empty InfluxDB range query when profiling ends today ([#316](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/316)) ([76eeffe](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/76eeffe450f161391ad7a5e5c11fa671e96d50bb))
+* release-please workspace configuration and dependency tracking ([#64](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/64)) ([fdb1f93](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/fdb1f93c9c5e3ed9edf45126c19730252d795fc2))
+* remove doubled GCS prefix ([#363](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/363)) ([d861be2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/d861be2ead0e6d3d1aa5f440f49edae25cbedc9b))
+* resolve container build and lint workflow issues from uv workspace migration ([#178](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/178)) ([d19f203](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/d19f2030ff67c3c925cdafc1090bd2790b0d5087)), closes [#174](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/174)
+* resolve FCD Manager CrashLoopBackOff ([#195](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/195)) ([17ad63f](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/17ad63f547a2de6f687caa23a4c757057534746e))
+* resolve health check failures blocking fcd-manager and orchestrator readiness ([#206](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/206)) ([aa25fa9](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/aa25fa9263f36679d5e9fbcd5ff8fed433a8270a))
+* resolve InfluxDB connection failures ([#63](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/63)) ([bf76a48](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/bf76a48b2bb2dce54c164331d61e5d4de6cc1305))
+* resolve orchestrator OOMKill (4Gi → 6Gi) ([#268](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/268)) ([c0ab5a2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/c0ab5a28a7d1f1f4fda1be37d8e19aea0f52b57b))
+* resolve ty type checker errors across shared library and services ([#332](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/332)) ([89d5a6b](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/89d5a6b1ab045f3d676949556e92cc07408ad3a6))
+* Sentry error improvements and GoFeatureFlag migration ([#154](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/154)) ([77df5a9](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/77df5a9033aa1a128254327246bcb342178d0c1e))
+* store and cancel health server asyncio task on shutdown ([#287](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/287)) ([2d74130](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/2d7413018ac9d0e8a9bceb332039f4bf976e67d9))
+* **threading:** use daemon threads for clean process exit ([#150](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/150)) ([9dc277a](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/9dc277ac05d91245ce4c490a018757e34539aeee))
+* **traffic-monitor:** reconnect SQLite after GCS segment download ([#380](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/380)) ([191d77d](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/191d77d3f3d23142c326e48f9e4ea03138c7bc85))
+* trigger service releases for idea-shared 0.2.1 ([#76](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/76)) ([296b85c](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/296b85c507e6861ceac6cd000df50f263425965d))
+* update profile time frame. ([#342](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/342)) ([28ce570](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/28ce570396f3752618585b8f57d288b4aef95b28))
+
+
+### Performance Improvements
+
+* reduce orchestrator memory via chunked profile queries and semaphore ([#274](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/274)) ([36561db](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/36561db27ff380e7258522427a8e735afaa91f65))
+* **sentry:** tune sampling rates and make configurable via env vars ([#339](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/339)) ([3e218dc](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/3e218dc2118fd1ba5f3f4fbdab8a3ed3d4a919ac))
+
+
+### Documentation
+
+* add comprehensive health check documentation ([#58](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/58)) ([6e377b9](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/6e377b9600750c1ca008435a1f58160e93df4f30))
+* add project rules and apply ruff formatting ([#265](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/265)) ([4bd90da](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/4bd90da7bc12ba2c41916f0b0bc5210c8519316f))
+* add project rules and improve README documentation ([#222](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/222)) ([0826989](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/0826989b2274f89087eca630c35dbe41f7e43c12))
+* improve documentation and apply formatting corrections ([#255](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/255)) ([385edae](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/385edaefe62c030c5254fb32f24d9557ab6e803d)), closes [#13](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/13)
+
 ## [0.23.4](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.23.3...idea-shared-v0.23.4) (2026-04-08)
 
 
