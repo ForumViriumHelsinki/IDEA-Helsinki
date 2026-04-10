@@ -117,7 +117,8 @@ def determine_disturbance_dates(
 def calculate_profiling_end_date(
     disturbance_start_date: datetime, lead_time_hours: int
 ) -> datetime:
-    """This function calculates the end date for a profiling.
+    """Calculate the end date for a profiling.
+
     By design, it should be earlier than the disturbance start date (lead time defined in lead_time_hours),
     but it is not; the profiling end date is set to the current date UTC.
 

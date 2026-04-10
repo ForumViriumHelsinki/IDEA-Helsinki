@@ -63,26 +63,21 @@ def update_no_coverage_counters(fcd: int, prev_0: int, prev_1: int) -> tuple[int
 
 
 def calculate_minutes_no_coverage(validation_df: pd.DataFrame) -> pd.DataFrame:
-    """Loop through the validation DataFrame minute-by-minute and compute the consecutive
-    counters for no coverage using FCD values.
+    """Loop through the validation DataFrame minute-by-minute and compute consecutive no-coverage counters.
 
     Two counters are maintained:
-      - consecutive_zeros: counts minutes with fcd == 0.
-      - consecutive_low: counts minutes with fcd in (0, 1).
+
+    - consecutive_zeros: counts minutes with fcd == 0.
+    - consecutive_low: counts minutes with fcd in (0, 1).
 
     Missing values (NaN) reset both counters.
 
-    Parameters
-    ----------
-    validation_df : pd.DataFrame
-        DataFrame with a datetime index and a column 'fcd' containing FCD values.
+    Args:
+        validation_df: DataFrame with a datetime index and a column 'fcd' containing FCD values.
 
     Returns:
-    -------
-    pd.DataFrame
-        A copy of validation_df with added columns:
-            - 'consecutive_zeros': current consecutive count for fcd == 0.
-            - 'consecutive_low': current consecutive count for fcd in (0, 1).
+        A copy of validation_df with added columns 'consecutive_zeros' (current consecutive count
+        for fcd == 0) and 'consecutive_low' (current consecutive count for fcd in (0, 1)).
 
     """
     consecutive_zeros = []
@@ -173,26 +168,18 @@ def match_no_coverage_profile(
 def determine_coverage_profile_value(
     row: pd.Series, previous_row: pd.Series, cov_threshold_zeros_or_one_values: float
 ) -> tuple[float, float, float]:
-    """Determines coverage-related values based on whether the mean/median FCD is
-    below a specified threshold.
+    """Determine coverage-related values based on whether the mean/median FCD is below a specified threshold.
 
-    Parameters
-    ----------
-    row : pd.Series
-        The current row containing coverage metrics.
-    previous_row : pd.Series
-        The previous row containing historical coverage metrics.
-    cov_threshold_zeros_or_one_values : float
-        Threshold below which data is considered to have zero coverage.
+    Args:
+        row: The current row containing coverage metrics.
+        previous_row: The previous row containing historical coverage metrics.
+        cov_threshold_zeros_or_one_values: Threshold below which data is considered to have zero coverage.
 
     Returns:
-    -------
-    min_no_cov : float
-        The number of consecutive zero or low coverage intervals in the current row.
-    previous_min_no_cov : float
-        The number of consecutive zero or low coverage intervals in the previous row.
-    profile_value : float
-        The Q95 value for max consecutive zeros or low coverage, from the previous row.
+        A tuple of (min_no_cov, previous_min_no_cov, profile_value) where min_no_cov is the number
+        of consecutive zero or low coverage intervals in the current row, previous_min_no_cov is the
+        same for the previous row, and profile_value is the Q95 value for max consecutive zeros or
+        low coverage from the previous row.
 
     """
     if row.fcd_mean_median < cov_threshold_zeros_or_one_values:

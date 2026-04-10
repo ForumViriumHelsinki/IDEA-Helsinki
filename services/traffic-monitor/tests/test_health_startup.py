@@ -20,6 +20,7 @@ class AlwaysHealthyCheck(HealthCheck):
     """Test check that always returns healthy."""
 
     async def check(self) -> HealthCheckResult:
+        """Return a healthy result unconditionally."""
         return HealthCheckResult(
             name=self.name,
             status="healthy",
@@ -31,6 +32,7 @@ class AlwaysUnhealthyCheck(HealthCheck):
     """Test check that always returns unhealthy."""
 
     async def check(self) -> HealthCheckResult:
+        """Return an unhealthy result unconditionally."""
         return HealthCheckResult(
             name=self.name,
             status="unhealthy",

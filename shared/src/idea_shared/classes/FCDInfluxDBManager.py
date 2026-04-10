@@ -55,9 +55,9 @@ def _sanitize_flux_string(value: str) -> str:
 
 
 class FCDInfluxDBManager:
-    """Manages writing and querying Floating Car Data (FCD) to InfluxDB.
-    This class is specifically designed to work with the TFDS data models.
+    """Manage writing and querying Floating Car Data (FCD) to InfluxDB.
 
+    This class is specifically designed to work with the TFDS data models.
     Includes improved retry strategy with exponential backoff and jitter
     for better reliability under transient network failures.
     """

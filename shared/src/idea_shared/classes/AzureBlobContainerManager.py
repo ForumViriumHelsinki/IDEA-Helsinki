@@ -55,6 +55,7 @@ class AzureBlobContainerManager:
             )
 
     def __str__(self) -> str:
+        """Return string representation of the container manager."""
         return (
             f"AzureBlobContainerManager(account_name='{self.account_name}', "
             f"container_name='{self.container_name}', sas_token_provided=True)"
@@ -66,8 +67,8 @@ class AzureBlobContainerManager:
         """Lists all the blobs in the container.
 
         Args:
-            name_starts_with = a prefix for the blobs listed. Note that if the container has folders, it must be included in the prefix => "folder"/blob name
-            include_metadata = Include blob metadata (last modified etc.)
+            name_starts_with: A prefix for the blobs listed. Note that if the container has folders, it must be included in the prefix.
+            include_metadata: Include blob metadata (last modified etc.).
 
         Returns:
             A list of blobs (all or marched ones)
@@ -151,7 +152,8 @@ class AzureBlobContainerManager:
     def get_blobs_by_prefix(
         self, dt: datetime, precision: TimePrecision, folder_path: str | None = None
     ) -> list[BlobProperties]:
-        """Finds blobs using a server-side prefix search based on a datetime and specified precision (day, hour, or minute).
+        """Find blobs using a server-side prefix search based on datetime and precision.
+
         This only works if the blob names start with a timestamp (ISO format).
 
         Args:
@@ -191,9 +193,10 @@ class AzureBlobContainerManager:
     def get_blobs_in_range(
         self, start_time: datetime, end_time: datetime
     ) -> list[BlobProperties]:
-        """Finds blobs within a datetime range by first using a date-based prefix search to narrow the results before final filtering.
-        This function is not "precise", since it will search thought all the containers folders (if there is any).
-        This only works if the blob names start with a timestamp (ISO format).
+        """Find blobs within a datetime range using date-based prefix narrowing.
+
+        This function is not precise, since it will search through all the container's
+        folders. Only works if blob names start with a timestamp (ISO format).
 
         Args:
             start_time: The start of the datetime range.

@@ -26,9 +26,10 @@ from idea_shared.resilience.retry import ErrorTracker, calculate_backoff
 
 
 class IdeaHelsinkiRoadSegment:
-    """Class that uses the IDEA algorithm to profile and validate a single road.
-    Autonomous in nature, determines the necessary start and end dates based on the road disturbances associated with it.
-    This is the go-go-jee-jee of the Helsinki IDEA application.
+    """Use the IDEA algorithm to profile and validate a single road segment.
+
+    Autonomous in nature, determines the necessary start and end dates based on
+    the road disturbances associated with it.
     """
 
     # Number of weeks per chunk when fetching 26-week profile data
@@ -133,11 +134,11 @@ class IdeaHelsinkiRoadSegment:
             )
 
     async def _wait_for_next_cycle(self):
-        """Void method that pauses the road segment object until the next validation cycle.
-        Bases the wait time on the "clock" to determine the number of seconds it needs to sleep.
-        Example: a 5-minute wait is always the five minutes on the clock (15:05, 15:10 etc.), regardless of the current time.
-        Example: A function called at 16:47 will wait until 16:50.
-        Based on the validation_frequency.
+        """Pause the road segment until the next validation cycle.
+
+        Base the wait time on the clock to determine the number of seconds to sleep.
+        Example: a 5-minute wait is always the five minutes on the clock (15:05, 15:10 etc.).
+        A function called at 16:47 will wait until 16:50. Based on the validation_frequency.
         """
         now = datetime.now(UTC)
         minutes_to_add = self.validation_frequency - (
@@ -263,8 +264,9 @@ class IdeaHelsinkiRoadSegment:
             )
 
     async def run_lifecycle(self):
-        """Class main loop for profiling and validating the FCD segment.
-        Runs as long as the reported disturbance is active.
+        """Run the main loop for profiling and validating the FCD segment.
+
+        Run as long as the reported disturbance is active.
 
         Includes resilience patterns:
         - Exception handling to prevent worker crashes
@@ -469,8 +471,9 @@ class IdeaHelsinkiRoadSegment:
         return segment_date
 
     async def __get_hourly_profile_data(self) -> pd.DataFrame | None:
-        """Fetch the full profiling period in chunks defined by _PROFILING_CHUNK_WEEKS
-        and pre-aggregate each chunk to hourly resolution before collecting the results.
+        """Fetch the full profiling period in chunks and pre-aggregate to hourly resolution.
+
+        Use chunks defined by _PROFILING_CHUNK_WEEKS to reduce peak memory.
 
         For example, with 4-week chunks, this reduces peak memory by ~12× compared
         to loading the full 26-week DataFrame at once: each raw chunk (~3,000 rows)
@@ -643,8 +646,10 @@ class IdeaHelsinkiRoadSegment:
     # ------------------------------------------------------#
 
     def update_segment(self, reported_disturbances: list):
-        """A void function that updates the segment profile based on updated disturbance data.
-        This usually affects the start and/or end of the reported disturbances, which might affect the profiling dates.
+        """Update the segment profile based on updated disturbance data.
+
+        This usually affects the start and/or end of the reported disturbances,
+        which might affect the profiling dates.
         """
         self.logger.info("Updating segment with new disturbance data.")
         new_disturbance_start_date, new_disturbance_end_date = (

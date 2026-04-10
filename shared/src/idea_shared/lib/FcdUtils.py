@@ -41,7 +41,8 @@ class ChangelogResult:
 
 
 def get_fcd_geometries(fcd_file: dict) -> dict:
-    """Loops through the fcd aggregation file and forms a dictionary from segment IDs and their geometry.
+    """Loop through the fcd aggregation file and form a dictionary from segment IDs and their geometry.
+
     This dictionary is used for intersection detection with traffic disturbance data.
 
     Args:
@@ -336,9 +337,9 @@ def update_segment_changelog(
     archive_file_path: str,
     processing_date: datetime,
 ) -> None:
-    """Compares a fresh segment mapping file against a master changelog to detect,
-    log, and catalog segment changes, moving removed segments to an archive.
-    Note that the assumption is that the fresh mapping file represents the current and valid geometry structure for segments.
+    """Compare a fresh segment mapping file against a master changelog to detect, log, and catalog segment changes.
+
+    Moves removed segments to an archive. Assumes the fresh mapping file represents the current and valid geometry structure for segments.
 
     Args:
         fresh_mapping_file_path: Path to the new segments_mapping.json.

@@ -28,8 +28,10 @@ class IntersectionDetectorError(Exception):
 
 
 class IntersectionDetector:
-    """A class to perform collision detection on map features,
-    specifically finding intersections between WFS MultiPolygon features and aggregated FCD road segment LineString data.
+    """Perform collision detection between WFS features and FCD road segments.
+
+    Find intersections between WFS MultiPolygon features and aggregated FCD
+    road segment LineString data.
     """
 
     def __init__(
@@ -55,8 +57,10 @@ class IntersectionDetector:
         )
 
     def load_wfs_geojson(self, wfs_geojson: Any) -> geopandas.GeoDataFrame | None:
-        """Loads WFS GeoJSON FeatureCollection into a GeoDataFrame.
-        Ensures feature IDs from the GeoJSON index are captured in a column and sets a defined CRS.
+        """Load WFS GeoJSON FeatureCollection into a GeoDataFrame.
+
+        Ensure feature IDs from the GeoJSON index are captured in a column
+        and set a defined CRS.
         """
         try:
             gdf = geopandas.GeoDataFrame.from_features(wfs_geojson)
@@ -122,9 +126,11 @@ class IntersectionDetector:
             return None
 
     def load_fcd_segment_data(self, segment_json: str) -> geopandas.GeoDataFrame | None:
-        """Loads the aggregated segment data mapping JSON into a GeoDataFrame. Check docs/data_models.md for detailed information.
-        The input JSON is expected to be a dictionary of objects, where each object has
-        a 'segmentId', a 'geometry' (LineString).
+        """Load the aggregated segment data mapping JSON into a GeoDataFrame.
+
+        See docs/data_models.md for detailed information. The input JSON is
+        expected to be a dictionary of objects, where each object has a
+        'segmentId' and a 'geometry' (LineString).
         """
         segment_json_path = Path(segment_json)
         try:
@@ -433,16 +439,18 @@ class IntersectionDetector:
         buffer_distance: float,
         buffering_crs: str | None = None,
     ) -> geopandas.GeoDataFrame:
-        """Buffers the geometry of the GeoDataFrame by a specified distance.
-        The buffer uses a 'flat' cap style (cap_style=2) to preserve the length of the segment, only widening it.
+        """Buffer the geometry of the GeoDataFrame by a specified distance.
 
-        If 'buffering_crs' is provided, the data is projected to that CRS for the buffering operation
-        (useful for metric buffering on WGS84 data) and then projected back to the original CRS.
+        The buffer uses a 'flat' cap style (cap_style=2) to preserve the length
+        of the segment, only widening it.
 
-        Important:
-        - The 'buffer_distance' is in the units of the GeoDataFrame's CRS. This should be done in meters, example using CRS EPSG:3879.
+        If 'buffering_crs' is provided, the data is projected to that CRS for
+        the buffering operation (useful for metric buffering on WGS84 data) and
+        then projected back to the original CRS.
 
-        The original geometry is preserved in a new column 'geometry_original'.
+        The 'buffer_distance' is in the units of the GeoDataFrame's CRS (should
+        be in meters, e.g. using CRS EPSG:3879). The original geometry is
+        preserved in a new column 'geometry_original'.
 
         Args:
             gdf: The GeoDataFrame containing road segments (LineStrings).
@@ -499,9 +507,10 @@ class IntersectionDetector:
     def restore_original_geometries(
         self, gdf: geopandas.GeoDataFrame
     ) -> geopandas.GeoDataFrame:
-        """Restores the original geometries from the 'geometry_original' column,
-        reverting the effects of the 'buffer_segments' method.
-        Removes the 'geometry_original' column after restoration.
+        """Restore the original geometries from the 'geometry_original' column.
+
+        Revert the effects of the 'buffer_segments' method and remove the
+        'geometry_original' column after restoration.
 
         Args:
             gdf: The GeoDataFrame to restore.

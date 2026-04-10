@@ -12,7 +12,8 @@ logger = Logger(__name__)
 
 
 def convert_confidence_to_fcd_num(confidence: int):
-    """Converts a confidence_level (0-100) to fcd value (0-10) used in the IDEA algorithm.
+    """Convert a confidence_level (0-100) to fcd value (0-10) used in the IDEA algorithm.
+
     - confidence_level <= 70 maps to fcd = 0
     - confidence_level == 100 maps to fcd = 10
     - Values between 70 and 100 are linearly scaled.
@@ -20,7 +21,7 @@ def convert_confidence_to_fcd_num(confidence: int):
     NOTE: This is just the first "quick-and-dirty" estimation method.
 
     Args:
-        confidence from a time series segment, value range 0-100.
+        confidence: Confidence value from a time series segment, value range 0-100.
 
     Returns:
         Converted estimate of numerical FCD value, None if confidence is None (IDEA accepts Null values)

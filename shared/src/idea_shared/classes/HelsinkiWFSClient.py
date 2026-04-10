@@ -25,8 +25,9 @@ class _TransientHTTPError(Exception):
 
 
 class HelsinkiWFSClient:
-    """A client for interacting with the Helsinki WFS (Web Feature Service) API.
-    Allows fetching geographical data in various formats and coordinate systems.
+    """Client for interacting with the Helsinki WFS (Web Feature Service) API.
+
+    Allow fetching geographical data in various formats and coordinate systems.
     """
 
     # --------------------- DEFAULT VALUES -----------------------#
@@ -62,12 +63,15 @@ class HelsinkiWFSClient:
         self.logger = Logger(__name__)
 
     def __enter__(self):
+        """Enter the context manager."""
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """Exit the context manager and close the session."""
         self.close()
 
     def close(self):
+        """Close the HTTP session."""
         if self._session_owner and self.session:
             self.session.close()
             self.logger.info("HelsinkiWFSClient session closed.")

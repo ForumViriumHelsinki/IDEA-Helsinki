@@ -123,10 +123,11 @@ class IdeaHelsinkiManager:
         return data
 
     async def _wait_for_next_management_cycle(self):
-        """Void method that pauses the manager until the next management cycle.
-        Bases the wait time on the "clock" to determine the number of seconds it needs to sleep.
-        Example: a 60-minute wait is always the next hour on the clock (15:00, 16:00 etc.), regardless of the current time.
-        Example: A function called at 16:47 will wait until 17:00.
+        """Pause the manager until the next management cycle.
+
+        Base the wait time on the clock to determine the number of seconds to sleep.
+        Example: a 60-minute wait is always the next hour on the clock (15:00, 16:00 etc.),
+        regardless of the current time. A function called at 16:47 will wait until 17:00.
         Based on the traffic_disturbance_update_frequency.
         """
         now = datetime.now(UTC)
@@ -147,6 +148,7 @@ class IdeaHelsinkiManager:
 
     async def _run_management_cycle_with_error_isolation(self):
         """Run a single management cycle with error isolation.
+
         Wrapped by run_main_loop for resilience.
         """
         # Update cycle time for health monitoring
@@ -333,6 +335,7 @@ class IdeaHelsinkiManager:
 
     async def get_worker_health_stats(self):
         """Return health statistics for monitoring.
+
         Used by health checks to assess the state of the service.
         """
         return {

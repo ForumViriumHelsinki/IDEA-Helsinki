@@ -30,14 +30,10 @@ ignore = [
     "D100",  # missing docstring in public module
     "D104",  # missing docstring in public package
     "D107",  # missing docstring in __init__
-    # Gradual adoption: remove these as docstrings are added
-    "D101",  # missing docstring in public class
-    "D102",  # missing docstring in public method
-    "D103",  # missing docstring in public function
-    "D105",  # missing docstring in magic method
-    "D205",  # blank line required between summary and description
-    "D417",  # missing argument description in docstring
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["D"]  # no docstring requirements in tests
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

@@ -58,21 +58,20 @@ def filter_max_consecutive_60(
     n: int = MINIMUM_HOURS_NO_TRAFFIC_FOR_PROFILE,
     column_to_replace_with_nan: list = COLUMNS_TO_REPLACE_VALUES_WITH_NAN,
 ):
-    """Sets data values to NaN where the maximum number of consecutive 60s
-    in 'max_consecutive_zeros_or_ones' exceeds the given threshold 'n'.
-    In fill_missing_values_with_values, the values are set with a predefined constant.
+    """Set data values to NaN where the maximum number of consecutive 60s exceeds the given threshold.
 
-    Parameters
-    ----------
-    df (pd.DataFrame): The input DataFrame.
-    n (int): The threshold for the maximum consecutive 60s.
-    Default is 5 (MINIMUM_HOURS_NO_TRAFFIC_FOR_PROFILE, in filter_missing_periods).
+    Checks 'max_consecutive_zeros_or_ones' against threshold 'n'. In fill_missing_values_with_values,
+    the values are set with a predefined constant.
+
+    Args:
+        df: The input DataFrame.
+        n: The threshold for the maximum consecutive 60s. Default is 5
+            (MINIMUM_HOURS_NO_TRAFFIC_FOR_PROFILE, in filter_missing_periods).
+        column_to_replace_with_nan: Columns whose values are set to NaN for problematic sequences.
 
     Returns:
-    -------
-    pd.DataFrame:
-    DataFrame with data columns set to NaN for problematic sequences while preserving
-    the original row structure.
+        DataFrame with data columns set to NaN for problematic sequences while preserving
+        the original row structure.
 
     """
     df["consecutive_60"] = df["max_consecutive_zeros_or_ones"] == CONSECUTIVE_60_MINUTES
@@ -270,26 +269,21 @@ def does_profile_has_enough_data(profile: pd.DataFrame) -> None:
 def verify_start_and_end_time(
     df: pd.DataFrame, start: dt.datetime | None, end: dt.datetime | None
 ):
-    """Verifies that both start and end times are either provided together or not at all,
-    checks that the difference between start and end is exactly one year,
-    and ensures that start is not after the earliest index and end is not before the latest index.
+    """Verify that start and end times are valid relative to the DataFrame index.
 
-    Parameters
-    ----------
-    df : pd.DataFrame
-        DataFrame with a DateTimeIndex to validate against.
-    start : datetime.datetime or None
-        The start time for validation.
-    end : datetime.datetime or None
-        The end time for validation.
+    Both times must be provided together or not at all. The difference between start and end
+    must be exactly one year, start must not be after the earliest index, and end must not
+    be before the latest index.
+
+    Args:
+        df: DataFrame with a DateTimeIndex to validate against.
+        start: The start time for validation, or None.
+        end: The end time for validation, or None.
 
     Raises:
-    ------
-    IDEAError
-        If only one of start or end is provided.
-        If the difference between start and end is not exactly one year.
-        If start is after the earliest timestamp in df.
-        If end is before the latest timestamp in df.
+        IDEAError: If only one of start or end is provided, if the difference between
+            start and end is not exactly one year, if start is after the earliest timestamp
+            in df, or if end is before the latest timestamp in df.
 
     """
     if start is None and end is None:
