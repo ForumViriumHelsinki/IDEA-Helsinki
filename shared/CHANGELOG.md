@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.24.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.23.4...idea-shared-v0.24.0) (2026-04-09)
+
+
+### Bug Fixes
+
+* **traffic-monitor:** reconnect SQLite after GCS segment download ([#380](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/380)) ([191d77d](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/191d77d3f3d23142c326e48f9e4ea03138c7bc85))
+
 ## [0.23.4](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.23.3...idea-shared-v0.23.4) (2026-04-08)
 
 
