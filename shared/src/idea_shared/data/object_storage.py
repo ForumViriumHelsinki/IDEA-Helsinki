@@ -140,7 +140,6 @@ class LocalStorageSync:
         try:
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(str(src), str(dest))
-            self._hash_cache[remote_key] = self._file_hash(dest)
             logger.info("LocalStorageSync: copied %s → %s", src, dest)
             return True
         except Exception:

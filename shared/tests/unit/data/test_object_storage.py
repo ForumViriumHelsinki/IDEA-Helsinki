@@ -122,14 +122,15 @@ class TestLocalStorageSyncUpload:
         assert dest.exists()
         assert dest.read_bytes() == b"hello"
 
-    def test_upload_updates_hash_cache(self, store, tmp_path):
+    def test_upload_does_not_update_hash_cache(self, store, tmp_path):
         src = tmp_path / "source.db"
         src.write_bytes(b"hello")
 
         store.upload(src, "segments.db")
 
-        assert "segments.db" in store.hash_cache
-        assert len(store.hash_cache["segments.db"]) == 64  # SHA-256 hex
+        # upload() intentionally does not populate the download-tracking cache;
+        # only download_if_changed() updates it after a successful fetch.
+        assert "segments.db" not in store.hash_cache
 
     def test_upload_applies_prefix(self, store, tmp_path):
         src = tmp_path / "source.db"
@@ -248,10 +249,14 @@ class TestLocalStorageSyncDownload:
 @pytest.mark.unit
 class TestLocalStorageSyncHashCache:
     def test_hash_cache_returns_copy(self, tmp_path):
-        s = LocalStorageSync(base_dir=tmp_path)
+        # Use a dedicated store dir so src != dest (avoids SameFileError).
+        s = LocalStorageSync(base_dir=tmp_path / "store")
         src = tmp_path / "f.db"
         src.write_bytes(b"x")
         s.upload(src, "f.db")
+        # download_if_changed populates the hash cache (upload does not).
+        dest = tmp_path / "dest.db"
+        s.download_if_changed("f.db", dest)
         cache = s.hash_cache
         cache["f.db"] = "tampered"
         assert s._hash_cache["f.db"] != "tampered"
@@ -340,7 +345,7 @@ class TestCreateObjectStorageSync:
         with patch("idea_shared.data.gcs_sync.storage.Client") as mock_cls:
             mock_client = MagicMock()
             mock_cls.return_value = mock_client
-            result = create_object_storage_sync(
+            create_object_storage_sync(
                 backend="gcs", bucket_name="my-custom-bucket"
             )
             mock_client.bucket.assert_called_once_with("my-custom-bucket")
