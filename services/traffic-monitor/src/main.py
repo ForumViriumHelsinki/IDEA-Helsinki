@@ -34,8 +34,6 @@ from idea_shared.lib.Constants.Constants import (
     FCD_HISTORY_START_DATE,
     FCD_MAP_DATA_FILE_LOCATION,
     FCD_MAPPING_MAX_AGE_MINUTES,
-    GCS_BUCKET_NAME,
-    GCS_PREFIX,
     HEALTH_CHECK_PORT,
     PROFILE_TIME_FRAME_WEEKS,
     SQLITE_DIR,
@@ -91,7 +89,7 @@ def main():
     disturbances_db_path = None
 
     if use_sqlite:
-        from idea_shared.data.gcs_sync import GCSSync
+        from idea_shared.data.object_storage import create_object_storage_sync
         from idea_shared.data.sqlite_backend import (
             SqliteSegmentRepository,
             create_sqlite_repositories,
@@ -101,12 +99,12 @@ def main():
         sqlite_dir = Path(SQLITE_DIR)
         sqlite_dir.mkdir(parents=True, exist_ok=True)
 
-        # Initialize GCS sync
-        gcs_sync = GCSSync(bucket_name=GCS_BUCKET_NAME, prefix=GCS_PREFIX)
+        # Initialize object storage sync
+        gcs_sync = create_object_storage_sync()
 
-        # Download segments.db from GCS (written by fcd-manager)
+        # Download segments.db from object storage (written by fcd-manager)
         segments_db_path = sqlite_dir / SQLITE_SEGMENTS_DB
-        logger.info("Downloading segments database from GCS...")
+        logger.info("Downloading segments database from object storage...")
         gcs_sync.download_if_changed(SQLITE_SEGMENTS_DB, segments_db_path)
 
         # Create segment repo from downloaded database (read-only usage)
@@ -277,10 +275,10 @@ def main():
         # Mark as processing
         service_state.set_processing(True)
 
-        # Refresh segments from GCS if using SQLite
+        # Refresh segments from object storage if using SQLite
         if use_sqlite and gcs_sync is not None and segments_db_path is not None:
             if gcs_sync.download_if_changed(SQLITE_SEGMENTS_DB, segments_db_path):
-                logger.info("Downloaded updated segments database from GCS")
+                logger.info("Downloaded updated segments database from object storage")
                 assert isinstance(segment_repo, SqliteSegmentRepository)
                 segment_repo.reconnect()
 

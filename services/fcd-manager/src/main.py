@@ -47,8 +47,6 @@ from idea_shared.lib.Constants.Constants import (
     FCD_SHUTDOWN_TIMEOUT_SECONDS,
     FCD_UPDATE_FREQUENCY,
     FCD_WRITE_QUEUE_MAX_SIZE,
-    GCS_BUCKET_NAME,
-    GCS_PREFIX,
     HEALTH_CHECK_CACHE_TTL_SECONDS,
     HEALTH_CHECK_PORT,
     MASTER_SEGMENT_HISTORY_FILE_LOCATION,
@@ -292,7 +290,7 @@ def run(
                 finally:
                     _write_in_progress.clear()
 
-                # When using SQLite, upload DB to GCS and export JSON for compatibility
+                # When using SQLite, upload DB to object storage and export JSON for compatibility
                 if use_sqlite and gcs_sync is not None:
                     from pathlib import Path
 
@@ -505,7 +503,7 @@ def main():
     if use_sqlite:
         from pathlib import Path
 
-        from idea_shared.data.gcs_sync import GCSSync
+        from idea_shared.data.object_storage import create_object_storage_sync
         from idea_shared.data.sqlite_backend import create_sqlite_repositories
         from idea_shared.health.idea_checks import SqliteHealthCheck
 
@@ -516,11 +514,8 @@ def main():
         db_path = sqlite_dir / SQLITE_SEGMENTS_DB
         segment_repo, _, _ = create_sqlite_repositories(db_path)
 
-        # Initialize GCS sync for uploading database to other services
-        gcs_sync = GCSSync(
-            bucket_name=GCS_BUCKET_NAME,
-            prefix=GCS_PREFIX,
-        )
+        # Initialize object storage sync for uploading database to other services
+        gcs_sync = create_object_storage_sync()
 
         # Add SQLite health check
         sqlite_health = SqliteHealthCheck(

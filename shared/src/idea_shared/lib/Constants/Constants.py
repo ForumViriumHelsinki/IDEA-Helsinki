@@ -139,6 +139,11 @@ WFS_HEALTH_CHECK_CACHE_TTL = 30  # Cache WFS health check results for 30 seconds
 GCS_BUCKET_NAME = os.getenv("GCS_BUCKET_NAME", "idea-helsinki-dev")
 GCS_PREFIX = os.getenv("GCS_PREFIX", "")
 
+# Object storage backend selection
+# Supported values: "gcs" (default), "local"
+# Planned (not yet implemented): "s3", "azure"
+OBJECT_STORAGE_BACKEND = os.getenv("OBJECT_STORAGE_BACKEND", "gcs")
+
 # SQLite database paths
 SQLITE_DIR = os.getenv("SQLITE_DIR", os.path.join(DATA_DIR, "sqlite"))
 SQLITE_SEGMENTS_DB = "segments.db"
