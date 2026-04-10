@@ -26,8 +26,7 @@ from idea_shared.resilience.retry import ErrorTracker, calculate_backoff
 
 
 class IdeaHelsinkiRoadSegment:
-    """
-    Class that uses the IDEA algorithm to profile and validate a single road.
+    """Class that uses the IDEA algorithm to profile and validate a single road.
     Autonomous in nature, determines the necessary start and end dates based on the road disturbances associated with it.
     This is the go-go-jee-jee of the Helsinki IDEA application.
     """
@@ -134,12 +133,11 @@ class IdeaHelsinkiRoadSegment:
             )
 
     async def _wait_for_next_cycle(self):
-        """
-        Void method that pauses the road segment object until the next validation cycle.
+        """Void method that pauses the road segment object until the next validation cycle.
         Bases the wait time on the "clock" to determine the number of seconds it needs to sleep.
         Example: a 5-minute wait is always the five minutes on the clock (15:05, 15:10 etc.), regardless of the current time.
         Example: A function called at 16:47 will wait until 16:50.
-        Based on the validation_frequency
+        Based on the validation_frequency.
         """
         now = datetime.now(UTC)
         minutes_to_add = self.validation_frequency - (
@@ -158,13 +156,12 @@ class IdeaHelsinkiRoadSegment:
         await asyncio.sleep((resume_time - now).total_seconds())
 
     async def __validate_segment(self, current_time: datetime):
-        """
-        A void method that profiles and validates a single road segment.
+        """A void method that profiles and validates a single road segment.
 
         Args:
             current_time (datetime): The current time UTC.
-        """
 
+        """
         # Sleep for 10 seconds before beginning validation, so the current segment data is updated and available.
         await asyncio.sleep(10)
 
@@ -266,8 +263,7 @@ class IdeaHelsinkiRoadSegment:
             )
 
     async def run_lifecycle(self):
-        """
-        Class main loop for profiling and validating the FCD segment.
+        """Class main loop for profiling and validating the FCD segment.
         Runs as long as the reported disturbance is active.
 
         Includes resilience patterns:
@@ -366,8 +362,7 @@ class IdeaHelsinkiRoadSegment:
     async def __write_dataframe_to_influxdb(
         self, df: pd.DataFrame, segment_id: str, measurement_name: str
     ) -> bool:
-        """
-        Writes a pandas dataframe to the InfluxDB database.
+        """Writes a pandas dataframe to the InfluxDB database.
 
         Args:
             df (pandas.DataFrame): The IDEA validation dataframe to write to the database.
@@ -376,6 +371,7 @@ class IdeaHelsinkiRoadSegment:
 
         Returns:
             bool: True if the writing was successful.
+
         """
         try:
             # Use circuit breaker to protect against InfluxDB failures
@@ -403,14 +399,14 @@ class IdeaHelsinkiRoadSegment:
     async def __get_segment_last_timestamp_from_influxdb(
         self, segment_id: str
     ) -> datetime | None:
-        """
-        Retrieves the last segment timestamp from the InfluxDB database. Note that this is the measurement timestamp.
+        """Retrieves the last segment timestamp from the InfluxDB database. Note that this is the measurement timestamp.
 
         Args:
             segment_id (str): The FCD segment ID.
 
         Returns:
             datetime: The last segment measurement timestamp or None if not available (Segment is not in the database).
+
         """
         segment_date = None
 
@@ -439,14 +435,14 @@ class IdeaHelsinkiRoadSegment:
     async def __get_segment_first_timestamp_from_influxdb(
         self, segment_id: str
     ) -> datetime | None:
-        """
-        Retrieves the first segment timestamp from the InfluxDB database. Note that this is the measurement timestamp.
+        """Retrieves the first segment timestamp from the InfluxDB database. Note that this is the measurement timestamp.
 
         Args:
             segment_id (str): The FCD segment ID.
 
         Returns:
             datetime: The first segment measurement timestamp or None if not available (Segment is not in the database).
+
         """
         segment_date = None
 
@@ -473,8 +469,7 @@ class IdeaHelsinkiRoadSegment:
         return segment_date
 
     async def __get_hourly_profile_data(self) -> pd.DataFrame | None:
-        """
-        Fetch the full profiling period in chunks defined by _PROFILING_CHUNK_WEEKS
+        """Fetch the full profiling period in chunks defined by _PROFILING_CHUNK_WEEKS
         and pre-aggregate each chunk to hourly resolution before collecting the results.
 
         For example, with 4-week chunks, this reduces peak memory by ~12× compared
@@ -486,6 +481,7 @@ class IdeaHelsinkiRoadSegment:
             ``hour_of_date``, ``fcd_mean``, ``max_consecutive_zeros``,
             ``max_consecutive_zeros_or_ones``.
             Returns None if no chunks contain data.
+
         """
         hourly_chunks: list[pd.DataFrame] = []
         current = self.profiling_start_date
@@ -523,8 +519,7 @@ class IdeaHelsinkiRoadSegment:
     async def __get_idea_formated_segment_data_from_influxdb(
         self, segment_id: str, start_time: datetime, end_time: datetime
     ) -> pd.DataFrame | None:
-        """
-        Retrieves measurement data from the InfluxDB database for a single segment.
+        """Retrieves measurement data from the InfluxDB database for a single segment.
 
         Args:
             segment_id (str): The FCD segment ID.
@@ -539,6 +534,7 @@ class IdeaHelsinkiRoadSegment:
             '';'fcd;
             datetime;integer
             datetime;integer
+
         """
         try:
             # Use circuit breaker to protect against InfluxDB failures
@@ -584,8 +580,7 @@ class IdeaHelsinkiRoadSegment:
         start_time: datetime | None = None,
         end_time: datetime | None = None,
     ) -> pd.DataFrame | None:
-        """
-        Get segment data as a pandas dataframe.
+        """Get segment data as a pandas dataframe.
 
         Args:
             segment_id (str): The FCD segment ID.
@@ -594,6 +589,7 @@ class IdeaHelsinkiRoadSegment:
 
         Returns:
              pd.DataFrame or None if the query was unsuccessful.
+
         """
         try:
             # Use circuit breaker to protect against InfluxDB failures
@@ -647,8 +643,7 @@ class IdeaHelsinkiRoadSegment:
     # ------------------------------------------------------#
 
     def update_segment(self, reported_disturbances: list):
-        """
-        A void function that updates the segment profile based on updated disturbance data.
+        """A void function that updates the segment profile based on updated disturbance data.
         This usually affects the start and/or end of the reported disturbances, which might affect the profiling dates.
         """
         self.logger.info("Updating segment with new disturbance data.")

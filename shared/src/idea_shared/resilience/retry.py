@@ -1,5 +1,4 @@
-"""
-Async retry infrastructure with exponential backoff.
+"""Async retry infrastructure with exponential backoff.
 
 Provides decorators and utilities for retrying async operations with
 exponential backoff and jitter. Complements the low-level tenacity retries
@@ -16,6 +15,7 @@ Example:
         max_attempts=5,
         base_delay=2.0
     )
+
 """
 
 import asyncio
@@ -35,8 +35,7 @@ def calculate_backoff(
     max_delay: float = 60.0,
     jitter: bool = True,
 ) -> float:
-    """
-    Calculate exponential backoff delay with optional jitter.
+    """Calculate exponential backoff delay with optional jitter.
 
     Args:
         attempt: Current attempt number (1-indexed)
@@ -46,6 +45,7 @@ def calculate_backoff(
 
     Returns:
         Delay in seconds
+
     """
     # Exponential backoff: base_delay * 2^(attempt-1)
     delay = base_delay * (2 ** (attempt - 1))
@@ -66,8 +66,7 @@ def async_retry(
     excluded_exceptions: tuple[type[BaseException], ...] = (asyncio.CancelledError,),
     logger_name: str | None = None,
 ):
-    """
-    Decorator for retrying async functions with exponential backoff.
+    """Decorator for retrying async functions with exponential backoff.
 
     Args:
         max_attempts: Maximum number of attempts
@@ -81,6 +80,7 @@ def async_retry(
         @async_retry(max_attempts=5, base_delay=2.0)
         async def fetch_data():
             return await api.get()
+
     """
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
@@ -133,8 +133,7 @@ async def with_retry[T](
     logger_name: str | None = None,
     **kwargs,
 ) -> T:
-    """
-    Execute async function with retry logic.
+    """Execute async function with retry logic.
 
     This is a functional alternative to the @async_retry decorator,
     useful when you can't modify the function definition.
@@ -162,6 +161,7 @@ async def with_retry[T](
             max_attempts=5,
             base_delay=2.0
         )
+
     """
     logger = Logger(logger_name or getattr(func, "__name__", repr(func)))
     last_exception: Exception | None = None
@@ -190,8 +190,7 @@ async def with_retry[T](
 
 
 class ErrorTracker:
-    """
-    Tracks consecutive errors for adaptive error handling.
+    """Tracks consecutive errors for adaptive error handling.
 
     Useful for implementing progressive backoff or circuit-breaking behavior
     at the application level.
@@ -206,14 +205,15 @@ class ErrorTracker:
             tracker.record_failure()
             if tracker.should_escalate():
                 raise  # Exit on systemic failure
+
     """
 
     def __init__(self, max_consecutive: int = 10):
-        """
-        Initialize error tracker.
+        """Initialize error tracker.
 
         Args:
             max_consecutive: Maximum consecutive errors before escalation
+
         """
         self.max_consecutive = max_consecutive
         self._consecutive_errors = 0
@@ -240,8 +240,7 @@ class ErrorTracker:
         return self._consecutive_errors >= self.max_consecutive
 
     def get_backoff_multiplier(self) -> float:
-        """
-        Get backoff multiplier based on consecutive errors.
+        """Get backoff multiplier based on consecutive errors.
 
         Returns value between 1.0 and 10.0 for adaptive backoff.
         """

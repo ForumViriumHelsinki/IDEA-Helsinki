@@ -1,6 +1,4 @@
-"""
-Health checks for IDEA Helsinki service.
-"""
+"""Health checks for IDEA Helsinki service."""
 
 import asyncio
 import hashlib
@@ -34,14 +32,14 @@ logger = Logger(__name__, level=logging.INFO)
 
 
 def _format_time_range(hours: float) -> dict:
-    """
-    Format time range for queries and error messages.
+    """Format time range for queries and error messages.
 
     Args:
         hours: Number of hours back from current time
 
     Returns:
         Dictionary with 'start' and 'end' ISO format timestamps
+
     """
     now = datetime.now(UTC)
     start_time = now.timestamp() - (hours * 3600)
@@ -177,8 +175,7 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
         name: str | None = None,
         cache_ttl: int | None = None,
     ):
-        """
-        Initialize FCD database health check.
+        """Initialize FCD database health check.
 
         Args:
             url: InfluxDB URL
@@ -192,6 +189,7 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
 
         Raises:
             ValueError: If any required connection parameters are empty
+
         """
         # Validate required parameters
         if not url or not token or not org or not bucket:
@@ -379,8 +377,7 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
         name: str | None = None,
         cache_ttl: int | None = None,
     ):
-        """
-        Initialize validation database health check.
+        """Initialize validation database health check.
 
         Args:
             url: InfluxDB URL
@@ -392,6 +389,7 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
 
         Raises:
             ValueError: If any required connection parameters are empty
+
         """
         # Validate required parameters
         if not url or not token or not org or not bucket:
@@ -556,14 +554,14 @@ class DisturbanceDataHealthCheck(FileSystemHealthCheck):
         critical: bool = False,
         name: str = "disturbance_data",
     ):
-        """
-        Initialize disturbance data health check.
+        """Initialize disturbance data health check.
 
         Args:
             file_path: Path to the traffic disturbance data file
             max_age_minutes: Maximum file age in minutes to consider fresh
             critical: Whether this check is critical for service readiness
             name: Name of the health check
+
         """
         super().__init__(
             name=name, path=file_path, check_write=False, critical=critical
@@ -749,13 +747,13 @@ class WorkerStatusHealthCheck(HealthCheck):
         health_threshold_percent: float | None = None,
         name: str = "worker_status",
     ):
-        """
-        Initialize worker status health check.
+        """Initialize worker status health check.
 
         Args:
             manager: Reference to IdeaHelsinkiManager instance
             health_threshold_percent: Minimum percentage of healthy workers for service health
             name: Name of the health check
+
         """
         super().__init__(name=name, critical=False, cache_ttl=5)
         self.manager = manager
@@ -890,14 +888,14 @@ class OrchestratorHealthCheck(HealthCheck):
         deadlock_threshold_minutes: int = 180,
         name: str = "orchestrator",
     ):
-        """
-        Initialize orchestrator health check.
+        """Initialize orchestrator health check.
 
         Args:
             manager: Reference to IdeaHelsinkiManager instance
             max_cycle_time_minutes: Maximum expected time for a management cycle
             deadlock_threshold_minutes: Time after which orchestrator is considered deadlocked
             name: Name of the health check
+
         """
         super().__init__(name=name, critical=True, cache_ttl=10)
         self.manager = manager

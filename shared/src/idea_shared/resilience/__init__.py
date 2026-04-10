@@ -1,5 +1,4 @@
-"""
-Resilience infrastructure for IDEA-Helsinki services.
+"""Resilience infrastructure for IDEA-Helsinki services.
 
 This module provides production-grade resilience patterns for handling
 transient failures, preventing cascade shutdowns, and improving service stability.

@@ -452,6 +452,7 @@ def create_sqlite_repositories(
 
     Returns:
         Tuple of (segment_repo, disturbance_repo, profile_repo).
+
     """
     conn_manager = _SqliteConnectionManager(db_path)
     conn_manager.ensure_schema()

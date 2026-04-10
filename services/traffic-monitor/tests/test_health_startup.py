@@ -1,5 +1,4 @@
-"""
-Tests for startup-specific health checks in traffic-monitor service.
+"""Tests for startup-specific health checks in traffic-monitor service.
 
 These tests verify that the traffic-monitor properly separates startup
 and readiness checks, allowing pods to pass startup probes while

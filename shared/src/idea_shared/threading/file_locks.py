@@ -1,6 +1,4 @@
-"""
-Thread-safe file locking for segment mapping files.
-"""
+"""Thread-safe file locking for segment mapping files."""
 
 import errno
 import json
@@ -36,6 +34,7 @@ def read_json_with_retry(
 
     Returns:
         Parsed JSON data, or None if file is missing, empty, or unreadable
+
     """
     filepath = Path(filepath)
 
@@ -80,8 +79,7 @@ def atomic_write_json(
     max_retries: int = 3,
     base_delay: float = 1.0,
 ) -> bool:
-    """
-    Write JSON atomically using secure temp file + rename pattern with ESTALE retry.
+    """Write JSON atomically using secure temp file + rename pattern with ESTALE retry.
 
     Uses tempfile.NamedTemporaryFile with unpredictable names and O_EXCL flag
     to prevent symlink attacks, then renames to target path atomically.
@@ -99,6 +97,7 @@ def atomic_write_json(
 
     Raises:
         OSError: If write fails after all retries
+
     """
     filepath = Path(filepath)
 
@@ -172,8 +171,7 @@ class SegmentMappingFileManager:
         self._lock = threading.Lock()
 
     def write_mapping_atomic(self, data: dict, file_path: str):
-        """
-        Write segment mapping data with atomic rename to prevent corruption.
+        """Write segment mapping data with atomic rename to prevent corruption.
 
         Uses write-to-temp-then-rename strategy to ensure readers always
         get a complete, consistent file even if write is interrupted.
@@ -184,6 +182,7 @@ class SegmentMappingFileManager:
 
         Returns:
             bool: True if successful, False otherwise
+
         """
         with self._lock:
             try:
@@ -207,8 +206,7 @@ class SegmentMappingFileManager:
                 raise
 
     def read_mapping_safe(self, file_path: str) -> dict:
-        """
-        Thread-safe read of segment mapping file with ESTALE retry for GCS FUSE mounts.
+        """Thread-safe read of segment mapping file with ESTALE retry for GCS FUSE mounts.
 
         Args:
             file_path: File path to read
@@ -218,6 +216,7 @@ class SegmentMappingFileManager:
 
         Raises:
             FileNotFoundError: If file doesn't exist
+
         """
         with self._lock:
             data = read_json_with_retry(file_path)
@@ -230,8 +229,7 @@ class SegmentMappingFileManager:
             return data
 
     def write_json_safe(self, data: dict | list, file_path: str):
-        """
-        Thread-safe write of JSON data (non-atomic, for non-critical files).
+        """Thread-safe write of JSON data (non-atomic, for non-critical files).
 
         Args:
             data: Data to write
@@ -239,6 +237,7 @@ class SegmentMappingFileManager:
 
         Returns:
             bool: True if successful
+
         """
         with self._lock:
             with open(file_path, "w") as f:

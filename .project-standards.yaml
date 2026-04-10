@@ -1,0 +1,9 @@
+standards_version: "2025.1"
+project_type: "python"
+last_configured: "2026-04-10"
+components:
+  docs: "2025.1"
+  docs_level: "standard"
+  docs_languages: ["python"]
+  docs_convention: "google"
+  docs_generator: "mkdocs"

@@ -12,8 +12,7 @@ def validate_roadwork(
     profile: pd.DataFrame,
     last_segment_validation: pd.DataFrame,
 ) -> pd.DataFrame:
-    """
-    Validate roadwork periods using Floating Car Data (FCD) and a reference profile.
+    """Validate roadwork periods using Floating Car Data (FCD) and a reference profile.
 
     This function compares observed FCD during a roadwork period to a reference profile,
     to determine whether traffic coverage significantly deviates from expected values.
@@ -39,19 +38,19 @@ def validate_roadwork(
         By default the IDEA validation DOES NOT handle validation for a single observation, because of this,
         last_segment_validation is used as a reference.
 
-    Returns
+    Returns:
     -------
     pd.DataFrame
         A DataFrame with one row per minute in the `fcd_during_roadwork` input, annotated with:
         - deviation metrics compared to the profile
         - a classification indicating whether the situation is considered "open" or "closed"
 
-    Notes
+    Notes:
     -----
     This function is useful in real-time or historical validations of traffic disruptions caused
     by roadworks.
-    """
 
+    """
     df = calculate_minutes_no_coverage(fcd_during_roadwork)
     df = match_no_coverage_profile(df, profile)
     df = determine_road_status_by_minute(df, last_segment_validation)

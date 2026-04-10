@@ -5,8 +5,7 @@ from typing import Any
 
 
 class MockInfluxWriter:
-    """
-    Mock InfluxDB writer for deterministic testing.
+    """Mock InfluxDB writer for deterministic testing.
 
     Features:
     - Thread-safe point collection
@@ -28,11 +27,11 @@ class MockInfluxWriter:
         }
 
     def write_points(self, points: list[dict[str, Any]]):
-        """
-        Write points to mock storage.
+        """Write points to mock storage.
 
         Args:
             points: List of point dictionaries with {measurement, tags, fields, time}
+
         """
         with self._lock:
             self._points.extend(points)
@@ -40,14 +39,14 @@ class MockInfluxWriter:
             self._counters["batches_written"] += 1
 
     def write_point(self, measurement: str, tags: dict, fields: dict, timestamp):
-        """
-        Write single point to mock storage.
+        """Write single point to mock storage.
 
         Args:
             measurement: Measurement name
             tags: Tag dictionary
             fields: Field dictionary
             timestamp: Point timestamp
+
         """
         point = {
             "measurement": measurement,
@@ -58,33 +57,33 @@ class MockInfluxWriter:
         self.write_points([point])
 
     def increment_counter(self, counter_name: str, value: int = 1):
-        """
-        Increment diagnostic counter.
+        """Increment diagnostic counter.
 
         Args:
             counter_name: Name of counter to increment
             value: Amount to increment (default: 1)
+
         """
         with self._lock:
             if counter_name in self._counters:
                 self._counters[counter_name] += value
 
     def get_points(self) -> list[dict[str, Any]]:
-        """
-        Get all collected points.
+        """Get all collected points.
 
         Returns:
             List of point dictionaries
+
         """
         with self._lock:
             return self._points.copy()
 
     def get_counters(self) -> dict[str, int]:
-        """
-        Get diagnostic counters.
+        """Get diagnostic counters.
 
         Returns:
             Dictionary of counter names to values
+
         """
         with self._lock:
             return self._counters.copy()

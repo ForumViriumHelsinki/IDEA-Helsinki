@@ -1,5 +1,4 @@
-"""
-Tests for streaming FCD blob processing.
+"""Tests for streaming FCD blob processing.
 
 This module tests the batch-based streaming approach that processes Azure blobs
 in batches instead of loading everything into memory at once.
@@ -26,8 +25,7 @@ from fcd_processing import process_date_range_streaming  # ty: ignore[unresolved
 
 # Test fixture: Realistic TomTom JSON data
 def create_tomtom_json_blob(segment_id: str, speed: int, confidence: int) -> bytes:
-    """
-    Create realistic TomTom JSON blob content for testing.
+    """Create realistic TomTom JSON blob content for testing.
 
     This matches the actual TomTom API response format.
     """
@@ -69,8 +67,7 @@ class TestStreamingBlobProcessing:
         assert len(results) == 0
 
     def test_process_single_batch(self):
-        """
-        Test processing a single batch with REAL FCD transformation logic.
+        """Test processing a single batch with REAL FCD transformation logic.
 
         This test verifies the entire data pipeline:
         1. Blob timestamp extraction from filename
@@ -137,8 +134,7 @@ class TestStreamingBlobProcessing:
         assert properties["fcd_coverage"] == 5
 
     def test_process_multiple_batches(self):
-        """
-        Test processing multiple batches with REAL batching logic.
+        """Test processing multiple batches with REAL batching logic.
 
         Verifies that:
         1. Blobs are correctly divided into batches
@@ -216,8 +212,7 @@ class TestStreamingBlobProcessing:
                 )
 
     def test_process_handles_download_failure(self):
-        """
-        Test that download failures are handled gracefully with REAL error handling.
+        """Test that download failures are handled gracefully with REAL error handling.
 
         Verifies that:
         1. Failed blob downloads are skipped
@@ -261,8 +256,7 @@ class TestStreamingBlobProcessing:
         )
 
     def test_process_handles_parse_failure(self):
-        """
-        Test that JSON parse failures are handled gracefully with REAL parsing.
+        """Test that JSON parse failures are handled gracefully with REAL parsing.
 
         Verifies invalid JSON is skipped without crashing.
         """
@@ -288,8 +282,7 @@ class TestStreamingBlobProcessing:
         assert len(results) == 0, "Invalid JSON should be skipped gracefully"
 
     def test_process_handles_missing_timestamp(self):
-        """
-        Test that blobs with invalid filenames are handled gracefully with REAL timestamp extraction.
+        """Test that blobs with invalid filenames are handled gracefully with REAL timestamp extraction.
 
         Verifies filename without valid timestamp pattern is skipped.
         """
@@ -316,8 +309,7 @@ class TestStreamingBlobProcessing:
         assert len(results) == 0, "Blob with invalid filename should be skipped"
 
     def test_process_custom_batch_size(self):
-        """
-        Test that custom batch size is respected with REAL batching logic.
+        """Test that custom batch size is respected with REAL batching logic.
 
         Verifies smaller batch size correctly divides blobs.
         """
@@ -361,8 +353,7 @@ class TestStreamingBlobProcessing:
             assert len(batch["segmentId"]) == 1, f"Batch {i} should have 1 segment"
 
     def test_process_aggregates_within_batch(self):
-        """
-        Test that multiple blobs within a batch are aggregated correctly with REAL aggregation logic.
+        """Test that multiple blobs within a batch are aggregated correctly with REAL aggregation logic.
 
         This is a critical test that verifies:
         1. Multiple timestamps for the same segment are combined

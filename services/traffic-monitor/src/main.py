@@ -66,8 +66,7 @@ logger = Logger(__name__)
 
 
 def main():
-    """
-    Initializes and runs the continuous traffic disturbance analysis service.
+    """Initializes and runs the continuous traffic disturbance analysis service.
 
     The service operates in a perpetual loop, performing the following tasks
     at a set frequency (example: every 60 minutes):
@@ -78,7 +77,6 @@ def main():
         affected by the disturbances.
     5.  Saves the resulting intersection data to a JSON file.
     """
-
     # Initialize feature flags early in startup
     logger.info("Initializing feature flags...")
     init_feature_flags(data_dir="/app/data", service_name="traffic-monitor")
@@ -501,11 +499,11 @@ def main():
 
 
 def update_cycle_pause(pause_time: int) -> None:
-    """
-    A void function for pausing the while loop for predetermined number of minutes.
+    """A void function for pausing the while loop for predetermined number of minutes.
 
     Args:
         pause_time (int): The number of minutes to pause.
+
     """
     # Get a time stamp. Note timezone.
     current_time = datetime.now(UTC)

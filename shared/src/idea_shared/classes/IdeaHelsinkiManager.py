@@ -98,8 +98,7 @@ class IdeaHelsinkiManager:
         )
 
     def _get_disturbance_data(self, file_path: str) -> dict:
-        """
-        Loads the latest validated disturbance data with intersections.
+        """Loads the latest validated disturbance data with intersections.
 
         Uses the disturbance_repository if configured, otherwise falls back
         to reading the JSON file directly.
@@ -107,8 +106,9 @@ class IdeaHelsinkiManager:
         Args:
             file_path: Path to the JSON file containing the latest validated disturbance data.
 
-        returns:
+        Returns:
             Dictionary containing the latest validated disturbance data.
+
         """
         if self.disturbance_repository is not None:
             return self.disturbance_repository.get_disturbances()
@@ -123,8 +123,7 @@ class IdeaHelsinkiManager:
         return data
 
     async def _wait_for_next_management_cycle(self):
-        """
-        Void method that pauses the manager until the next management cycle.
+        """Void method that pauses the manager until the next management cycle.
         Bases the wait time on the "clock" to determine the number of seconds it needs to sleep.
         Example: a 60-minute wait is always the next hour on the clock (15:00, 16:00 etc.), regardless of the current time.
         Example: A function called at 16:47 will wait until 17:00.
@@ -147,8 +146,7 @@ class IdeaHelsinkiManager:
         await asyncio.sleep((resume_time - now).total_seconds())
 
     async def _run_management_cycle_with_error_isolation(self):
-        """
-        Run a single management cycle with error isolation.
+        """Run a single management cycle with error isolation.
         Wrapped by run_main_loop for resilience.
         """
         # Update cycle time for health monitoring
@@ -238,8 +236,7 @@ class IdeaHelsinkiManager:
     async def _run_worker_with_error_isolation(
         self, segment_instance: IdeaHelsinkiRoadSegment
     ):
-        """
-        Run a worker lifecycle with error isolation and retry logic.
+        """Run a worker lifecycle with error isolation and retry logic.
 
         Prevents individual worker failures from affecting the main manager loop.
         Implements exponential backoff for worker restart on failure.
@@ -288,8 +285,7 @@ class IdeaHelsinkiManager:
             raise
 
     async def run_main_loop(self):
-        """
-        The main orchestration loop for managing IdeaHelsinkiRoadSegments.
+        """The main orchestration loop for managing IdeaHelsinkiRoadSegments.
 
         Includes resilience patterns:
         - Exception handling to prevent cascade shutdown
@@ -336,8 +332,7 @@ class IdeaHelsinkiManager:
             await self._wait_for_next_management_cycle()
 
     async def get_worker_health_stats(self):
-        """
-        Return health statistics for monitoring.
+        """Return health statistics for monitoring.
         Used by health checks to assess the state of the service.
         """
         return {

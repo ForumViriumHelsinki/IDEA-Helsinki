@@ -1,5 +1,4 @@
-"""
-Tests for InfluxDBWriteQueue - Thread-safe InfluxDB write coordination.
+"""Tests for InfluxDBWriteQueue - Thread-safe InfluxDB write coordination.
 
 Following TDD RED-GREEN-REFACTOR cycle.
 """

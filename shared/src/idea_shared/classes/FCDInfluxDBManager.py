@@ -55,8 +55,7 @@ def _sanitize_flux_string(value: str) -> str:
 
 
 class FCDInfluxDBManager:
-    """
-    Manages writing and querying Floating Car Data (FCD) to InfluxDB.
+    """Manages writing and querying Floating Car Data (FCD) to InfluxDB.
     This class is specifically designed to work with the TFDS data models.
 
     Includes improved retry strategy with exponential backoff and jitter
@@ -111,23 +110,19 @@ class FCDInfluxDBManager:
             raise
 
     def __enter__(self):
-        """
-        This enables the class to be used in a "with" statement.
-        """
+        """This enables the class to be used in a "with" statement."""
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """
-        This enables the class to be used in a "with" statement.
-        """
+        """This enables the class to be used in a "with" statement."""
         self.close()
 
     def check_connection(self) -> bool:
-        """
-        Check if the connection to the InfluxDB server is established.
+        """Check if the connection to the InfluxDB server is established.
 
         Returns:
             bool: True if connection is active, False otherwise.
+
         """
         try:
             if self.client and self.client.ping():
@@ -151,12 +146,12 @@ class FCDInfluxDBManager:
             return False
 
     def _write_batch(self, points: list, batch_number: int):
-        """
-        Write a batch of points with logging.
+        """Write a batch of points with logging.
 
         Args:
             points: List of Point objects to write
             batch_number: Sequential batch number for logging
+
         """
         self.logger.info(f"Writing batch {batch_number} ({len(points)} points)...")
         self.write_api.write(bucket=self.bucket, org=self.org, record=points)
@@ -173,8 +168,7 @@ class FCDInfluxDBManager:
         measurement_name: str,
         batch_size: int = 5000,
     ):
-        """
-        Writes a pandas DataFrame to InfluxDB using incremental batching.
+        """Writes a pandas DataFrame to InfluxDB using incremental batching.
 
         The DataFrame must contain a 'time' column for the timestamp used in the IfluxDB.
 
@@ -183,6 +177,7 @@ class FCDInfluxDBManager:
             segment_id: The identifier for the segment, used as a tag.
             measurement_name: The name of the measurement to write to, example = "idea_validation".
             batch_size: Number of rows per batch (default: 5000, per InfluxDB best practices)
+
         """
         if df.empty:
             self.logger.warning("DataFrame is empty. Nothing to write.")
@@ -247,12 +242,12 @@ class FCDInfluxDBManager:
         )
 
     def write_fcd_model(self, fcd_data: dict, batch_size: int = 5000):
-        """
-        Writes the TFDS FCD data model to InfluxDB using incremental batching.
+        """Writes the TFDS FCD data model to InfluxDB using incremental batching.
 
         Args:
             fcd_data: Dictionary of FCD segment data.
             batch_size: Number of points per batch (default: 5000, per InfluxDB best practices)
+
         """
         segments = fcd_data.get("segmentId", {})
         total_segments = len(segments)
@@ -330,8 +325,7 @@ class FCDInfluxDBManager:
 
     @_influxdb_retry
     def get_last_update_timestamp(self, search_all: bool = False) -> datetime | None:
-        """
-        Queries the InfluxDB database for the latest timestamp.
+        """Queries the InfluxDB database for the latest timestamp.
 
         NOTE! This returns the latest update timestamp of a measurement, not the timestamp then it was uploaded to InfluxDB.
         This is used to determine how "late" the database is.
@@ -342,6 +336,7 @@ class FCDInfluxDBManager:
 
         Returns:
             Timestamp of the latest measurement or None if no measurements were found (the bucket is empty).
+
         """
         range_start = "0" if search_all else "-30d"
         flux_query = f'from(bucket: "{self.bucket}") |> range(start: {range_start}) |> filter(fn: (r) => r._measurement == "segment_data") |> last() |> keep(columns: ["_time"])'
@@ -362,8 +357,7 @@ class FCDInfluxDBManager:
         first_or_last: str,
         interval_minutes: int | None = None,
     ) -> datetime | None:
-        """
-        Queries the InfluxDB database for the first or last timestamp for a particular segment in a particular measurement.
+        """Queries the InfluxDB database for the first or last timestamp for a particular segment in a particular measurement.
 
         segment_id (str): The ID of the segment to query.
         measurement_name (str): The name of the measurement to query.
@@ -372,6 +366,7 @@ class FCDInfluxDBManager:
 
         Returns:
             Timestamp of the measurement for the segment or None if no measurements were found (the segment is not in the database).
+
         """
         # Use bounded range for "last" queries to avoid full-shard scans.
         # "first" queries need unbounded range to find the earliest data point.
@@ -407,8 +402,7 @@ class FCDInfluxDBManager:
         measurement_name: str,
         interval_minutes: int | None = None,
     ) -> datetime | None:
-        """
-        Queries the InfluxDB database for the latest timestamp for a particular segment.
+        """Queries the InfluxDB database for the latest timestamp for a particular segment.
 
         NOTE! This returns the latest update timestamp of a measurement, not the timestamp then it was uploaded to InfluxDB.
 
@@ -418,6 +412,7 @@ class FCDInfluxDBManager:
 
         Returns:
             Timestamp of the latest measurement for the segment or None if no measurements were found (the segment is not in the database).
+
         """
         return self.get_segment_update_timestamp(
             segment_id=segment_id,
@@ -432,8 +427,7 @@ class FCDInfluxDBManager:
         measurement_name: str,
         interval_minutes: int | None = None,
     ) -> datetime | None:
-        """
-        Queries the InfluxDB database for the first (earliest) timestamp for a particular segment.
+        """Queries the InfluxDB database for the first (earliest) timestamp for a particular segment.
 
         NOTE! This returns the latest update timestamp of a measurement, not the timestamp then it was uploaded to InfluxDB.
 
@@ -443,8 +437,8 @@ class FCDInfluxDBManager:
 
         Returns:
             Timestamp of the first measurement for the segment or None if no measurements were found (the segment is not in the database).
-        """
 
+        """
         return self.get_segment_update_timestamp(
             segment_id=segment_id,
             measurement_name=measurement_name,
@@ -463,8 +457,7 @@ class FCDInfluxDBManager:
         query_fields: list | None = None,
         interval_minutes: int | None = None,
     ) -> str | None:
-        """
-        Queries the InfluxDB database for measurements from a segment. NOTE, this queries ALL data in the measurements.
+        """Queries the InfluxDB database for measurements from a segment. NOTE, this queries ALL data in the measurements.
 
         Args:
             segment_id (str): The ID of the segment to query.
@@ -477,6 +470,7 @@ class FCDInfluxDBManager:
 
         Returns:
             A CSV formated string for the found measurements or None if nothing was found.
+
         """
         if (
             not latest_only
@@ -550,8 +544,7 @@ class FCDInfluxDBManager:
         query_fields: list | None = None,
         interval_minutes: int | None = None,
     ) -> pd.DataFrame | None:
-        """
-        Queries InfluxDB for segment data and returns it as a Pandas DataFrame.
+        """Queries InfluxDB for segment data and returns it as a Pandas DataFrame.
 
         Args:
             segment_id: The ID of the FCD segment to query.
@@ -564,6 +557,7 @@ class FCDInfluxDBManager:
 
         Returns:
             A Pandas DataFrame containing the queried data, or None if an error occurs.
+
         """
         if (
             not latest_only
@@ -638,9 +632,7 @@ class FCDInfluxDBManager:
             raise
 
     def _query_to_csv(self, query: str) -> str | None:
-        """
-        Internal helper to execute a Flux query and return the result as a CSV string.
-        """
+        """Internal helper to execute a Flux query and return the result as a CSV string."""
         try:
             csv_rows_generator = self.query_api.query_csv(query, org=self.org)
             output = io.StringIO()
@@ -652,9 +644,7 @@ class FCDInfluxDBManager:
             raise
 
     def close(self):
-        """
-        Closes the InfluxDB client.
-        """
+        """Closes the InfluxDB client."""
         if self.client:
             self.client.close()
             self.logger.info("InfluxDB client closed.")

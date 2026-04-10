@@ -14,17 +14,16 @@ logger = Logger(__name__)
 def validate_disturbance_dates(
     validation_date: datetime, disturbance_data: dict
 ) -> dict | None:
-    """
-    This function validates the reported disturbances for the IDEA algorithm. The disturbance start date should not be older than the earliest_validation_date.
+    """This function validates the reported disturbances for the IDEA algorithm. The disturbance start date should not be older than the earliest_validation_date.
 
     Args:
         validation_date: Earliest point in time where profiling can be done (6 months of historical FCD data required), format: YYYY-MM-DD
         disturbance_data: A dictionary of reported traffic disturbances, this is from Allu.
 
-    returns:
+    Returns:
         a dictionary containing the validated traffic disturbances (ones that IDEA can profile) or None if the disturbance_data cannot be validated.
-    """
 
+    """
     features = disturbance_data.get("features")
     if not isinstance(features, list):
         logger.error("Disturbance data does not contain a list of disturbances")

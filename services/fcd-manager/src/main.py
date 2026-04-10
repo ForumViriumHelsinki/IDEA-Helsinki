@@ -144,8 +144,7 @@ def run(
     azure_manager: AzureBlobContainerManager,
     segment_repo: SegmentRepository | None = None,
 ):
-    """
-    Run FCD synchronization with ThreadCoordinator.
+    """Run FCD synchronization with ThreadCoordinator.
 
     Uses configurable backfill worker threads (FCD_BACKFILL_WORKER_COUNT) and a single
     InfluxDB writer thread to process historical data. After backfill completes,
@@ -154,6 +153,7 @@ def run(
     Args:
         azure_manager: Azure blob container manager instance
         segment_repo: Optional segment repository for changelog updates.
+
     """
     global thread_coordinator
 
@@ -341,8 +341,7 @@ def run(
 
 
 def main():
-    """
-    Initializes and runs the continuous FCD synchronization service.
+    """Initializes and runs the continuous FCD synchronization service.
 
     Uses ThreadCoordinator with configurable worker count (FCD_BACKFILL_WORKER_COUNT):
     1. Initial backfill using worker threads to process historical data.
@@ -566,8 +565,7 @@ def update_fcd_segment_mapping(
     fcd_segments: dict,
     segment_repo: SegmentRepository | None = None,
 ) -> bool:
-    """
-    Update FCD segment mapping in the repository (SQLite) or JSON file.
+    """Update FCD segment mapping in the repository (SQLite) or JSON file.
 
     When a segment repository is provided, segments are saved via the
     repository interface (SQLite).  The JSON file is always written as
@@ -579,6 +577,7 @@ def update_fcd_segment_mapping(
 
     Returns:
         True if the segment mapping was updated, False otherwise.
+
     """
     logger.info("Updating FCD segment mapping")
     mapped_fcd_segments = FcdUtils.get_fcd_geometries(fcd_segments)
@@ -596,9 +595,7 @@ def update_fcd_segment_mapping(
 def _process_and_update_blob_list(
     blobs_to_process: list, azure_manager: AzureBlobContainerManager
 ) -> dict:
-    """
-    Helper to process a list of blobs, returning a single aggregated data dictionary.
-    """
+    """Helper to process a list of blobs, returning a single aggregated data dictionary."""
     global pipeline_check
 
     if not blobs_to_process:

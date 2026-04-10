@@ -21,6 +21,7 @@ def _detect_release() -> str | None:
 
     Returns:
         Release string or None if not determinable.
+
     """
     release = os.getenv("SENTRY_RELEASE", "").strip()
     if release:
@@ -50,6 +51,7 @@ def _get_sample_rate_from_env(env_var: str, default: float) -> float:
 
     Returns:
         Float between 0.0 and 1.0.
+
     """
     raw = os.getenv(env_var, "").strip()
     if not raw:
@@ -77,6 +79,7 @@ def _get_sample_rate() -> float:
 
     Returns:
         Float between 0.0 and 1.0.
+
     """
     return _get_sample_rate_from_env("SENTRY_SAMPLE_RATE", 1.0)
 
@@ -89,6 +92,7 @@ def _get_traces_sample_rate() -> float:
 
     Returns:
         Float between 0.0 and 1.0.
+
     """
     return _get_sample_rate_from_env("SENTRY_TRACES_SAMPLE_RATE", 0.1)
 
@@ -101,6 +105,7 @@ def _get_profiles_sample_rate() -> float:
 
     Returns:
         Float between 0.0 and 1.0.
+
     """
     return _get_sample_rate_from_env("SENTRY_PROFILES_SAMPLE_RATE", 0.1)
 
@@ -115,6 +120,7 @@ def configure_sentry(service_name: str) -> None:
 
     Args:
         service_name: Name of the service for logging context.
+
     """
     sentry_dsn = os.getenv("SENTRY_DSN", "").strip()
     if sentry_dsn:

@@ -1,6 +1,4 @@
-"""
-Library for IdeaHelsinkiRoadSegment class
-"""
+"""Library for IdeaHelsinkiRoadSegment class."""
 
 # ------------------------------------------------------#
 # ---------------- GENERAL IMPORTS ---------------------#
@@ -21,14 +19,14 @@ logger = Logger(__name__)
 
 # Legacy function for storing IDEA profile/validation to disc.
 def write_df_as_csv(df: pd.DataFrame, file_name: str, append: bool = False) -> bool:
-    """
-    Writes a pandas DataFrame to a CSV file. Can append to an existing file.
+    """Writes a pandas DataFrame to a CSV file. Can append to an existing file.
 
     Args:
         df: A Pandas DataFrame.
         file_name: Directory location for file saving.
         append: If True, appends to the file without a header if it exists.
                 If False (default), overwrite the file.
+
     """
     if df.empty:
         logger.warning("DataFrame is empty, not writing to file.")
@@ -58,12 +56,14 @@ def write_df_as_csv(df: pd.DataFrame, file_name: str, append: bool = False) -> b
 
 # Legacy function for removing IDEA profile/validation from disc.
 def delete_csv(file_name: str) -> bool:
-    """
-    Deletes a CSV file from disk.
+    """Deletes a CSV file from disk.
+
     Args:
         file_name: Directory location for file saving.
+
     Returns:
         True if the file was successfully deleted.
+
     """
     try:
         file_path = Path(file_name)
@@ -81,8 +81,7 @@ def delete_csv(file_name: str) -> bool:
 def determine_disturbance_dates(
     reported_disturbances: list,
 ) -> tuple[datetime, datetime]:
-    """
-    Determines the earliest start date and latest end date for reported disturbances.
+    """Determines the earliest start date and latest end date for reported disturbances.
 
     Args:
         reported_disturbances: A List containing reported traffic disturbances.
@@ -90,8 +89,8 @@ def determine_disturbance_dates(
     Returns:
             Earliest start (str) date and latest end date (str) found from the reported disturbances.
             If nothing was found or an error occurs, start date and end date default to the current time UTC (a class object does not perform the main loop).
-    """
 
+    """
     earliest_start_date = datetime.now(UTC)
     latest_end_date = earliest_start_date
 
@@ -118,8 +117,7 @@ def determine_disturbance_dates(
 def calculate_profiling_end_date(
     disturbance_start_date: datetime, lead_time_hours: int
 ) -> datetime:
-    """
-    This function calculates the end date for a profiling.
+    """This function calculates the end date for a profiling.
     By design, it should be earlier than the disturbance start date (lead time defined in lead_time_hours),
     but it is not; the profiling end date is set to the current date UTC.
 
@@ -144,13 +142,14 @@ def calculate_profiling_end_date(
 def calculate_profiling_start_date(
     profiling_end_date: datetime, profile_time_frame_weeks: int
 ) -> datetime:
-    """
-    This function calculates the start date for profiling. IDEA specifies that this should be at least 6 months before the profiling end date.
+    """This function calculates the start date for profiling. IDEA specifies that this should be at least 6 months before the profiling end date.
 
     Args:
         profiling_end_date: The end date for profiling.
         profile_time_frame_weeks: How many weeks between profiling start and end date.
+
     Returns:
         The start date for profiling.
+
     """
     return profiling_end_date - timedelta(weeks=profile_time_frame_weeks)

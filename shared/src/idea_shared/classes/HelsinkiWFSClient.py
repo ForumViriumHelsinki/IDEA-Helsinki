@@ -25,8 +25,7 @@ class _TransientHTTPError(Exception):
 
 
 class HelsinkiWFSClient:
-    """
-    A client for interacting with the Helsinki WFS (Web Feature Service) API.
+    """A client for interacting with the Helsinki WFS (Web Feature Service) API.
     Allows fetching geographical data in various formats and coordinate systems.
     """
 
@@ -74,17 +73,18 @@ class HelsinkiWFSClient:
             self.logger.info("HelsinkiWFSClient session closed.")
 
     def _format_get_url(self, type_name: str) -> str:
-        """
-        Formats the WFS GetFeature URL.
+        """Formats the WFS GetFeature URL.
 
         Args:
             type_name: The name of the feature type (layer) to request.
+
         Returns:
             The formatted URL string.
+
         Raises:
             ValueError: If an invalid output format or coordinate system key is provided.
-        """
 
+        """
         actual_output_format = self.OUTPUT_FORMATS.get(self.format)
         if actual_output_format is None:
             self.logger.error(
@@ -123,20 +123,20 @@ class HelsinkiWFSClient:
         reraise=True,
     )
     def _get_request(self, url: str):
-        """
-        Performs a GET request to the given URL and processes the response.
+        """Performs a GET request to the given URL and processes the response.
 
         Retries up to 3 times with exponential backoff on transient errors
         (ConnectionError, Timeout, HTTP 502/503/504).
 
         Args:
             url: The URL to request.
+
         Returns:
             A dictionary if JSON was requested and successfully parsed.
             A string if GML or another non-JSON format was requested.
             None if the request failed or response processing failed.
-        """
 
+        """
         try:
             response = self.session.get(url, timeout=30)
             response.raise_for_status()
@@ -182,8 +182,7 @@ class HelsinkiWFSClient:
             return None
 
     def get_feature(self, type_name: str):
-        """
-        A generic method to fetch features for a given typeName.
+        """A generic method to fetch features for a given typeName.
 
         Args:
             type_name: The WFS feature typeName (layer name).
@@ -192,8 +191,8 @@ class HelsinkiWFSClient:
             Parsed JSON data (as dict) if 'json' format is requested and successful.
             Raw XML/GML data (as string) if 'gml' format is requested.
             None if the request fails.
-        """
 
+        """
         try:
             return self._get_request(self._format_get_url(type_name))
         except (
@@ -211,49 +210,34 @@ class HelsinkiWFSClient:
 
 
 class HelsinkiAlluWFSClient(HelsinkiWFSClient):
-    """
-    An Allu specific WFS client class with prebuilt request methods.
-    """
+    """An Allu specific WFS client class with prebuilt request methods."""
 
     def request_kaivuilmoitus_alue(self):
-        """
-        Fetches 'Kaivuilmoitus_alue' features.
-        """
+        """Fetches 'Kaivuilmoitus_alue' features."""
         return self.get_feature("Kaivuilmoitus_alue")
 
     def request_kaivuilmoitus_piste(self):
-        """
-        Fetches 'Kaivuilmoitus_piste' features.
-        """
+        """Fetches 'Kaivuilmoitus_piste' features."""
         return self.get_feature("Kaivuilmoitus_piste")
 
     def request_aluevuokraus_alue(self):
-        """
-        Fetches 'Aluevuokraus_alue' features.
-        """
+        """Fetches 'Aluevuokraus_alue' features."""
         return self.get_feature("Aluevuokraus_alue")
 
     def request_aluevuokraus_piste(self):
-        """
-        Fetches 'Aluevuokraus_piste' features.
-        """
+        """Fetches 'Aluevuokraus_piste' features."""
         return self.get_feature("Aluevuokraus_piste")
 
     def request_tilapainen_liikennejarjestely_alue(self):
-        """
-        Fetches 'Tilapainen_liikennejarjestely_alue' features.
-        """
+        """Fetches 'Tilapainen_liikennejarjestely_alue' features."""
         return self.get_feature("Tilapainen_liikennejarjestely_alue")
 
     def request_tilapainen_liikennejarjestely_piste(self):
-        """
-        Fetches 'Tilapainen_liikennejarjestely_piste' features.
-        """
+        """Fetches 'Tilapainen_liikennejarjestely_piste' features."""
         return self.get_feature("Tilapainen_liikennejarjestely_piste")
 
     def request_wfs_features_from_list(self, features_to_request: list[str]) -> dict:
-        """
-        Requests multiple features and aggregates them into a single FeatureCollection.
+        """Requests multiple features and aggregates them into a single FeatureCollection.
 
         Args:
             features_to_request: A list of feature identifiers to request.
@@ -261,8 +245,8 @@ class HelsinkiAlluWFSClient(HelsinkiWFSClient):
         Returns:
             A dictionary representing a GeoJSON FeatureCollection containing all found features.
             Returns an empty FeatureCollection if no features are found.
-        """
 
+        """
         aggregated_wfs_features = {"type": "FeatureCollection", "features": []}
 
         if not features_to_request:

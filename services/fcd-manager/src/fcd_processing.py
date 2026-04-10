@@ -1,5 +1,4 @@
-"""
-Streaming FCD blob processing module.
+"""Streaming FCD blob processing module.
 
 This module provides batch-based streaming processing of Azure blobs to prevent
 memory exhaustion when processing large date ranges with multiple worker threads.
@@ -22,8 +21,7 @@ def process_date_range_streaming(
     end_date: datetime,
     batch_size: int = 50,
 ) -> Generator[dict, None, None]:
-    """
-    Process Azure blobs for a date range in batches, yielding processed data incrementally.
+    """Process Azure blobs for a date range in batches, yielding processed data incrementally.
 
     This function processes blobs in batches instead of loading everything into memory,
     allowing for bounded memory usage even with large date ranges and multiple workers.
@@ -47,6 +45,7 @@ def process_date_range_streaming(
         ... ):
         ...     # Write batch_data to InfluxDB
         ...     influx_manager.write_fcd_model(batch_data)
+
     """
     # Get all blobs in the date range
     blobs_to_process = azure_manager.get_blobs_in_range(start_date, end_date)
@@ -86,8 +85,7 @@ def process_date_range_streaming(
 
 
 def _process_blob_batch(blobs: list, azure_manager: AzureBlobContainerManager) -> dict:
-    """
-    Process a batch of blobs and return aggregated FCD data.
+    """Process a batch of blobs and return aggregated FCD data.
 
     Args:
         blobs: List of blob objects to process
@@ -95,6 +93,7 @@ def _process_blob_batch(blobs: list, azure_manager: AzureBlobContainerManager) -
 
     Returns:
         dict: Aggregated FCD data for the batch
+
     """
     aggregated_fcd_data = {}
 

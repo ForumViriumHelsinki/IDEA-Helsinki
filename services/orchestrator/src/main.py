@@ -84,9 +84,7 @@ async def shutdown(signal_received, loop):
 
 
 async def main():
-    """
-    Initializes and runs the main IdeaHelsinkiManager orchestration task with health checks.
-    """
+    """Initializes and runs the main IdeaHelsinkiManager orchestration task with health checks."""
     global health_server
 
     # Setup signal handlers early for graceful shutdown

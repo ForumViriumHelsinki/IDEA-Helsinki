@@ -1,6 +1,4 @@
-"""
-Thread-safe write queue for coordinating InfluxDB writes.
-"""
+"""Thread-safe write queue for coordinating InfluxDB writes."""
 
 import threading
 from dataclasses import dataclass
@@ -21,11 +19,11 @@ class InfluxDBWriteQueue:
     """Thread-safe queue for coordinating InfluxDB writes."""
 
     def __init__(self, max_queue_size: int = 100):
-        """
-        Initialize the write queue.
+        """Initialize the write queue.
 
         Args:
             max_queue_size: Maximum number of write requests to buffer
+
         """
         self._queue = Queue(maxsize=max_queue_size)
         self._shutdown = threading.Event()
@@ -34,8 +32,7 @@ class InfluxDBWriteQueue:
         self._lock = threading.Lock()
 
     def put_write_request(self, fcd_data: dict, worker_id: int, timeout: float = 10.0):
-        """
-        Add a write request to the queue.
+        """Add a write request to the queue.
 
         Args:
             fcd_data: FCD data dictionary to write
@@ -44,6 +41,7 @@ class InfluxDBWriteQueue:
 
         Raises:
             queue.Full: If queue is full and timeout expires
+
         """
         request = WriteRequest(
             fcd_data=fcd_data, worker_id=worker_id, timestamp=datetime.now(UTC)
@@ -51,14 +49,14 @@ class InfluxDBWriteQueue:
         self._queue.put(request, timeout=timeout)
 
     def get_next_request(self, timeout: float = 1.0) -> WriteRequest | None:
-        """
-        Get the next write request (called by writer thread).
+        """Get the next write request (called by writer thread).
 
         Args:
             timeout: How long to wait for a request (seconds)
 
         Returns:
             WriteRequest or None if timeout or shutdown
+
         """
         if self._shutdown.is_set():
             return None
@@ -69,11 +67,11 @@ class InfluxDBWriteQueue:
             return None
 
     def mark_completed(self, success: bool = True):
-        """
-        Mark a write request as completed.
+        """Mark a write request as completed.
 
         Args:
             success: Whether the write succeeded
+
         """
         with self._lock:
             self._total_writes += 1

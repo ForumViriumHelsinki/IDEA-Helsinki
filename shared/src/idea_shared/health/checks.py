@@ -42,6 +42,7 @@ class HealthCheck(ABC):
             timeout: Timeout in seconds for the check
             critical: Whether this check is critical for readiness
             cache_ttl: Cache time-to-live in seconds (0 = no cache)
+
         """
         self.name = name
         self.timeout = timeout
@@ -58,6 +59,7 @@ class HealthCheck(ABC):
 
         Returns:
             HealthCheckResult indicating the status of the check
+
         """
         pass
 
@@ -66,6 +68,7 @@ class HealthCheck(ABC):
 
         Returns:
             HealthCheckResult, possibly from cache
+
         """
         now = time.time()
         if (
@@ -108,6 +111,7 @@ class HealthCheck(ABC):
 
         Args:
             execution_time_ms: Execution time in milliseconds
+
         """
         self._last_execution_time_ms = execution_time_ms
         self._execution_times.append(execution_time_ms)
@@ -125,6 +129,7 @@ class HealthCheck(ABC):
 
         Returns:
             Dict with check_count, last/min/max/avg execution times in ms
+
         """
         times = list(self._execution_times)
         if not times:
@@ -152,6 +157,7 @@ class HealthCheck(ABC):
 
         Returns:
             HealthCheckResult indicating the status of the check
+
         """
         try:
             return asyncio.run(self.check_with_cache())
@@ -182,6 +188,7 @@ class DatabaseHealthCheck(HealthCheck):
             timeout: Timeout in seconds for the check
             critical: Whether this check is critical for readiness
             cache_ttl: Cache time-to-live in seconds
+
         """
         super().__init__(name, timeout, critical, cache_ttl)
         self.connection_string = connection_string
@@ -213,6 +220,7 @@ class FileSystemHealthCheck(HealthCheck):
             timeout: Timeout in seconds for the check
             critical: Whether this check is critical for readiness
             cache_ttl: Cache time-to-live in seconds
+
         """
         super().__init__(name, timeout, critical, cache_ttl)
         self.path = Path(path)
@@ -223,6 +231,7 @@ class FileSystemHealthCheck(HealthCheck):
 
         Returns:
             HealthCheckResult indicating file system status
+
         """
         try:
             # Check if path exists
@@ -317,6 +326,7 @@ class ExternalAPIHealthCheck(HealthCheck):
             cache_ttl: Cache time-to-live in seconds
             circuit_breaker_threshold: Number of failures before opening circuit
             circuit_breaker_timeout: Time to wait before attempting to close circuit
+
         """
         super().__init__(name, timeout, critical, cache_ttl)
         self.url = url
@@ -334,6 +344,7 @@ class ExternalAPIHealthCheck(HealthCheck):
 
         Returns:
             HealthCheckResult indicating API status
+
         """
         # Handle circuit breaker states
         if self._circuit_state == CircuitBreakerState.OPEN:

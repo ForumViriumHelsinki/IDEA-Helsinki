@@ -50,6 +50,7 @@ class HealthServer:
 
         Raises:
             ValueError: If port is not in valid range (1-65535)
+
         """
         if not 1 <= port <= 65535:
             raise ValueError(f"Port must be between 1 and 65535, got {port}")
@@ -241,6 +242,7 @@ class HealthServer:
             name: Unique name for the check
             check: HealthCheck instance
             startup_only: If True, only use this check for startup probes
+
         """
         if startup_only:
             if name in self._startup_checks:
@@ -259,6 +261,7 @@ class HealthServer:
         Args:
             name: Name of the check to remove
             startup_only: If True, only remove from startup checks
+
         """
         if startup_only:
             if name in self._startup_checks:
@@ -318,6 +321,7 @@ class HealthServer:
 
         Raises:
             OSError: If the port is already in use or binding fails
+
         """
         try:
             config = uvicorn.Config(
@@ -400,7 +404,7 @@ class HealthServer:
                     timeout=_GRACEFUL_SHUTDOWN_TIMEOUT,
                 )
                 logger.info("Async health server stopped gracefully")
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning(
                     "Health server did not shut down within "
                     f"{_GRACEFUL_SHUTDOWN_TIMEOUT}s; "
@@ -432,6 +436,7 @@ class HealthServer:
 
         Returns:
             Self for use in async with statements
+
         """
         asyncio.create_task(self.start_async())
         # Give the server a moment to start
@@ -443,5 +448,6 @@ class HealthServer:
 
         Returns:
             None to propagate any exceptions
+
         """
         await self.stop_async()

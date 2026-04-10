@@ -1,5 +1,4 @@
-"""
-Unit tests for CircuitBreaker resilience pattern.
+"""Unit tests for CircuitBreaker resilience pattern.
 
 Tests circuit breaker state transitions, failure handling,
 and recovery behavior.

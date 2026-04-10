@@ -1,5 +1,4 @@
-"""
-Tests for startup-specific health checks in orchestrator service.
+"""Tests for startup-specific health checks in orchestrator service.
 
 These tests verify that the orchestrator properly separates startup
 and readiness checks, allowing pods to pass startup probes while

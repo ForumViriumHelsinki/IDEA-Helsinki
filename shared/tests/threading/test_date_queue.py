@@ -1,5 +1,4 @@
-"""
-Tests for DateRangeQueue - Thread-safe date range distribution.
+"""Tests for DateRangeQueue - Thread-safe date range distribution.
 
 Following TDD RED-GREEN-REFACTOR cycle.
 """

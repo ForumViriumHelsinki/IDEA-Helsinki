@@ -29,6 +29,7 @@ class EnvironmentVariableProvider(AbstractProvider):
     Boolean values:
         - True: "true", "1", "yes", "on" (case-insensitive)
         - False: "false", "0", "no", "off" (case-insensitive)
+
     """
 
     ENV_PREFIX = "FEATURE_FLAG_"
@@ -38,6 +39,7 @@ class EnvironmentVariableProvider(AbstractProvider):
 
         Args:
             prefix: Environment variable prefix (default: FEATURE_FLAG_)
+
         """
         self._prefix = prefix.upper()
         logger.info(f"Initialized environment variable provider with prefix: {prefix}")
@@ -50,6 +52,7 @@ class EnvironmentVariableProvider(AbstractProvider):
 
         Returns:
             Environment variable name
+
         """
         return f"{self._prefix}{flag_key.upper()}"
 
@@ -72,6 +75,7 @@ class EnvironmentVariableProvider(AbstractProvider):
 
         Returns:
             Resolution details containing the flag value
+
         """
         env_key = self._get_env_key(flag_key)
         env_value = os.environ.get(env_key)
@@ -107,6 +111,7 @@ class EnvironmentVariableProvider(AbstractProvider):
 
         Returns:
             Resolution details containing the flag value
+
         """
         env_key = self._get_env_key(flag_key)
         env_value = os.environ.get(env_key)
@@ -138,6 +143,7 @@ class EnvironmentVariableProvider(AbstractProvider):
 
         Returns:
             Resolution details containing the flag value
+
         """
         env_key = self._get_env_key(flag_key)
         env_value = os.environ.get(env_key)
@@ -181,6 +187,7 @@ class EnvironmentVariableProvider(AbstractProvider):
 
         Returns:
             Resolution details containing the flag value
+
         """
         env_key = self._get_env_key(flag_key)
         env_value = os.environ.get(env_key)
@@ -226,6 +233,7 @@ class EnvironmentVariableProvider(AbstractProvider):
 
         Returns:
             Resolution details containing the flag value
+
         """
         import json
 

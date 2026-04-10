@@ -1,5 +1,4 @@
-"""
-Circuit Breaker pattern implementation for preventing cascade failures.
+"""Circuit Breaker pattern implementation for preventing cascade failures.
 
 A circuit breaker prevents repeated attempts to execute operations that are
 likely to fail, allowing the system to recover gracefully and preventing
@@ -21,6 +20,7 @@ Example:
     async def query_database():
         async with circuit_breaker:
             return await db.query()
+
 """
 
 import asyncio
@@ -49,8 +49,7 @@ class CircuitBreakerError(Exception):
 
 
 class CircuitBreaker:
-    """
-    Async circuit breaker for preventing cascade failures.
+    """Async circuit breaker for preventing cascade failures.
 
     Tracks consecutive failures and transitions between states:
     CLOSED → OPEN (after failure_threshold failures)
@@ -69,8 +68,7 @@ class CircuitBreaker:
             asyncio.CancelledError,
         ),
     ):
-        """
-        Initialize circuit breaker.
+        """Initialize circuit breaker.
 
         Args:
             name: Identifier for this circuit breaker (used in logs)
@@ -78,6 +76,7 @@ class CircuitBreaker:
             recovery_timeout: Seconds to wait before testing recovery
             half_open_max_calls: Max successful calls needed to close from half-open
             excluded_exceptions: Exception types that don't trigger the circuit breaker
+
         """
         self.name = name
         self.failure_threshold = failure_threshold
@@ -114,8 +113,7 @@ class CircuitBreaker:
         return self._state == CircuitBreakerState.HALF_OPEN
 
     async def call(self, func, *args, **kwargs) -> Any:
-        """
-        Execute function with circuit breaker protection.
+        """Execute function with circuit breaker protection.
 
         Args:
             func: Async function to execute
@@ -128,6 +126,7 @@ class CircuitBreaker:
         Raises:
             CircuitBreakerError: If circuit is open
             Exception: Any exception raised by func
+
         """
         async with self._lock:
             await self._check_state_transition()
@@ -223,11 +222,11 @@ class CircuitBreaker:
         return False  # Don't suppress exceptions
 
     def get_stats(self) -> dict:
-        """
-        Get current circuit breaker statistics.
+        """Get current circuit breaker statistics.
 
         Returns:
             Dictionary with state, failure count, and timing info
+
         """
         return {
             "name": self.name,

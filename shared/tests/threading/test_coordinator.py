@@ -1,5 +1,4 @@
-"""
-Tests for ThreadCoordinator - Multi-threaded FCD processing orchestration.
+"""Tests for ThreadCoordinator - Multi-threaded FCD processing orchestration.
 
 These tests verify REAL threading coordination by:
 1. Using realistic processing functions that simulate I/O work
@@ -21,8 +20,7 @@ from idea_shared.threading.write_queue import InfluxDBWriteQueue
 
 
 def realistic_processing_function(azure_manager, start_date, end_date, batch_size=50):
-    """
-    Realistic processing function that simulates I/O work with delays.
+    """Realistic processing function that simulates I/O work with delays.
 
     This mimics real FCD processing:
     1. Simulates Azure API call (0.05s delay)
@@ -72,8 +70,7 @@ def realistic_processing_function(azure_manager, start_date, end_date, batch_siz
 
 
 def fast_processing_function(azure_manager, start_date, end_date, batch_size=50):
-    """
-    Fast processing function for tests that need quick completion.
+    """Fast processing function for tests that need quick completion.
 
     Still yields realistic data structure but with minimal delay.
     """
@@ -228,8 +225,7 @@ class TestThreadCoordinatorBackfill:
         )
 
     def test_wait_for_backfill_timeout(self):
-        """
-        Test that wait_for_backfill respects timeout with REAL slow processing.
+        """Test that wait_for_backfill respects timeout with REAL slow processing.
 
         Uses a processing function that takes longer than timeout to verify
         timeout handling.
