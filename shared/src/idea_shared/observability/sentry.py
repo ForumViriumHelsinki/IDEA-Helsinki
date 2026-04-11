@@ -131,7 +131,7 @@ def _filter_breadcrumb(breadcrumb: dict, hint: dict) -> dict | None:  # noqa: AR
         return breadcrumb
 
     data = breadcrumb.get("data", {})
-    url = data.get("url", "")
+    url = (data.get("url") or "").lower()
     if not any(pattern in url for pattern in _INFLUXDB_URL_PATTERNS):
         return breadcrumb
 

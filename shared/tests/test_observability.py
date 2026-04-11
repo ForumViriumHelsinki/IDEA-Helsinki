@@ -523,3 +523,31 @@ class TestFilterBreadcrumb:
         from idea_shared.observability.sentry import _filter_breadcrumb
 
         assert _filter_breadcrumb(breadcrumb, {}) is breadcrumb
+
+    def test_keeps_breadcrumb_with_none_url(self):
+        """Explicitly None URL (key present but set to None) should not crash."""
+        breadcrumb = {
+            "category": "httplib",
+            "level": "info",
+            "data": {
+                "url": None,
+                "http.response.status_code": 200,
+            },
+        }
+        from idea_shared.observability.sentry import _filter_breadcrumb
+
+        assert _filter_breadcrumb(breadcrumb, {}) is breadcrumb
+
+    def test_drops_influxdb_breadcrumb_with_mixed_case_url(self):
+        """URL matching is case-insensitive (hostnames are case-insensitive by RFC)."""
+        breadcrumb = {
+            "category": "httplib",
+            "level": "info",
+            "data": {
+                "url": "http://INFLUXDB-service:8086/api/v2/write",
+                "http.response.status_code": 204,
+            },
+        }
+        from idea_shared.observability.sentry import _filter_breadcrumb
+
+        assert _filter_breadcrumb(breadcrumb, {}) is None
