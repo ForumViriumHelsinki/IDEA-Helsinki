@@ -347,3 +347,179 @@ class TestConfigureSentry:
         assert call_kwargs["sample_rate"] == 0.5
         assert call_kwargs["traces_sample_rate"] == 0.2
         assert call_kwargs["profiles_sample_rate"] == 0.05
+
+    @patch.dict(
+        "os.environ", {"SENTRY_DSN": "https://key@sentry.io/123", "ENVIRONMENT": "test"}
+    )
+    @patch("idea_shared.observability.sentry._detect_release", return_value=None)
+    @patch("idea_shared.observability.sentry.sentry_sdk")
+    def test_passes_before_breadcrumb_filter(self, mock_sentry, _mock_detect_release):
+        from idea_shared.observability.sentry import (
+            _filter_breadcrumb,
+            configure_sentry,
+        )
+
+        configure_sentry("test-service")
+        call_kwargs = mock_sentry.init.call_args[1]
+        assert call_kwargs["before_breadcrumb"] is _filter_breadcrumb
+
+
+@pytest.mark.unit
+class TestFilterBreadcrumb:
+    """Tests for _filter_breadcrumb callback."""
+
+    def test_drops_successful_influxdb_write(self):
+        breadcrumb = {
+            "category": "httplib",
+            "level": "info",
+            "data": {
+                "url": "http://idea-helsinki-influxdb-helm-webapp:8086/api/v2/write",
+                "http.response.status_code": 204,
+            },
+        }
+        from idea_shared.observability.sentry import _filter_breadcrumb
+
+        assert _filter_breadcrumb(breadcrumb, {}) is None
+
+    def test_drops_successful_influxdb_ping(self):
+        breadcrumb = {
+            "category": "httplib",
+            "level": "info",
+            "data": {
+                "url": "http://idea-helsinki-influxdb-helm-webapp:8086/ping",
+                "http.response.status_code": 204,
+            },
+        }
+        from idea_shared.observability.sentry import _filter_breadcrumb
+
+        assert _filter_breadcrumb(breadcrumb, {}) is None
+
+    def test_drops_successful_influxdb_query(self):
+        breadcrumb = {
+            "category": "httplib",
+            "level": "info",
+            "data": {
+                "url": "http://idea-helsinki-influxdb-helm-webapp:8086/api/v2/query",
+                "http.response.status_code": 200,
+            },
+        }
+        from idea_shared.observability.sentry import _filter_breadcrumb
+
+        assert _filter_breadcrumb(breadcrumb, {}) is None
+
+    def test_drops_localhost_influxdb_breadcrumb(self):
+        breadcrumb = {
+            "category": "httplib",
+            "level": "info",
+            "data": {
+                "url": "http://localhost:8086/ping",
+                "http.response.status_code": 200,
+            },
+        }
+        from idea_shared.observability.sentry import _filter_breadcrumb
+
+        assert _filter_breadcrumb(breadcrumb, {}) is None
+
+    def test_keeps_failed_influxdb_request(self):
+        breadcrumb = {
+            "category": "httplib",
+            "level": "info",
+            "data": {
+                "url": "http://idea-helsinki-influxdb-helm-webapp:8086/api/v2/write",
+                "http.response.status_code": 500,
+            },
+        }
+        from idea_shared.observability.sentry import _filter_breadcrumb
+
+        assert _filter_breadcrumb(breadcrumb, {}) is breadcrumb
+
+    def test_keeps_influxdb_client_error(self):
+        breadcrumb = {
+            "category": "httplib",
+            "level": "info",
+            "data": {
+                "url": "http://idea-helsinki-influxdb-helm-webapp:8086/api/v2/query",
+                "http.response.status_code": 401,
+            },
+        }
+        from idea_shared.observability.sentry import _filter_breadcrumb
+
+        assert _filter_breadcrumb(breadcrumb, {}) is breadcrumb
+
+    def test_keeps_external_api_breadcrumb(self):
+        breadcrumb = {
+            "category": "httplib",
+            "level": "info",
+            "data": {
+                "url": "https://kartta.hel.fi/ws/geoserver/avoindata/wfs",
+                "http.response.status_code": 200,
+            },
+        }
+        from idea_shared.observability.sentry import _filter_breadcrumb
+
+        assert _filter_breadcrumb(breadcrumb, {}) is breadcrumb
+
+    def test_keeps_non_httplib_breadcrumb(self):
+        breadcrumb = {
+            "category": "logging",
+            "level": "warning",
+            "message": "Something happened",
+        }
+        from idea_shared.observability.sentry import _filter_breadcrumb
+
+        assert _filter_breadcrumb(breadcrumb, {}) is breadcrumb
+
+    def test_keeps_warning_level_influxdb_breadcrumb(self):
+        breadcrumb = {
+            "category": "httplib",
+            "level": "warning",
+            "data": {
+                "url": "http://idea-helsinki-influxdb-helm-webapp:8086/api/v2/write",
+                "http.response.status_code": 200,
+            },
+        }
+        from idea_shared.observability.sentry import _filter_breadcrumb
+
+        assert _filter_breadcrumb(breadcrumb, {}) is breadcrumb
+
+    def test_keeps_breadcrumb_with_missing_data(self):
+        breadcrumb = {
+            "category": "httplib",
+            "level": "info",
+        }
+        from idea_shared.observability.sentry import _filter_breadcrumb
+
+        assert _filter_breadcrumb(breadcrumb, {}) is breadcrumb
+
+    def test_keeps_breadcrumb_with_missing_url(self):
+        breadcrumb = {
+            "category": "httplib",
+            "level": "info",
+            "data": {"http.response.status_code": 200},
+        }
+        from idea_shared.observability.sentry import _filter_breadcrumb
+
+        assert _filter_breadcrumb(breadcrumb, {}) is breadcrumb
+
+    def test_keeps_breadcrumb_with_missing_status_code(self):
+        breadcrumb = {
+            "category": "httplib",
+            "level": "info",
+            "data": {"url": "http://idea-helsinki-influxdb-helm-webapp:8086/ping"},
+        }
+        from idea_shared.observability.sentry import _filter_breadcrumb
+
+        assert _filter_breadcrumb(breadcrumb, {}) is breadcrumb
+
+    def test_keeps_breadcrumb_with_string_status_code(self):
+        breadcrumb = {
+            "category": "httplib",
+            "level": "info",
+            "data": {
+                "url": "http://idea-helsinki-influxdb-helm-webapp:8086/ping",
+                "http.response.status_code": "200",
+            },
+        }
+        from idea_shared.observability.sentry import _filter_breadcrumb
+
+        assert _filter_breadcrumb(breadcrumb, {}) is breadcrumb
