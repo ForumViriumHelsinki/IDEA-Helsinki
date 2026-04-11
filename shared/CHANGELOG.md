@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.25.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.24.0...idea-shared-v0.25.0) (2026-04-11)
+
+
+### Features
+
+* breadcrumb filtering to reduce InfluxDB noise in Sentry ([#386](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/386)) ([29a1813](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/29a1813dd82e054404e70677e0df254ce333a9e4))
+
 ## [0.24.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.23.4...idea-shared-v0.24.0) (2026-04-09)
 
 
