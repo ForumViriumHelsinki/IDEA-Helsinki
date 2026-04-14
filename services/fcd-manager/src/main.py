@@ -305,7 +305,7 @@ def run(
                         ]
                         if segment_repo is not None:
                             FcdUtils.update_segment_changelog_from_repo(
-                                segment_repo, current_time
+                                segment_repo, current_time, migration_targets=migration_targets
                             )
                         else:
                             FcdUtils.update_segment_changelog(

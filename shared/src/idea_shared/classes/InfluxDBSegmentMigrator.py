@@ -120,6 +120,8 @@ def _count_points(
     safe_measurement = _sanitize(measurement)
     safe_segment = _sanitize(segment_id)
     # Count a single field to avoid multiplying by field-count.
+    # Rename ``_time`` → ``_value`` before counting so the Python client
+    # does not attempt to parse the integer result as a datetime object.
     query = (
         f'from(bucket: "{manager.bucket}") '
         "|> range(start: 0) "
@@ -127,13 +129,14 @@ def _count_points(
         f'and r.segmentId == "{safe_segment}") '
         '|> keep(columns: ["_time", "_field"]) '
         "|> group() "
-        '|> count(column: "_time")'
+        '|> rename(columns: {"_time": "_value"}) '
+        "|> count()"
     )
     tables = manager.query_api.query(query=query, org=manager.org)
     if not tables or not tables[0].records:
         return 0
-    # The count is returned in the ``_time`` column after count(column:"_time").
-    return int(tables[0].records[0].values.get("_time", 0))
+    # The count is in ``_value`` after the rename + count().
+    return int(tables[0].records[0].get_value() or 0)
 
 
 @_migrator_retry
@@ -144,13 +147,17 @@ def _retag_points(
     safe_measurement = _sanitize(measurement)
     safe_old = _sanitize(old_id)
     safe_new = _sanitize(new_id)
+    # Append ``count()`` after ``to()`` so the InfluxDB server returns only
+    # per-series aggregate counts rather than streaming the full written
+    # dataset back to the Python client (OOM prevention for large histories).
     query = (
         f'from(bucket: "{manager.bucket}") '
         "|> range(start: 0) "
         f'|> filter(fn: (r) => r._measurement == "{safe_measurement}" '
         f'and r.segmentId == "{safe_old}") '
         f'|> set(key: "segmentId", value: "{safe_new}") '
-        f'|> to(bucket: "{manager.bucket}", org: "{manager.org}")'
+        f'|> to(bucket: "{manager.bucket}", org: "{manager.org}") '
+        "|> count()"
     )
     manager.query_api.query(query=query, org=manager.org)
 

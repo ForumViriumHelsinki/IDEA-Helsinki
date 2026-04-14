@@ -331,6 +331,58 @@ def find_matching_historical_segments(
     return matches
 
 
+def _run_pending_migrations(
+    changelog: dict,
+    processing_date: datetime,
+    migration_targets: list,
+) -> None:
+    """Run or retry InfluxDB timeseries migration for all unmigrated geo-inherited segments.
+
+    Scans *changelog* for entries that carry ``geo_inherited_from`` but lack
+    ``timeseries_migrated_at`` and attempts to migrate each one.  Decoupling
+    migration execution from the initial detection cycle means that transient
+    InfluxDB failures on the first attempt are automatically retried on
+    subsequent FCD cycles rather than silently dropped.
+
+    Args:
+        changelog: The current segment changelog dict.  Mutated in place by
+            adding ``timeseries_migrated_at`` markers on successful migrations.
+        processing_date: Used to derive the timezone for the migration
+            timestamp; falls back to UTC when ``tzinfo`` is not set.
+        migration_targets: List of ``BucketTarget`` instances passed to the
+            migrator.
+
+    """
+    from datetime import timezone as _tz
+
+    # Local import keeps the InfluxDB dependency optional for callers that
+    # don't provide migration_targets (e.g. unit tests that omit the param).
+    from idea_shared.classes.InfluxDBSegmentMigrator import migrate_segment_timeseries
+
+    for seg_id, record in changelog.items():
+        if "geo_inherited_from" not in record or "timeseries_migrated_at" in record:
+            continue
+        old_id = record["geo_inherited_from"]
+        try:
+            migrate_segment_timeseries(
+                old_id=old_id,
+                new_id=seg_id,
+                targets=migration_targets,
+            )
+            changelog[seg_id]["timeseries_migrated_at"] = datetime.now(
+                processing_date.tzinfo or _tz.utc
+            ).isoformat()
+            logger.info(
+                f"Timeseries migration complete for '{old_id}' → '{seg_id}'."
+            )
+        except Exception as exc:
+            logger.error(
+                f"Timeseries migration failed for '{old_id}' → '{seg_id}': {exc}. "
+                "Changelog will still record geo_inherited_from and the next "
+                "cycle will retry the migration."
+            )
+
+
 def update_segment_changelog(
     fresh_mapping_file_path: str,
     changelog_file_path: str,
@@ -510,42 +562,18 @@ def update_segment_changelog(
                 f"entries from removed segment '{old_id}'."
             )
 
-            # Re-tag InfluxDB points from old_id to new_id so validation queries
-            # on the new ID see the full history. Skipped if already done or if
-            # no migration targets were provided by the caller.
-            if migration_targets and "timeseries_migrated_at" not in changelog[new_id]:
-                try:
-                    # Local import keeps the dependency optional for callers
-                    # (e.g. tests) that don't pass migration_targets.
-                    from idea_shared.classes.InfluxDBSegmentMigrator import (
-                        migrate_segment_timeseries,
-                    )
-
-                    migrate_segment_timeseries(
-                        old_id=old_id,
-                        new_id=new_id,
-                        targets=migration_targets,
-                    )
-                    from datetime import timezone as _tz
-
-                    changelog[new_id]["timeseries_migrated_at"] = datetime.now(
-                        processing_date.tzinfo or _tz.utc
-                    ).isoformat()
-                    logger.info(
-                        f"Timeseries migration complete for '{old_id}' → '{new_id}'."
-                    )
-                except Exception as exc:
-                    logger.error(
-                        f"Timeseries migration failed for '{old_id}' → '{new_id}': {exc}. "
-                        "Changelog will still record geo_inheritance and the next "
-                        "cycle will retry the migration."
-                    )
-
         if geo_matches:
             logger.info(
                 f"Geo-inheritance complete: {len(geo_matches)} new segment(s) "
                 f"inherited history from removed segment(s)."
             )
+
+    # Run or retry pending InfluxDB timeseries migrations.
+    # Decoupled from the detection block above so that any segment in the
+    # changelog with ``geo_inherited_from`` but without
+    # ``timeseries_migrated_at`` is retried on every cycle until it succeeds.
+    if migration_targets:
+        _run_pending_migrations(changelog, processing_date, migration_targets)
 
     # Update files using atomic writes to prevent corruption from ESTALE errors
     try:
@@ -662,16 +690,24 @@ def process_segment_changelog(
 def update_segment_changelog_from_repo(
     repository: SegmentRepository,
     processing_date: datetime,
+    migration_targets: list | None = None,
 ) -> None:
     """Update segment changelog using a SegmentRepository.
 
     Repository-based equivalent of update_segment_changelog(). Reads segments,
     changelog, and archive from the repository, processes changes, and writes
-    results back.
+    results back.  Includes geo-inheritance detection and optional InfluxDB
+    timeseries migration (same semantics as ``update_segment_changelog``).
 
     Args:
         repository: SegmentRepository instance providing data access.
         processing_date: Timestamp for recording changes.
+        migration_targets: Optional list of ``BucketTarget`` instances for the
+            InfluxDB segment migration.  When a geo-inheritance event is
+            detected, the migrator re-tags retired segment timeseries to the
+            new ID and records a ``timeseries_migrated_at`` marker.  Pending
+            migrations are also retried on every call until they succeed.  If
+            ``None``, migration is skipped.
 
     """
     segments_data = repository.get_segments()
@@ -690,6 +726,49 @@ def update_segment_changelog_from_repo(
     result = process_segment_changelog(
         fresh_segments, changelog, archive, processing_date
     )
+
+    # Geo-inheritance: check whether any new segment geographically matches a
+    # removed one and inherit its history (mirrors update_segment_changelog).
+    if result.newly_added_ids and result.removed_ids:
+        removed_records_for_matching = {
+            seg_id: result.archive[seg_id]
+            for seg_id in result.removed_ids
+            if seg_id in result.archive
+        }
+        new_geometries_for_matching = {
+            seg_id: fresh_segments[seg_id] for seg_id in result.newly_added_ids
+        }
+        geo_matches = find_matching_historical_segments(
+            new_geometries_for_matching, removed_records_for_matching
+        )
+        for new_id, old_id in geo_matches.items():
+            old_record = result.archive[old_id]
+            inherited_history = old_record.get("history", []).copy()
+            inherited_history.append(
+                {
+                    "date_archived": old_record.get(
+                        "date_archived", processing_date.isoformat()
+                    ),
+                    "geometry": old_record["current_geometry"],
+                }
+            )
+            result.changelog[new_id]["history"] = (
+                inherited_history + result.changelog[new_id]["history"]
+            )
+            result.changelog[new_id]["geo_inherited_from"] = old_id
+            logger.info(
+                f"Segment '{new_id}' inherited {len(inherited_history)} history "
+                f"entries from removed segment '{old_id}'."
+            )
+        if geo_matches:
+            logger.info(
+                f"Geo-inheritance complete: {len(geo_matches)} new segment(s) "
+                f"inherited history from removed segment(s)."
+            )
+
+    # Run or retry pending InfluxDB timeseries migrations.
+    if migration_targets:
+        _run_pending_migrations(result.changelog, processing_date, migration_targets)
 
     try:
         repository.save_changelog(result.changelog)

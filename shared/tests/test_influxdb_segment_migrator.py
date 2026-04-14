@@ -20,8 +20,10 @@ def _make_manager(counts: list[int]):
     """Build a mock FCDInfluxDBManager whose count queries return ``counts``.
 
     ``counts`` is consumed in order: first call returns counts[0], etc.
-    Re-tag queries (no count) are swallowed. The Flux text is inspected to
-    route count-vs-retag calls.
+    Re-tag queries (which contain ``to(``) are routed away from the count
+    iterator even though they now also end with ``|> count()``.  Pure count
+    queries (no ``to(``) consume from the iterator and expose the value via
+    ``get_value()``, matching the production code path.
     """
     manager = MagicMock()
     manager.bucket = "test-bucket"
@@ -30,6 +32,10 @@ def _make_manager(counts: list[int]):
     call_iter = iter(counts)
 
     def fake_query(query: str, org: str):  # noqa: ARG001
+        # Retag queries contain "to(" — they also end with "|> count()" after
+        # the OOM fix, but must NOT consume from the count iterator.
+        if "to(" in query:
+            return []
         if "count(" in query:
             try:
                 value = next(call_iter)
@@ -37,10 +43,12 @@ def _make_manager(counts: list[int]):
                 value = 0
             table = MagicMock()
             record = MagicMock()
-            record.values = {"_time": value}
+            # Production code now calls get_value() (reads ``_value`` column)
+            # after the rename+count fix.
+            record.get_value.return_value = value
+            record.values = {"_value": value}
             table.records = [record]
             return [table]
-        # retag (set + to) returns nothing meaningful
         return []
 
     manager.query_api.query.side_effect = fake_query
