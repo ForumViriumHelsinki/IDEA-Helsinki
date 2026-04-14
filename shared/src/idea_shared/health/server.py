@@ -400,7 +400,7 @@ class HealthServer:
                     timeout=_GRACEFUL_SHUTDOWN_TIMEOUT,
                 )
                 logger.info("Async health server stopped gracefully")
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning(
                     "Health server did not shut down within "
                     f"{_GRACEFUL_SHUTDOWN_TIMEOUT}s; "

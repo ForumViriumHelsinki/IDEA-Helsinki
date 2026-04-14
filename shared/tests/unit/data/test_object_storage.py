@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -13,7 +12,6 @@ from idea_shared.data.object_storage import (
     ObjectStorageSync,
     create_object_storage_sync,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
