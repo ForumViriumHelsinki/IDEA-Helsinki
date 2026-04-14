@@ -57,10 +57,11 @@ clean:
 # Code Quality
 ####################
 
-# Run linting checks (ruff check)
+# Run linting checks (ruff check + ruff format --check) — matches CI
 lint *args:
     @echo "Running linting checks..."
     uv run ruff check {{ args }}
+    uv run ruff format --check {{ args }}
     @echo "Linting passed!"
 
 # Format code with ruff
