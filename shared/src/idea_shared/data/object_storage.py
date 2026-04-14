@@ -143,9 +143,7 @@ class LocalStorageSync:
             logger.info("LocalStorageSync: copied %s → %s", src, dest)
             return True
         except Exception:
-            logger.exception(
-                "LocalStorageSync: failed to copy %s → %s", src, dest
-            )
+            logger.exception("LocalStorageSync: failed to copy %s → %s", src, dest)
             return False
 
     def download_if_changed(self, remote_key: str, local_path: str | Path) -> bool:
@@ -178,9 +176,7 @@ class LocalStorageSync:
             logger.info("LocalStorageSync: downloaded %s → %s", src, dest)
             return True
         except Exception:
-            logger.exception(
-                "LocalStorageSync: failed to download %s → %s", src, dest
-            )
+            logger.exception("LocalStorageSync: failed to download %s → %s", src, dest)
             return False
 
     @property

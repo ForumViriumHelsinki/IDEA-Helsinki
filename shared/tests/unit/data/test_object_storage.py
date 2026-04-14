@@ -183,7 +183,9 @@ class TestLocalStorageSyncDownload:
         store.upload(src, "segments.db")
 
         dest = tmp_path / "dest.db"
-        store.download_if_changed("segments.db", dest)  # First download, populates cache
+        store.download_if_changed(
+            "segments.db", dest
+        )  # First download, populates cache
 
         # Second call: hash is cached, should skip
         result = store.download_if_changed("segments.db", dest)
@@ -339,9 +341,7 @@ class TestCreateObjectStorageSync:
 
     def test_backend_argument_overrides_env(self, tmp_path):
         """Explicit backend= kwarg wins over env var."""
-        with patch.dict(
-            os.environ, {"OBJECT_STORAGE_BACKEND": "gcs"}, clear=False
-        ):
+        with patch.dict(os.environ, {"OBJECT_STORAGE_BACKEND": "gcs"}, clear=False):
             result = create_object_storage_sync(
                 backend="local",
                 base_dir=str(tmp_path / "store"),
@@ -368,9 +368,7 @@ class TestCreateObjectStorageSync:
 
     def test_local_backend_custom_base_dir(self, tmp_path):
         custom_dir = tmp_path / "custom"
-        result = create_object_storage_sync(
-            backend="local", base_dir=str(custom_dir)
-        )
+        result = create_object_storage_sync(backend="local", base_dir=str(custom_dir))
         assert isinstance(result, LocalStorageSync)
         assert result._base_dir == custom_dir
 
@@ -378,9 +376,7 @@ class TestCreateObjectStorageSync:
         with patch("idea_shared.data.gcs_sync.storage.Client") as mock_cls:
             mock_client = MagicMock()
             mock_cls.return_value = mock_client
-            create_object_storage_sync(
-                backend="gcs", bucket_name="my-custom-bucket"
-            )
+            create_object_storage_sync(backend="gcs", bucket_name="my-custom-bucket")
             mock_client.bucket.assert_called_once_with("my-custom-bucket")
 
     def test_gcs_backend_passes_custom_prefix(self):
