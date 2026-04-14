@@ -336,6 +336,7 @@ def update_segment_changelog(
     changelog_file_path: str,
     archive_file_path: str,
     processing_date: datetime,
+    migration_targets: list | None = None,
 ) -> None:
     """Compare a fresh segment mapping file against a master changelog to detect, log, and catalog segment changes.
 
@@ -346,6 +347,12 @@ def update_segment_changelog(
         changelog_file_path: Path to the persistent JSON changelog file.
         archive_file_path: Path to the JSON archive for removed segments.
         processing_date: Date the segment changelog was processed (datetime.now(timezone.utc)) or if processing historical data, the past date for processing.
+        migration_targets: Optional list of ``BucketTarget`` instances for the
+            InfluxDB segment migration. When a geo-inheritance event is
+            detected (a new segment ID replaces a retired one at the same
+            location), the migrator re-tags the retired segment's timeseries
+            points to the new ID and records a ``timeseries_migrated_at``
+            marker in the changelog. If ``None``, migration is skipped.
 
     """
     # Prepare the Path variables
@@ -502,6 +509,37 @@ def update_segment_changelog(
                 f"Segment '{new_id}' inherited {len(inherited_history)} history "
                 f"entries from removed segment '{old_id}'."
             )
+
+            # Re-tag InfluxDB points from old_id to new_id so validation queries
+            # on the new ID see the full history. Skipped if already done or if
+            # no migration targets were provided by the caller.
+            if migration_targets and "timeseries_migrated_at" not in changelog[new_id]:
+                try:
+                    # Local import keeps the dependency optional for callers
+                    # (e.g. tests) that don't pass migration_targets.
+                    from idea_shared.classes.InfluxDBSegmentMigrator import (
+                        migrate_segment_timeseries,
+                    )
+
+                    migrate_segment_timeseries(
+                        old_id=old_id,
+                        new_id=new_id,
+                        targets=migration_targets,
+                    )
+                    from datetime import timezone as _tz
+
+                    changelog[new_id]["timeseries_migrated_at"] = datetime.now(
+                        processing_date.tzinfo or _tz.utc
+                    ).isoformat()
+                    logger.info(
+                        f"Timeseries migration complete for '{old_id}' → '{new_id}'."
+                    )
+                except Exception as exc:
+                    logger.error(
+                        f"Timeseries migration failed for '{old_id}' → '{new_id}': {exc}. "
+                        "Changelog will still record geo_inheritance and the next "
+                        "cycle will retry the migration."
+                    )
 
         if geo_matches:
             logger.info(

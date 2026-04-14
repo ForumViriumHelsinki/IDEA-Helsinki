@@ -145,6 +145,17 @@ class FCDInfluxDBManager:
             self.logger.error(f"InfluxDB connection check failed unexpectedly: {e}")
             return False
 
+    def delete_api(self):
+        """Return the InfluxDB delete API for predicate-based point deletion.
+
+        Exposed primarily for the segment-migration path
+        (``InfluxDBSegmentMigrator``) which needs to remove the old-ID points
+        after re-tagging them to a new segment ID.
+        """
+        if not self.client:
+            raise RuntimeError("InfluxDB client is not initialized.")
+        return self.client.delete_api()
+
     def _write_batch(self, points: list, batch_number: int):
         """Write a batch of points with logging.
 

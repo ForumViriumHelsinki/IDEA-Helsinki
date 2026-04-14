@@ -65,6 +65,8 @@ from idea_shared.lib.Constants.PrivateConstants import (
     INFLUX_DB_FCD_TOKEN,
     INFLUX_DB_ORG,
     INFLUX_DB_URL,
+    INFLUX_DB_VALIDATION_BUCKET,
+    INFLUX_DB_VALIDATION_TOKEN,
 )
 from idea_shared.threading import ThreadCoordinator
 
@@ -264,48 +266,72 @@ def run(
                 logger.info("No processable data in recent blobs")
                 return True
 
-            # Write to InfluxDB
-            with FCDInfluxDBManager(
-                url=INFLUX_DB_URL,
-                token=INFLUX_DB_FCD_TOKEN,
-                org=INFLUX_DB_ORG,
-                bucket=INFLUX_DB_FCD_BUCKET,
-            ) as influx_manager:
+            # Write to InfluxDB; keep the FCD and validation managers open
+            # across the changelog update so the geo-inheritance migration
+            # path can re-tag points in both buckets.
+            with (
+                FCDInfluxDBManager(
+                    url=INFLUX_DB_URL,
+                    token=INFLUX_DB_FCD_TOKEN,
+                    org=INFLUX_DB_ORG,
+                    bucket=INFLUX_DB_FCD_BUCKET,
+                ) as influx_manager,
+                FCDInfluxDBManager(
+                    url=INFLUX_DB_URL,
+                    token=INFLUX_DB_VALIDATION_TOKEN,
+                    org=INFLUX_DB_ORG,
+                    bucket=INFLUX_DB_VALIDATION_BUCKET,
+                ) as validation_manager,
+            ):
                 influx_manager.write_fcd_model(fcd_data)
 
-            # Update segment mapping
-            if update_fcd_segment_mapping(fcd_data, segment_repo=segment_repo):
-                logger.info("FCD segment mapping updated")
-                _write_in_progress.set()
-                try:
-                    if segment_repo is not None:
-                        FcdUtils.update_segment_changelog_from_repo(
-                            segment_repo, current_time
+                # Update segment mapping
+                if update_fcd_segment_mapping(fcd_data, segment_repo=segment_repo):
+                    logger.info("FCD segment mapping updated")
+                    _write_in_progress.set()
+                    try:
+                        from idea_shared.classes.InfluxDBSegmentMigrator import (
+                            BucketTarget,
                         )
-                    else:
-                        FcdUtils.update_segment_changelog(
-                            FCD_MAP_DATA_FILE_LOCATION,
-                            MASTER_SEGMENT_HISTORY_FILE_LOCATION,
-                            ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION,
-                            current_time,
+
+                        migration_targets = [
+                            BucketTarget(
+                                manager=influx_manager, measurement="segment_data"
+                            ),
+                            BucketTarget(
+                                manager=validation_manager,
+                                measurement="idea_validation",
+                            ),
+                        ]
+                        if segment_repo is not None:
+                            FcdUtils.update_segment_changelog_from_repo(
+                                segment_repo, current_time
+                            )
+                        else:
+                            FcdUtils.update_segment_changelog(
+                                FCD_MAP_DATA_FILE_LOCATION,
+                                MASTER_SEGMENT_HISTORY_FILE_LOCATION,
+                                ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION,
+                                current_time,
+                                migration_targets=migration_targets,
+                            )
+                    finally:
+                        _write_in_progress.clear()
+
+                    # When using SQLite, upload DB to GCS and export JSON for compatibility
+                    if use_sqlite and gcs_sync is not None:
+                        from pathlib import Path
+
+                        from idea_shared.data.json_export import export_segments_json
+
+                        gcs_sync.upload(
+                            sqlite_dir / SQLITE_SEGMENTS_DB,
+                            SQLITE_SEGMENTS_DB,
                         )
-                finally:
-                    _write_in_progress.clear()
-
-                # When using SQLite, upload DB to GCS and export JSON for compatibility
-                if use_sqlite and gcs_sync is not None:
-                    from pathlib import Path
-
-                    from idea_shared.data.json_export import export_segments_json
-
-                    gcs_sync.upload(
-                        sqlite_dir / SQLITE_SEGMENTS_DB,
-                        SQLITE_SEGMENTS_DB,
-                    )
-                    export_segments_json(
-                        segment_repo,
-                        Path(FCD_MAP_DATA_FILE_LOCATION),
-                    )
+                        export_segments_json(
+                            segment_repo,
+                            Path(FCD_MAP_DATA_FILE_LOCATION),
+                        )
 
             # Update health check timestamp
             if update_cycle_check:
