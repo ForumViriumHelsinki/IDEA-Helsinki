@@ -84,7 +84,7 @@ def main():
     # Initialize repositories for data access (feature-flag-gated)
     flags = get_feature_flags()
     use_sqlite = flags.is_enabled(FeatureFlag.USE_SQLITE_STORAGE)
-    gcs_sync = None
+    storage_sync = None
     segments_db_path = None
     disturbances_db_path = None
 
@@ -100,12 +100,12 @@ def main():
         sqlite_dir.mkdir(parents=True, exist_ok=True)
 
         # Initialize object storage sync
-        gcs_sync = create_object_storage_sync()
+        storage_sync = create_object_storage_sync()
 
         # Download segments.db from object storage (written by fcd-manager)
         segments_db_path = sqlite_dir / SQLITE_SEGMENTS_DB
         logger.info("Downloading segments database from object storage...")
-        gcs_sync.download_if_changed(SQLITE_SEGMENTS_DB, segments_db_path)
+        storage_sync.download_if_changed(SQLITE_SEGMENTS_DB, segments_db_path)
 
         # Create segment repo from downloaded database (read-only usage)
         seg_repos = create_sqlite_repositories(segments_db_path)
@@ -276,8 +276,8 @@ def main():
         service_state.set_processing(True)
 
         # Refresh segments from object storage if using SQLite
-        if use_sqlite and gcs_sync is not None and segments_db_path is not None:
-            if gcs_sync.download_if_changed(SQLITE_SEGMENTS_DB, segments_db_path):
+        if use_sqlite and storage_sync is not None and segments_db_path is not None:
+            if storage_sync.download_if_changed(SQLITE_SEGMENTS_DB, segments_db_path):
                 logger.info("Downloaded updated segments database from object storage")
                 assert isinstance(segment_repo, SqliteSegmentRepository)
                 segment_repo.reconnect()
@@ -463,14 +463,14 @@ def main():
                     # TFDS_Dashboard backwards compatibility
                     if (
                         use_sqlite
-                        and gcs_sync is not None
+                        and storage_sync is not None
                         and disturbances_db_path is not None
                     ):
                         from idea_shared.data.json_export import (
                             export_disturbances_json,
                         )
 
-                        gcs_sync.upload(
+                        storage_sync.upload(
                             disturbances_db_path,
                             SQLITE_DISTURBANCES_DB,
                         )

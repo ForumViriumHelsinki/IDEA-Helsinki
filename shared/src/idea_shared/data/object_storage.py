@@ -112,7 +112,7 @@ class LocalStorageSync:
     # ------------------------------------------------------------------
 
     def _full_path(self, remote_key: str) -> Path:
-        return self._base_dir / f"{self._prefix}{remote_key}"
+        return self._base_dir / f"{self._prefix}{remote_key.lstrip('/')}"
 
     @staticmethod
     def _file_hash(path: Path) -> str:
@@ -158,12 +158,12 @@ class LocalStorageSync:
         src = self._full_path(remote_key)
         dest = Path(local_path)
 
-        if not src.exists():
-            logger.warning("LocalStorageSync: object not found: %s", src)
+        if not src.is_file():
+            logger.warning("LocalStorageSync: object not found or not a file: %s", src)
             return False
 
         current_hash = self._file_hash(src)
-        if self._hash_cache.get(remote_key) == current_hash:
+        if dest.exists() and self._hash_cache.get(remote_key) == current_hash:
             logger.debug(
                 "LocalStorageSync: no change for %s (hash: %s), skipping",
                 remote_key,

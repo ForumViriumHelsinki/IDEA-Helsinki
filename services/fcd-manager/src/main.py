@@ -91,7 +91,7 @@ pipeline_check = None
 thread_coordinator = None
 
 # SQLite migration globals
-gcs_sync = None
+storage_sync = None
 use_sqlite = False
 sqlite_dir = None
 
@@ -291,12 +291,12 @@ def run(
                     _write_in_progress.clear()
 
                 # When using SQLite, upload DB to object storage and export JSON for compatibility
-                if use_sqlite and gcs_sync is not None:
+                if use_sqlite and storage_sync is not None:
                     from pathlib import Path
 
                     from idea_shared.data.json_export import export_segments_json
 
-                    gcs_sync.upload(
+                    storage_sync.upload(
                         sqlite_dir / SQLITE_SEGMENTS_DB,
                         SQLITE_SEGMENTS_DB,
                     )
@@ -495,7 +495,7 @@ def main():
     logger.info(f"  - Details:   http://0.0.0.0:{HEALTH_CHECK_PORT}/health/detail")
 
     # Initialize segment repository for data access
-    global gcs_sync, use_sqlite, sqlite_dir
+    global storage_sync, use_sqlite, sqlite_dir
 
     flags = get_feature_flags()
     use_sqlite = flags.is_enabled(FeatureFlag.USE_SQLITE_STORAGE)
@@ -515,7 +515,7 @@ def main():
         segment_repo, _, _ = create_sqlite_repositories(db_path)
 
         # Initialize object storage sync for uploading database to other services
-        gcs_sync = create_object_storage_sync()
+        storage_sync = create_object_storage_sync()
 
         # Add SQLite health check
         sqlite_health = SqliteHealthCheck(

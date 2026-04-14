@@ -245,6 +245,41 @@ class TestLocalStorageSyncDownload:
         result = fresh.download_if_changed("segments.db", str(dest))
         assert result is True
 
+    def test_returns_false_when_src_is_directory(self, store, tmp_path):
+        # Create a directory at the resolved remote path; should not crash.
+        src_dir = store._full_path("adir")
+        src_dir.mkdir(parents=True, exist_ok=True)
+        dest = tmp_path / "dest.db"
+        result = store.download_if_changed("adir", dest)
+        assert result is False
+        assert not dest.exists()
+
+    def test_redownloads_when_dest_deleted(self, store, tmp_path):
+        src = tmp_path / "source.db"
+        src.write_bytes(b"content")
+        store.upload(src, "segments.db")
+
+        dest = tmp_path / "dest.db"
+        assert store.download_if_changed("segments.db", dest) is True
+
+        # External deletion of dest should trigger a fresh download even
+        # though the hash cache still has a matching entry.
+        dest.unlink()
+        result = store.download_if_changed("segments.db", dest)
+        assert result is True
+        assert dest.read_bytes() == b"content"
+
+    def test_leading_slash_in_remote_key(self, store, tmp_path):
+        src = tmp_path / "source.db"
+        src.write_bytes(b"x")
+        store.upload(src, "segments.db")
+
+        # Leading slash on remote_key should resolve to the same object.
+        dest = tmp_path / "dest.db"
+        result = store.download_if_changed("/segments.db", dest)
+        assert result is True
+        assert dest.read_bytes() == b"x"
+
 
 @pytest.mark.unit
 class TestLocalStorageSyncHashCache:

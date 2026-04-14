@@ -131,7 +131,7 @@ async def main():
         sqlite_dir.mkdir(parents=True, exist_ok=True)
 
         # Initialize object storage sync
-        gcs_sync = create_object_storage_sync()
+        storage_sync = create_object_storage_sync()
 
         # Download databases from object storage (written by other services)
         segments_db_path = sqlite_dir / SQLITE_SEGMENTS_DB
@@ -139,8 +139,8 @@ async def main():
         profiles_db_path = sqlite_dir / SQLITE_PROFILES_DB
 
         logger.info("Downloading databases from object storage...")
-        gcs_sync.download_if_changed(SQLITE_SEGMENTS_DB, segments_db_path)
-        gcs_sync.download_if_changed(SQLITE_DISTURBANCES_DB, disturbances_db_path)
+        storage_sync.download_if_changed(SQLITE_SEGMENTS_DB, segments_db_path)
+        storage_sync.download_if_changed(SQLITE_DISTURBANCES_DB, disturbances_db_path)
 
         # Create repos from downloaded databases
         seg_repos = create_sqlite_repositories(segments_db_path)
