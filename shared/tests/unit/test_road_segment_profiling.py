@@ -1,8 +1,7 @@
-"""
-Unit tests for orchestrator memory optimizations:
+"""Unit tests for orchestrator memory optimizations:
 - Chunked 26-week profile queries (Option A)
 - Profiling semaphore throttling (Option B)
-- Explicit DataFrame cleanup (Option C)
+- Explicit DataFrame cleanup (Option C).
 
 Issue: https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/269
 """
@@ -50,8 +49,7 @@ def _make_segment(**kwargs) -> IdeaHelsinkiRoadSegment:
 
 
 def _make_hourly_df(n_weeks: int = 4) -> pd.DataFrame:
-    """
-    Build a synthetic hourly DataFrame matching the output of ``aggregate_by_hour``.
+    """Build a synthetic hourly DataFrame matching the output of ``aggregate_by_hour``.
     Covers ``n_weeks`` of hourly records with non-zero fcd values.
     """
     start = datetime(2025, 1, 1, tzinfo=UTC)

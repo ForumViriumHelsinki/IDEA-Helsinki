@@ -1,5 +1,4 @@
-"""
-Unit tests for validation semaphore and configurable validation history window.
+"""Unit tests for validation semaphore and configurable validation history window.
 
 - Validation semaphore throttling (Issue #279)
 - Configurable validation history window (Issue #267)
@@ -391,7 +390,8 @@ class TestValidationHistoryWindow:
 
     def test_profiling_end_date_is_today_result_is_before_current_date(self):
         """When profiling_end_date is today, last_validation_update must be strictly
-        before current_date so the validation query range is non-empty."""
+        before current_date so the validation query range is non-empty.
+        """
         segment = _make_segment(validation_history_weeks=4, validation_frequency=5)
 
         current_date = datetime(2026, 3, 23, 10, 47, 4, tzinfo=UTC)

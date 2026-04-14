@@ -67,5 +67,6 @@ class FlagDefaults:
 
         Raises:
             AttributeError: If the flag doesn't have a defined default
+
         """
         return getattr(cls, flag.value.upper())

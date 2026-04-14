@@ -29,6 +29,7 @@ def export_segments_json(repo: SegmentRepository, path: Path) -> bool:
 
     Returns:
         True on success, False on failure.
+
     """
     try:
         segments = repo.get_segments()
@@ -49,6 +50,7 @@ def export_disturbances_json(repo: DisturbanceRepository, path: Path) -> bool:
 
     Returns:
         True on success, False on failure.
+
     """
     try:
         disturbances = repo.get_disturbances()
@@ -72,6 +74,7 @@ def export_segments_geojson(repo: SegmentRepository, path: Path) -> bool:
 
     Returns:
         True on success, False on failure.
+
     """
     try:
         segments = repo.get_segments()
@@ -103,6 +106,7 @@ def export_disturbances_geojson(repo: DisturbanceRepository, path: Path) -> bool
 
     Returns:
         True on success, False on failure.
+
     """
     try:
         disturbances = repo.get_disturbances()

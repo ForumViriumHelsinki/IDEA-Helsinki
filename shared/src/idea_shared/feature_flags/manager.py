@@ -36,6 +36,7 @@ class FeatureFlagManager:
         >>> if manager.is_enabled(FeatureFlag.ENABLE_CACHING):
         ...     # Use caching
         ...     pass
+
     """
 
     def __init__(self, provider: AbstractProvider, domain: str = "idea-helsinki"):
@@ -44,6 +45,7 @@ class FeatureFlagManager:
         Args:
             provider: OpenFeature provider for flag resolution
             domain: Client domain name (default: idea-helsinki)
+
         """
         self._provider = provider
         self._domain = domain
@@ -74,6 +76,7 @@ class FeatureFlagManager:
 
         Returns:
             True if flag is enabled, False otherwise
+
         """
         flag_key = flag.value if isinstance(flag, FeatureFlag) else flag
 
@@ -112,6 +115,7 @@ class FeatureFlagManager:
 
         Returns:
             Flag value or default
+
         """
         flag_key = flag.value if isinstance(flag, FeatureFlag) else flag
 
@@ -136,6 +140,7 @@ class FeatureFlagManager:
 
         Returns:
             Flag value or default
+
         """
         flag_key = flag.value if isinstance(flag, FeatureFlag) else flag
 
@@ -160,6 +165,7 @@ class FeatureFlagManager:
 
         Returns:
             Flag value or default
+
         """
         flag_key = flag.value if isinstance(flag, FeatureFlag) else flag
 
@@ -184,6 +190,7 @@ class FeatureFlagManager:
 
         Returns:
             Flag value or default
+
         """
         flag_key = flag.value if isinstance(flag, FeatureFlag) else flag
 
@@ -198,6 +205,7 @@ class FeatureFlagManager:
 
         Returns:
             Dictionary of flag names to values (may be empty if not supported)
+
         """
         # This is a convenience method that could be extended
         # if providers support bulk flag retrieval
@@ -232,6 +240,7 @@ def initialize_feature_flags(
         In async applications, ensure this is called during synchronous
         initialization (e.g., before starting the event loop) to avoid
         race conditions.
+
     """
     global _global_manager
 
@@ -254,6 +263,7 @@ def get_feature_flags() -> FeatureFlagManager:
 
     Raises:
         RuntimeError: If feature flags haven't been initialized
+
     """
     if _global_manager is None:
         raise RuntimeError(

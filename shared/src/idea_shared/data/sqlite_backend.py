@@ -391,6 +391,7 @@ class SqliteProfileRepository(ProfileRepository):
         return self._cm.connection
 
     def get_profile(self, segment_id: str) -> bytes | None:
+        """Retrieve a serialized profile by segment ID."""
         cursor = self._conn.execute(
             "SELECT profile_data FROM profiles WHERE segment_id = ?",
             (segment_id,),
@@ -405,6 +406,7 @@ class SqliteProfileRepository(ProfileRepository):
         computed_at: str,
         expires_at: str,
     ) -> None:
+        """Insert or replace a serialized profile for a segment."""
         with self._conn:
             self._conn.execute(
                 "INSERT OR REPLACE INTO profiles "
@@ -414,6 +416,7 @@ class SqliteProfileRepository(ProfileRepository):
             )
 
     def delete_profile(self, segment_id: str) -> None:
+        """Delete a profile by segment ID."""
         with self._conn:
             self._conn.execute(
                 "DELETE FROM profiles WHERE segment_id = ?",
@@ -421,12 +424,14 @@ class SqliteProfileRepository(ProfileRepository):
             )
 
     def get_all_profile_ids(self) -> list[str]:
+        """Return all stored segment IDs, sorted alphabetically."""
         cursor = self._conn.execute(
             "SELECT segment_id FROM profiles ORDER BY segment_id"
         )
         return [row["segment_id"] for row in cursor.fetchall()]
 
     def delete_expired_profiles(self) -> int:
+        """Delete profiles past their expiration date and return the count removed."""
         now = datetime.now(UTC).isoformat()
         with self._conn:
             cursor = self._conn.execute(
@@ -452,6 +457,7 @@ def create_sqlite_repositories(
 
     Returns:
         Tuple of (segment_repo, disturbance_repo, profile_repo).
+
     """
     conn_manager = _SqliteConnectionManager(db_path)
     conn_manager.ensure_schema()

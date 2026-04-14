@@ -44,6 +44,7 @@ class WFSAPIHealthCheck(ExternalAPIHealthCheck):
             timeout: Timeout in seconds for the check
             critical: Whether this check is critical for readiness
             cache_ttl: Cache time-to-live in seconds
+
         """
         # Use GetCapabilities for base health check
         super().__init__(
@@ -66,6 +67,7 @@ class WFSAPIHealthCheck(ExternalAPIHealthCheck):
 
         Returns:
             The shared ClientSession instance
+
         """
         async with cls._session_lock:
             if cls._session is None or cls._session.closed:
@@ -100,6 +102,7 @@ class WFSAPIHealthCheck(ExternalAPIHealthCheck):
 
         Returns:
             HealthCheckResult indicating API status
+
         """
         # First do the base URL check
         base_result = await super().check()
@@ -211,6 +214,7 @@ class FCDMappingHealthCheck(FileSystemHealthCheck):
             timeout: Timeout in seconds for the check
             critical: Whether this check is critical for readiness
             cache_ttl: Cache time-to-live in seconds
+
         """
         # Import here to avoid circular dependencies
         from idea_shared.lib.Constants.Constants import FCD_MAP_DATA_FILE_LOCATION
@@ -231,6 +235,7 @@ class FCDMappingHealthCheck(FileSystemHealthCheck):
 
         Returns:
             HealthCheckResult indicating file status
+
         """
         # First do the base file existence check
         base_result = await super().check()
@@ -348,6 +353,7 @@ class OutputFileHealthCheck(FileSystemHealthCheck):
             timeout: Timeout in seconds for the check
             critical: Whether this check is critical for readiness
             cache_ttl: Cache time-to-live in seconds
+
         """
         # Import here to avoid circular dependencies
         from idea_shared.lib.Constants.Constants import (
@@ -373,6 +379,7 @@ class OutputFileHealthCheck(FileSystemHealthCheck):
 
         Returns:
             HealthCheckResult indicating output file status
+
         """
         # First do the base directory writability check
         base_result = await super().check()
@@ -475,6 +482,7 @@ class UpdateFreshnessHealthCheck(HealthCheck):
             timeout: Timeout in seconds for the check
             critical: Whether this check is critical for readiness
             cache_ttl: Cache time-to-live in seconds
+
         """
         super().__init__(name, timeout, critical, cache_ttl)
         self.service_state = service_state
@@ -486,6 +494,7 @@ class UpdateFreshnessHealthCheck(HealthCheck):
 
         Returns:
             HealthCheckResult indicating update freshness status
+
         """
         if not self.service_state:
             return HealthCheckResult(
@@ -591,6 +600,7 @@ class DetectorHealthCheck(HealthCheck):
             timeout: Timeout in seconds for the check
             critical: Whether this check is critical for readiness
             cache_ttl: Cache time-to-live in seconds
+
         """
         super().__init__(name, timeout, critical, cache_ttl)
         self.detector = detector
@@ -600,6 +610,7 @@ class DetectorHealthCheck(HealthCheck):
 
         Returns:
             HealthCheckResult indicating detector status
+
         """
         if not self.detector:
             return HealthCheckResult(

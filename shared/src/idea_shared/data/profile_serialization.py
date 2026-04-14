@@ -20,6 +20,7 @@ def serialize_profile(df: pd.DataFrame) -> bytes:
 
     Returns:
         Parquet-encoded bytes.
+
     """
     buffer = io.BytesIO()
     df.to_parquet(buffer, index=False, engine="pyarrow")
@@ -34,6 +35,7 @@ def deserialize_profile(data: bytes) -> pd.DataFrame:
 
     Returns:
         Reconstructed DataFrame.
+
     """
     buffer = io.BytesIO(data)
     return pd.read_parquet(buffer, engine="pyarrow")

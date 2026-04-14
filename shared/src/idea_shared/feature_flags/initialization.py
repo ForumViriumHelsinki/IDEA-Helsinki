@@ -14,6 +14,7 @@ Example:
     >>>
     >>> # At service startup
     >>> init_feature_flags(data_dir="/app/data", service_name="fcd-manager")
+
 """
 
 import logging
@@ -43,6 +44,7 @@ def create_provider(data_dir: str = "/app/data") -> AbstractProvider:
 
     Returns:
         Configured feature flag provider
+
     """
     endpoint = os.getenv("FEATURE_FLAG_ENDPOINT")
 
@@ -79,6 +81,7 @@ def init_feature_flags(
 
     Returns:
         True if initialization succeeded, False otherwise
+
     """
     try:
         provider = create_provider(data_dir)

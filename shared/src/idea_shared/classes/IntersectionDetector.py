@@ -22,17 +22,16 @@ if TYPE_CHECKING:
 
 
 class IntersectionDetectorError(Exception):
-    """
-    Custom exception for IntersectionDetector operations.
-    """
+    """Custom exception for IntersectionDetector operations."""
 
     pass
 
 
 class IntersectionDetector:
-    """
-    A class to perform collision detection on map features,
-    specifically finding intersections between WFS MultiPolygon features and aggregated FCD road segment LineString data.
+    """Perform collision detection between WFS features and FCD road segments.
+
+    Find intersections between WFS MultiPolygon features and aggregated FCD
+    road segment LineString data.
     """
 
     def __init__(
@@ -41,13 +40,13 @@ class IntersectionDetector:
         segment_crs: str | None = "EPSG:4326",
         working_crs: str | None = "EPSG:4326",
     ):
-        """
-        Initializes the IntersectionDetector.
+        """Initializes the IntersectionDetector.
 
         Args:
             wfs_crs: The expected Coordinate Reference System (CRS) of the WFS GeoJSON data.
             segment_crs: The expected CRS of the segment data.
             working_crs: The CRS to use for spatial operations. Data will be transformed to this CRS.
+
         """
         self.wfs_crs = wfs_crs
         self.segment_crs = segment_crs
@@ -58,11 +57,11 @@ class IntersectionDetector:
         )
 
     def load_wfs_geojson(self, wfs_geojson: Any) -> geopandas.GeoDataFrame | None:
-        """
-        Loads WFS GeoJSON FeatureCollection into a GeoDataFrame.
-        Ensures feature IDs from the GeoJSON index are captured in a column and sets a defined CRS.
-        """
+        """Load WFS GeoJSON FeatureCollection into a GeoDataFrame.
 
+        Ensure feature IDs from the GeoJSON index are captured in a column
+        and set a defined CRS.
+        """
         try:
             gdf = geopandas.GeoDataFrame.from_features(wfs_geojson)
 
@@ -127,10 +126,11 @@ class IntersectionDetector:
             return None
 
     def load_fcd_segment_data(self, segment_json: str) -> geopandas.GeoDataFrame | None:
-        """
-        Loads the aggregated segment data mapping JSON into a GeoDataFrame. Check docs/data_models.md for detailed information.
-        The input JSON is expected to be a dictionary of objects, where each object has
-        a 'segmentId', a 'geometry' (LineString).
+        """Load the aggregated segment data mapping JSON into a GeoDataFrame.
+
+        See docs/data_models.md for detailed information. The input JSON is
+        expected to be a dictionary of objects, where each object has a
+        'segmentId' and a 'geometry' (LineString).
         """
         segment_json_path = Path(segment_json)
         try:
@@ -160,9 +160,7 @@ class IntersectionDetector:
     def find_intersecting_features(
         self, wfs_gdf: geopandas.GeoDataFrame, segments_gdf: geopandas.GeoDataFrame
     ) -> geopandas.GeoDataFrame | None:
-        """
-        Finds intersections between WFS features.
-        """
+        """Finds intersections between WFS features."""
         if not self.validate_data_frame(wfs_gdf):
             self.logger.warning(
                 "WFS GeoDataFrame is empty or None. Cannot perform intersection."
@@ -214,14 +212,14 @@ class IntersectionDetector:
     def process_intersections_to_new_model(
         self, intersecting_gdf: geopandas.GeoDataFrame
     ) -> dict:
-        """
-        Processes the GeoDataFrame of intersections to create the traffic disturbance data model. Check docs/data_models.md for detailed information.
+        """Processes the GeoDataFrame of intersections to create the traffic disturbance data model. Check docs/data_models.md for detailed information.
 
         Args:
             intersecting_gdf: GeoDataFrame resulting from the spatial join. It contains columns from both segments and WFS features.
 
         Returns:
             A dictionary containing intersections representing the traffic disturbance data model.
+
         """
         if intersecting_gdf is None or intersecting_gdf.empty:
             self.logger.info(
@@ -276,15 +274,15 @@ class IntersectionDetector:
         return output_data
 
     def validate_data_frame(self, gdf_sample: Any) -> bool:
-        """
-        A method for validating GeoDataFrame, expects that the GeoDataFrame is not empty.
+        """A method for validating GeoDataFrame, expects that the GeoDataFrame is not empty.
 
         Args:
             gdf_sample : GeoDataFrame.
+
         Returns:
             Boolean: Is the GeoDataFrame validated or not.
-        """
 
+        """
         if not isinstance(gdf_sample, geopandas.GeoDataFrame):
             self.logger.warning("GeoDataFrame sample is not a GeoDataFrame!")
             return False
@@ -296,8 +294,7 @@ class IntersectionDetector:
         return True
 
     def write_json_records(self, records: dict, json_file: str) -> bool:
-        """
-        Write JSON records using atomic writes to prevent corruption.
+        """Write JSON records using atomic writes to prevent corruption.
 
         Uses atomic write pattern (temp file + rename) with retry logic
         for ESTALE errors on NFS/hostPath mounts.
@@ -337,6 +334,7 @@ class IntersectionDetector:
 
         Returns:
             GeoDataFrame with segmentId and geometry columns, or None on failure.
+
         """
         data = repository.get_segments()
         if not data:
@@ -357,6 +355,7 @@ class IntersectionDetector:
 
         Returns:
             True if successful, False otherwise.
+
         """
         return repository.save_disturbances(records)
 
@@ -417,14 +416,14 @@ class IntersectionDetector:
 
     @staticmethod
     def check_if_file_path_exists(file_location: str | Path) -> bool:
-        """
-        Checks if a file is present using a try-except block.
+        """Checks if a file is present using a try-except block.
 
         Args:
             file_location: The path to the file (string or Path object).
 
         Returns:
             True if the file exists, False otherwise.
+
         """
         try:
             path_obj = Path(file_location)
@@ -440,24 +439,27 @@ class IntersectionDetector:
         buffer_distance: float,
         buffering_crs: str | None = None,
     ) -> geopandas.GeoDataFrame:
-        """
-        Buffers the geometry of the GeoDataFrame by a specified distance.
-        The buffer uses a 'flat' cap style (cap_style=2) to preserve the length of the segment, only widening it.
+        """Buffer the geometry of the GeoDataFrame by a specified distance.
 
-        If 'buffering_crs' is provided, the data is projected to that CRS for the buffering operation
-        (useful for metric buffering on WGS84 data) and then projected back to the original CRS.
+        The buffer uses a 'flat' cap style (cap_style=2) to preserve the length
+        of the segment, only widening it.
 
-        IMPORTANT:
-        - The 'buffer_distance' is in the units of the GeoDataFrame's CRS. This should be done in meters, example using CRS EPSG:3879.
+        If 'buffering_crs' is provided, the data is projected to that CRS for
+        the buffering operation (useful for metric buffering on WGS84 data) and
+        then projected back to the original CRS.
 
-        The original geometry is preserved in a new column 'geometry_original'.
+        The 'buffer_distance' is in the units of the GeoDataFrame's CRS (should
+        be in meters, e.g. using CRS EPSG:3879). The original geometry is
+        preserved in a new column 'geometry_original'.
 
         Args:
             gdf: The GeoDataFrame containing road segments (LineStrings).
             buffer_distance: The distance to buffer (width) in METERS.
             buffering_crs: The CRS to use for the buffering operation (e.g., "EPSG:3879").
+
         Returns:
             GeoDataFrame with buffered geometries (Polygons) and the original geometries stored.
+
         """
         if not self.validate_data_frame(gdf):
             return gdf
@@ -505,16 +507,17 @@ class IntersectionDetector:
     def restore_original_geometries(
         self, gdf: geopandas.GeoDataFrame
     ) -> geopandas.GeoDataFrame:
-        """
-        Restores the original geometries from the 'geometry_original' column,
-        reverting the effects of the 'buffer_segments' method.
-        Removes the 'geometry_original' column after restoration.
+        """Restore the original geometries from the 'geometry_original' column.
+
+        Revert the effects of the 'buffer_segments' method and remove the
+        'geometry_original' column after restoration.
 
         Args:
             gdf: The GeoDataFrame to restore.
 
         Returns:
             GeoDataFrame with original LineString geometries.
+
         """
         if not self.validate_data_frame(gdf):
             return gdf

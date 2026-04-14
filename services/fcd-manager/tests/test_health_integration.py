@@ -402,8 +402,7 @@ class TestStartupSpecificChecks:
             server.stop()
 
     def test_startup_success_during_initial_sync(self):
-        """
-        Test scenario: startup passes while initial data sync is running.
+        """Test scenario: startup passes while initial data sync is running.
 
         This simulates the real-world case where:
         - Azure/InfluxDB connectivity checks pass (startup_only)
@@ -494,8 +493,7 @@ class TestStartupSpecificChecks:
 
 
 class TestSignalHandling:
-    """
-    Test signal handling for graceful shutdown.
+    """Test signal handling for graceful shutdown.
 
     Signal handling is critical for Kubernetes deployments where:
     1. SIGTERM is sent by Kubernetes when terminating a pod
@@ -511,8 +509,7 @@ class TestSignalHandling:
     """
 
     def test_graceful_shutdown_sigterm(self):
-        """
-        Test that SIGTERM triggers graceful shutdown sequence.
+        """Test that SIGTERM triggers graceful shutdown sequence.
 
         SIGTERM is the standard Kubernetes signal for pod termination.
         The handler should:
@@ -539,8 +536,7 @@ class TestSignalHandling:
                 mock_exit.assert_called_once_with(0)
 
     def test_graceful_shutdown_sigint(self):
-        """
-        Test that SIGINT (Ctrl+C) triggers graceful shutdown sequence.
+        """Test that SIGINT (Ctrl+C) triggers graceful shutdown sequence.
 
         SIGINT is sent when the user presses Ctrl+C during local development.
         The handler should perform the same graceful shutdown as SIGTERM to

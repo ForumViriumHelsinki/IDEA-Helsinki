@@ -15,8 +15,7 @@ def calculate_profile(
     end: dt.datetime,
     minimum_weeks_required: int = MINIMUM_WEEKS_INPUT_FOR_PROFILE,
 ) -> pd.DataFrame:
-    """
-    Calculate a profile based on Floating Car Data (FCD) between a given start and end time.
+    """Calculate a profile based on Floating Car Data (FCD) between a given start and end time.
 
     This function processes the input DataFrame by performing a series of transformations
     such as interpolating missing minutes, aggregating data, and filtering based on available data,
@@ -42,7 +41,7 @@ def calculate_profile(
     minimum_weeks_required : int
         The minimum number of weeks required for a profile generation.
 
-    Returns
+    Returns:
     -------
     pd.DataFrame
         A DataFrame with the following columns:
@@ -60,7 +59,7 @@ def calculate_profile(
         - `number_of_hours` : int
             Number of hours observed for that hour-of-day/day-of-week combination.
 
-    Example
+    Example:
     -------
         day_of_week  hour_of_day  fcd_mean_median  max_consecutive_zeros_q95  \
             Monday             0              4.4                         3.0
@@ -100,8 +99,7 @@ def calculate_profile_from_hourly(
     hourly_df: pd.DataFrame,
     minimum_weeks_required: int = MINIMUM_WEEKS_INPUT_FOR_PROFILE,
 ) -> pd.DataFrame:
-    """
-    Calculate a profile from pre-aggregated hourly FCD data.
+    """Calculate a profile from pre-aggregated hourly FCD data.
 
     This is the second phase of chunked profile calculation. The caller is
     responsible for pre-processing each raw chunk with:
@@ -117,10 +115,11 @@ def calculate_profile_from_hourly(
     minimum_weeks_required : int
         Minimum weeks of data required for a valid profile.
 
-    Returns
+    Returns:
     -------
     pd.DataFrame
         Profile DataFrame in the same format as ``calculate_profile``.
+
     """
     df = hourly_df.copy()
     df["hour_of_date"] = pd.to_datetime(df["hour_of_date"])

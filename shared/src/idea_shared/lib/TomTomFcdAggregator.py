@@ -12,19 +12,20 @@ logger = Logger(__name__)
 
 
 def convert_confidence_to_fcd_num(confidence: int):
-    """
-    Converts a confidence_level (0-100) to fcd value (0-10) used in the IDEA algorithm.
+    """Convert a confidence_level (0-100) to fcd value (0-10) used in the IDEA algorithm.
+
     - confidence_level <= 70 maps to fcd = 0
     - confidence_level == 100 maps to fcd = 10
     - Values between 70 and 100 are linearly scaled.
 
     NOTE: This is just the first "quick-and-dirty" estimation method.
 
-    args:
-        confidence from a time series segment, value range 0-100.
+    Args:
+        confidence: Confidence value from a time series segment, value range 0-100.
 
-    returns:
+    Returns:
         Converted estimate of numerical FCD value, None if confidence is None (IDEA accepts Null values)
+
     """
     if confidence is None:
         return None
@@ -37,16 +38,15 @@ def convert_confidence_to_fcd_num(confidence: int):
 
 # Legacy function for FCD data model file validation.
 def validate_tomtom_aggregation_file(data: dict) -> dict:
-    """
-    Function validates that the TomTom aggregation file is valid and can be used for updating.
+    """Function validates that the TomTom aggregation file is valid and can be used for updating.
 
     Args: data
         Uploaded TomTom aggregation file that contains aggregated TomTom data.
 
     Returns:
         A validated dictionary or an empty dictionary.
-    """
 
+    """
     segment_ids = data.get("segmentId")
     if not isinstance(segment_ids, dict):
         logger.warning(
@@ -120,8 +120,7 @@ def validate_tomtom_aggregation_file(data: dict) -> dict:
 def transform_single_tomtom_json_data_for_aggregation(
     raw_data_from_tomtom_json: dict, tomtom_timestamp_str: str, file_name_for_log: str
 ) -> dict:
-    """
-    Transforms the content of a single parsed TomTom FCD JSON file.
+    """Transforms the content of a single parsed TomTom FCD JSON file.
 
     Args:
        raw_data_from_tomtom_json : TomTom traffic flow data in JSON format.
@@ -130,6 +129,7 @@ def transform_single_tomtom_json_data_for_aggregation(
 
     Returns:
         An aggregated dictionary based on the fcd data model.
+
     """
     transformed_items: dict = {"segmentId": {}}
 
@@ -211,14 +211,14 @@ def transform_single_tomtom_json_data_for_aggregation(
 
 
 def sort_tomtom_data_aggregation_file_by_date(tomtom_aggregation_file: dict) -> dict:
-    """
-    Function sorts the TomTom aggregation file by date.
+    """Function sorts the TomTom aggregation file by date.
 
     Args:
         tomtom_aggregation_file: TomTom aggregation file dictionary.
 
     Returns:
         A sorted (by date) aggregation dictionary
+
     """
     for segment_id, segment_data in tomtom_aggregation_file.get(
         "segmentId", {}
@@ -244,12 +244,12 @@ def sort_tomtom_data_aggregation_file_by_date(tomtom_aggregation_file: dict) -> 
 def update_tomtom_json_data_for_aggregation_file(
     new_tomtom_file: dict, tomtom_file_to_update: dict
 ) -> dict:
-    """
-    Updates the TomTom aggregation dictionary with the new aggregation dictionary.
+    """Updates the TomTom aggregation dictionary with the new aggregation dictionary.
 
     Args:
         new_tomtom_file: TomTom aggregation file dictionary.
         tomtom_file_to_update: TomTom aggregation dictionary.
+
     """
     num_tomtom_records = 0
     num_updated_tomtom_records = 0

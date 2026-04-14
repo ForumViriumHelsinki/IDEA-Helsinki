@@ -1,5 +1,4 @@
-"""
-Thread coordinator for multi-threaded FCD processing.
+"""Thread coordinator for multi-threaded FCD processing.
 
 Orchestrates backfill workers, real-time workers, and InfluxDB writer thread.
 """
@@ -37,8 +36,7 @@ class ThreadCoordinator:
         retry_delay: int = FCD_RETRY_DELAY_SECONDS,
         batch_size: int = FCD_PROCESSING_BATCH_SIZE,
     ):
-        """
-        Initialize the thread coordinator.
+        """Initialize the thread coordinator.
 
         Args:
             num_backfill_workers: Number of backfill worker threads
@@ -51,6 +49,7 @@ class ThreadCoordinator:
             max_retries: Maximum retries for failed chunks
             retry_delay: Base delay for exponential backoff (seconds)
             batch_size: Number of blobs to process per batch
+
         """
         self.num_backfill_workers = num_backfill_workers
         self.azure_manager = azure_manager
@@ -93,13 +92,13 @@ class ThreadCoordinator:
         )
 
     def start_backfill(self, start_date: datetime, end_date: datetime, chunk_days: int):
-        """
-        Start backfill processing with worker threads.
+        """Start backfill processing with worker threads.
 
         Args:
             start_date: Start date for backfill
             end_date: End date for backfill
             chunk_days: Number of days per chunk
+
         """
         self.logger.info(
             f"Starting backfill from {start_date} to {end_date} "
@@ -135,11 +134,11 @@ class ThreadCoordinator:
         self.logger.info("Started InfluxDB writer thread")
 
     def _backfill_worker(self, worker_id: int):
-        """
-        Backfill worker function - processes date ranges from queue.
+        """Backfill worker function - processes date ranges from queue.
 
         Args:
             worker_id: Unique worker identifier
+
         """
         self.logger.info(f"Worker {worker_id} starting")
 
@@ -207,12 +206,12 @@ class ThreadCoordinator:
         self.logger.info(f"Worker {worker_id} shutting down")
 
     def _submit_write_with_retry(self, fcd_data: dict, worker_id: int):
-        """
-        Submit write request with retry on Queue.Full.
+        """Submit write request with retry on Queue.Full.
 
         Args:
             fcd_data: FCD data to write
             worker_id: Worker submitting the request
+
         """
         retry_count = 0
 
@@ -278,6 +277,7 @@ class ThreadCoordinator:
             update_function: Callable that performs one update cycle.
                 Signature: () -> bool (returns True on success)
             update_interval_minutes: Minutes between update cycles
+
         """
         self._realtime_update_function = update_function
         self._realtime_interval = update_interval_minutes
@@ -326,14 +326,14 @@ class ThreadCoordinator:
         self.logger.info("Real-time worker stopped")
 
     def wait_for_backfill_completion(self, timeout: float | None = None) -> bool:
-        """
-        Wait for all backfill workers to complete.
+        """Wait for all backfill workers to complete.
 
         Args:
             timeout: Maximum time to wait (seconds), None for indefinite
 
         Returns:
             True if completed within timeout, False otherwise
+
         """
         start_time = time.time()
 
@@ -355,11 +355,11 @@ class ThreadCoordinator:
         return True
 
     def shutdown(self, timeout: float = FCD_SHUTDOWN_TIMEOUT_SECONDS):
-        """
-        Gracefully shutdown all threads.
+        """Gracefully shutdown all threads.
 
         Args:
             timeout: Maximum time to wait for threads to finish (seconds)
+
         """
         self.logger.info("Initiating graceful shutdown")
         self._shutdown_event.set()
@@ -411,11 +411,11 @@ class ThreadCoordinator:
         return self._shutdown_event.is_set()
 
     def get_progress_stats(self) -> dict:
-        """
-        Get current progress statistics.
+        """Get current progress statistics.
 
         Returns:
             Dictionary with progress information
+
         """
         return {
             "date_queue": self.date_queue.get_stats(),

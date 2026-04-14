@@ -10,70 +10,54 @@ This document details the technical architecture for implementing multi-threaded
 
 ## Architecture Diagram
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                          Main Thread                                 │
-│  ┌────────────────┐                                                  │
-│  │  Health Server │  (existing, runs in background)                  │
-│  └────────────────┘                                                  │
-│  ┌────────────────────────────────────────────────────────────────┐ │
-│  │           Thread Coordinator & Manager                          │ │
-│  │  - Creates worker threads                                       │ │
-│  │  - Manages shutdown                                             │ │
-│  │  - Monitors health                                              │ │
-│  └────────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────┘
-           │                    │                    │
-           ▼                    ▼                    ▼
-┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
-│  Backfill        │  │  Backfill        │  │  Real-time       │
-│  Worker Thread 1 │  │  Worker Thread N │  │  Worker Thread   │
-│                  │  │                  │  │                  │
-│ ┌──────────────┐ │  │ ┌──────────────┐ │  │ ┌──────────────┐ │
-│ │Get date range│ │  │ │Get date range│ │  │ │5-min cycle   │ │
-│ │from queue    │ │  │ │from queue    │ │  │ │Get recent    │ │
-│ └──────┬───────┘ │  │ └──────┬───────┘ │  │ │blobs         │ │
-│        │         │  │        │         │  │ └──────┬───────┘ │
-│        ▼         │  │        ▼         │  │        │         │
-│ ┌──────────────┐ │  │ ┌──────────────┐ │  │ ┌──────────────┐ │
-│ │Download blobs│ │  │ │Download blobs│ │  │ │Download blobs│ │
-│ │from Azure    │ │  │ │from Azure    │  │  │ │from Azure    │ │
-│ └──────┬───────┘ │  │ └──────┬───────┘ │  │ └──────┬───────┘ │
-│        │         │  │        │         │  │        │         │
-│        ▼         │  │        ▼         │  │        ▼         │
-│ ┌──────────────┐ │  │ ┌──────────────┐ │  │ ┌──────────────┐ │
-│ │Process &     │ │  │ │Process &     │ │  │ │Process &     │ │
-│ │aggregate data│ │  │ │aggregate data│ │  │ │aggregate data│ │
-│ └──────┬───────┘ │  │ └──────┬───────┘ │  │ └──────┬───────┘ │
-│        │         │  │        │         │  │        │         │
-│        ▼         │  │        ▼         │  │        ▼         │
-│ ┌──────────────┐ │  │ ┌──────────────┐ │  │ ┌──────────────┐ │
-│ │Put to write  │ │  │ │Put to write  │ │  │ │Put to write  │ │
-│ │queue         │ │  │ │queue         │ │  │ │queue +       │ │
-│ └──────┬───────┘ │  │ └──────┬───────┘ │  │ │update mapping│ │
-└────────┼─────────┘  └────────┼─────────┘  └────────┼─────────┘
-         │                     │                     │
-         └─────────────────────┴─────────────────────┘
-                               │
-                               ▼
-                  ┌────────────────────────┐
-                  │  InfluxDB Write Queue  │
-                  │  (thread-safe Queue)   │
-                  └────────────┬───────────┘
-                               │
-                               ▼
-                  ┌────────────────────────┐
-                  │   Writer Thread        │
-                  │                        │
-                  │ ┌────────────────────┐ │
-                  │ │ Get from queue     │ │
-                  │ └─────────┬──────────┘ │
-                  │           ▼            │
-                  │ ┌────────────────────┐ │
-                  │ │Write to InfluxDB   │ │
-                  │ │(FCDInfluxDBManager)│ │
-                  │ └────────────────────┘ │
-                  └────────────────────────┘
+```mermaid
+flowchart TD
+    subgraph main["Main Thread"]
+        HS["Health Server<br/>(existing, runs in background)"]
+        TC["Thread Coordinator & Manager<br/>- Creates worker threads<br/>- Manages shutdown<br/>- Monitors health"]
+    end
+
+    subgraph BW1["Backfill Worker Thread 1"]
+        B1_1["Get date range<br/>from queue"]
+        B1_2["Download blobs<br/>from Azure"]
+        B1_3["Process &<br/>aggregate data"]
+        B1_4["Put to write<br/>queue"]
+        B1_1 --> B1_2 --> B1_3 --> B1_4
+    end
+
+    subgraph BWN["Backfill Worker Thread N"]
+        BN_1["Get date range<br/>from queue"]
+        BN_2["Download blobs<br/>from Azure"]
+        BN_3["Process &<br/>aggregate data"]
+        BN_4["Put to write<br/>queue"]
+        BN_1 --> BN_2 --> BN_3 --> BN_4
+    end
+
+    subgraph RT["Real-time Worker Thread"]
+        RT_1["5-min cycle<br/>Get recent blobs"]
+        RT_2["Download blobs<br/>from Azure"]
+        RT_3["Process &<br/>aggregate data"]
+        RT_4["Put to write queue +<br/>update mapping"]
+        RT_1 --> RT_2 --> RT_3 --> RT_4
+    end
+
+    TC --> BW1
+    TC --> BWN
+    TC --> RT
+
+    WQ[("InfluxDB Write Queue<br/>(thread-safe Queue)")]
+
+    B1_4 --> WQ
+    BN_4 --> WQ
+    RT_4 --> WQ
+
+    subgraph WT["Writer Thread"]
+        WT_1["Get from queue"]
+        WT_2["Write to InfluxDB<br/>(FCDInfluxDBManager)"]
+        WT_1 --> WT_2
+    end
+
+    WQ --> WT_1
 ```
 
 ## Core Components

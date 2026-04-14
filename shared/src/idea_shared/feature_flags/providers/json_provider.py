@@ -41,6 +41,7 @@ class JsonFileProvider(AbstractProvider):
 
         Args:
             file_path: Path to the JSON configuration file
+
         """
         self._file_path = Path(file_path)
         self._flags: dict[str, Any] = {}
@@ -95,6 +96,7 @@ class JsonFileProvider(AbstractProvider):
 
         Returns:
             Resolution details containing the flag value
+
         """
         if flag_key not in self._flags:
             return FlagResolutionDetails(
@@ -127,6 +129,7 @@ class JsonFileProvider(AbstractProvider):
 
         Returns:
             Resolution details containing the flag value
+
         """
         if flag_key not in self._flags:
             return FlagResolutionDetails(
@@ -158,6 +161,7 @@ class JsonFileProvider(AbstractProvider):
 
         Returns:
             Resolution details containing the flag value
+
         """
         if flag_key not in self._flags:
             return FlagResolutionDetails(
@@ -200,6 +204,7 @@ class JsonFileProvider(AbstractProvider):
 
         Returns:
             Resolution details containing the flag value
+
         """
         if flag_key not in self._flags:
             return FlagResolutionDetails(
@@ -242,6 +247,7 @@ class JsonFileProvider(AbstractProvider):
 
         Returns:
             Resolution details containing the flag value
+
         """
         if flag_key not in self._flags:
             return FlagResolutionDetails(

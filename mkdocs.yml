@@ -1,0 +1,51 @@
+site_name: IDEA-Helsinki
+site_description: Traffic validation system for analyzing the impact of traffic disturbances on road segments in Helsinki
+repo_url: https://github.com/ForumViriumHelsinki/IDEA-Helsinki
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - search.suggest
+    - content.code.copy
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: true
+            show_root_heading: true
+            docstring_style: google
+
+nav:
+  - Home: index.md
+  - Architecture:
+      - Overview: program_schematic.md
+      - Data Models: data_models.md
+      - Versioning: VERSIONING.md
+  - Design Documents:
+      - Threading Architecture: threading_architecture_design.md
+      - FCD Manager Multithreading: PRD_fcd_manager_multithreading.md
+      - SQLite Migration PRD: prds/PRD_sqlite_migration.md
+      - SQLite Migration ADR: adrs/ADR_001_sqlite_over_alternatives.md
+      - SQLite Migration PRP: prps/PRP_sqlite_migration.md
+      - InfluxDB3 Migration Plan: INFLUXDB3_MIGRATION_PLAN.md
+  - API Reference: api/
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - toc:
+      permalink: true

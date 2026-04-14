@@ -40,6 +40,7 @@ class GoFeatureFlagProvider(AbstractProvider):
     Environment variables:
         FEATURE_FLAG_ENDPOINT: The relay proxy endpoint URL
         FEATURE_FLAG_TIMEOUT: Request timeout in milliseconds (default: 3000)
+
     """
 
     def __init__(self, endpoint: str, timeout: int = 3000):
@@ -48,6 +49,7 @@ class GoFeatureFlagProvider(AbstractProvider):
         Args:
             endpoint: URL of the GoFeatureFlag relay proxy
             timeout: Request timeout in milliseconds (default: 3000)
+
         """
         self._endpoint = endpoint
         self._timeout = timeout
@@ -79,6 +81,7 @@ class GoFeatureFlagProvider(AbstractProvider):
 
         Returns:
             Resolution details containing the flag value
+
         """
         return self._provider.resolve_boolean_details(
             flag_key, default_value, evaluation_context
@@ -99,6 +102,7 @@ class GoFeatureFlagProvider(AbstractProvider):
 
         Returns:
             Resolution details containing the flag value
+
         """
         return self._provider.resolve_string_details(
             flag_key, default_value, evaluation_context
@@ -119,6 +123,7 @@ class GoFeatureFlagProvider(AbstractProvider):
 
         Returns:
             Resolution details containing the flag value
+
         """
         return self._provider.resolve_integer_details(
             flag_key, default_value, evaluation_context
@@ -139,6 +144,7 @@ class GoFeatureFlagProvider(AbstractProvider):
 
         Returns:
             Resolution details containing the flag value
+
         """
         return self._provider.resolve_float_details(
             flag_key, default_value, evaluation_context
@@ -161,6 +167,7 @@ class GoFeatureFlagProvider(AbstractProvider):
 
         Returns:
             Resolution details containing the flag value
+
         """
         # The GOFF library's resolve_object_details accepts only dict, while the
         # openfeature AbstractProvider contract is Sequence | Mapping. The GOFF

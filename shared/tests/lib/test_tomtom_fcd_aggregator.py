@@ -1,5 +1,4 @@
-"""
-Unit tests for TomTomFcdAggregator module.
+"""Unit tests for TomTomFcdAggregator module.
 
 Tests the core FCD data aggregation logic including confidence conversion,
 data validation, transformation, sorting, and updating operations.
@@ -90,7 +89,7 @@ class TestValidation:
         assert result == {}
 
     def test_non_dict_segment_id_returns_empty(self):
-        """segmentId not being a dict should return empty dict."""
+        """SegmentId not being a dict should return empty dict."""
         invalid_data = {"segmentId": "not_a_dict"}
         result = TomTomFcdAggregator.validate_tomtom_aggregation_file(invalid_data)
         assert result == {}

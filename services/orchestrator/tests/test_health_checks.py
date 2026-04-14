@@ -1,6 +1,4 @@
-"""
-Unit tests for IDEA Helsinki health checks.
-"""
+"""Unit tests for IDEA Helsinki health checks."""
 
 import asyncio
 import json

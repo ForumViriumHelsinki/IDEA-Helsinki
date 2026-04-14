@@ -13,6 +13,7 @@ def _get_latest_record_time(tables) -> datetime | None:
 
     Returns:
         Timestamp of the first valid record, or None if no valid records found
+
     """
     for table in tables:
         if len(table.records) > 0 and hasattr(table.records[0], "get_time"):
@@ -28,8 +29,7 @@ def check_backfill_mode(
     freshness_threshold_minutes: int,
     backfill_lookback_days: int,
 ) -> tuple[bool, float | None, datetime | None]:
-    """
-    Check if InfluxDB data is in backfill mode or real-time mode.
+    """Check if InfluxDB data is in backfill mode or real-time mode.
 
     This function queries InfluxDB to determine if the system is processing
     real-time data or backfilling historical data. It does this by:
@@ -58,6 +58,7 @@ def check_backfill_mode(
 
     Raises:
         ValueError: If bucket or measurement names contain invalid characters
+
     """
     # Validate bucket and measurement names to prevent query injection
     if not bucket.replace("_", "").replace("-", "").isalnum():

@@ -19,8 +19,7 @@ from idea_shared.lib.idea.exceptions import IDEAError
 
 
 def update_counter(condition: bool, prev_counter: int) -> int:
-    """
-    Update a counter based on a boolean condition.
+    """Update a counter based on a boolean condition.
 
     Parameters
     ----------
@@ -29,17 +28,17 @@ def update_counter(condition: bool, prev_counter: int) -> int:
     prev_counter : int
         The previous counter value.
 
-    Returns
+    Returns:
     -------
     int
         The updated counter value.
+
     """
     return prev_counter + 1 if condition else 0
 
 
 def update_no_coverage_counters(fcd: int, prev_0: int, prev_1: int) -> tuple[int, int]:
-    """
-    Update counters for minutes with no or low coverage based on the FCD value.
+    """Update counters for minutes with no or low coverage based on the FCD value.
 
     Parameters
     ----------
@@ -50,10 +49,11 @@ def update_no_coverage_counters(fcd: int, prev_0: int, prev_1: int) -> tuple[int
     prev_1 : int
         Previous count of consecutive minutes with FCD in (0, 1).
 
-    Returns
+    Returns:
     -------
     tuple[int, int]
         Updated counters for FCD == 0 and FCD in (0, 1) respectively.
+
     """
     if not (0 <= fcd <= 10):
         raise IDEAError(f"fcd must be between 0 and 10. Got: {fcd}")
@@ -63,27 +63,22 @@ def update_no_coverage_counters(fcd: int, prev_0: int, prev_1: int) -> tuple[int
 
 
 def calculate_minutes_no_coverage(validation_df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Loop through the validation DataFrame minute-by-minute and compute the consecutive
-    counters for no coverage using FCD values.
+    """Loop through the validation DataFrame minute-by-minute and compute consecutive no-coverage counters.
 
     Two counters are maintained:
-      - consecutive_zeros: counts minutes with fcd == 0.
-      - consecutive_low: counts minutes with fcd in (0, 1).
+
+    - consecutive_zeros: counts minutes with fcd == 0.
+    - consecutive_low: counts minutes with fcd in (0, 1).
 
     Missing values (NaN) reset both counters.
 
-    Parameters
-    ----------
-    validation_df : pd.DataFrame
-        DataFrame with a datetime index and a column 'fcd' containing FCD values.
+    Args:
+        validation_df: DataFrame with a datetime index and a column 'fcd' containing FCD values.
 
-    Returns
-    -------
-    pd.DataFrame
-        A copy of validation_df with added columns:
-            - 'consecutive_zeros': current consecutive count for fcd == 0.
-            - 'consecutive_low': current consecutive count for fcd in (0, 1).
+    Returns:
+        A copy of validation_df with added columns 'consecutive_zeros' (current consecutive count
+        for fcd == 0) and 'consecutive_low' (current consecutive count for fcd in (0, 1)).
+
     """
     consecutive_zeros = []
     consecutive_low = []
@@ -113,8 +108,7 @@ def calculate_minutes_no_coverage(validation_df: pd.DataFrame) -> pd.DataFrame:
 def match_no_coverage_profile(
     df_with_coverage: pd.DataFrame, profile_df: pd.DataFrame
 ) -> pd.DataFrame:
-    """
-    Merge the no coverage counters with the profile thresholds and flag deviations.
+    """Merge the no coverage counters with the profile thresholds and flag deviations.
 
     The profile is expected to include the columns:
       - 'day_of_week'
@@ -137,12 +131,13 @@ def match_no_coverage_profile(
     profile_df : pd.DataFrame
         Profile DataFrame containing the required threshold columns.
 
-    Returns
+    Returns:
     -------
     pd.DataFrame
         DataFrame merged with profile data and additional flag columns:
         - 'zeros_within_threshold'
         - 'zeros_or_ones_within_threshold'
+
     """
     df = df_with_coverage.copy()
     # Extract day_of_week and hour to merge with profile data
@@ -173,27 +168,19 @@ def match_no_coverage_profile(
 def determine_coverage_profile_value(
     row: pd.Series, previous_row: pd.Series, cov_threshold_zeros_or_one_values: float
 ) -> tuple[float, float, float]:
-    """
-    Determines coverage-related values based on whether the mean/median FCD is
-    below a specified threshold.
+    """Determine coverage-related values based on whether the mean/median FCD is below a specified threshold.
 
-    Parameters
-    ----------
-    row : pd.Series
-        The current row containing coverage metrics.
-    previous_row : pd.Series
-        The previous row containing historical coverage metrics.
-    cov_threshold_zeros_or_one_values : float
-        Threshold below which data is considered to have zero coverage.
+    Args:
+        row: The current row containing coverage metrics.
+        previous_row: The previous row containing historical coverage metrics.
+        cov_threshold_zeros_or_one_values: Threshold below which data is considered to have zero coverage.
 
-    Returns
-    -------
-    min_no_cov : float
-        The number of consecutive zero or low coverage intervals in the current row.
-    previous_min_no_cov : float
-        The number of consecutive zero or low coverage intervals in the previous row.
-    profile_value : float
-        The Q95 value for max consecutive zeros or low coverage, from the previous row.
+    Returns:
+        A tuple of (min_no_cov, previous_min_no_cov, profile_value) where min_no_cov is the number
+        of consecutive zero or low coverage intervals in the current row, previous_min_no_cov is the
+        same for the previous row, and profile_value is the Q95 value for max consecutive zeros or
+        low coverage from the previous row.
+
     """
     if row.fcd_mean_median < cov_threshold_zeros_or_one_values:
         attr = "consecutive_zeros"
@@ -212,8 +199,7 @@ def determine_coverage_profile_value(
 def calculate_running_mean(
     profile_value: float, prev_running_mean: float, cov_weight: float, res: float
 ) -> float:
-    """
-    Calculates the updated running mean using a weighted average.
+    """Calculates the updated running mean using a weighted average.
 
     Parameters
     ----------
@@ -226,10 +212,11 @@ def calculate_running_mean(
     res : float
         The new value to incorporate into the running mean.
 
-    Returns
+    Returns:
     -------
     float
         The updated running mean.
+
     """
     total_weight = profile_value + cov_weight
     weighted_sum = (profile_value * prev_running_mean) + (cov_weight * res)
@@ -299,8 +286,7 @@ def update_k(
     previous_minutes_no_low: float,
     decay_window: float,
 ) -> float:
-    """
-    Update the momentum decay parameter k for the current minute.
+    """Update the momentum decay parameter k for the current minute.
 
     Three cases:
       - No vehicles (coverage == 0): k resets to K_START.
@@ -321,10 +307,11 @@ def update_k(
     decay_window : float
         Time window within which a previous event is considered recent.
 
-    Returns
+    Returns:
     -------
     float
         Updated k value.
+
     """
     if coverage == 0:
         return K_START
@@ -342,8 +329,7 @@ def apply_momentum(
     k: float,
     running_mean: float,
 ) -> tuple[float, float]:
-    """
-    Apply momentum scaling to the running mean during low coverage periods.
+    """Apply momentum scaling to the running mean during low coverage periods.
 
     During low coverage periods, a decaying momentum factor (alpha) is applied to
     accelerate reopening detection when vehicles are observed. The decay parameter k
@@ -373,11 +359,12 @@ def apply_momentum(
     running_mean : float
         Running mean value to scale.
 
-    Returns
+    Returns:
     -------
     tuple[float, float]
         Updated (running_mean, k). If momentum conditions are not met, both
         values are returned unchanged.
+
     """
     is_low_coverage = coverage < COV_HIGH
     is_not_sudden_drop = (coverage_profile_value - coverage) <= COV_DROP_LIMIT
@@ -404,8 +391,7 @@ def determine_road_status_by_minute(
     df_matched_profile: pd.DataFrame,
     last_segment_validation: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
-    """
-    Determines the road status per minute using a running mean based on profile coverage.
+    """Determines the road status per minute using a running mean based on profile coverage.
 
     After the base running mean is computed, momentum scaling is applied via
     apply_momentum to accelerate reopening detection during low coverage periods.
@@ -418,12 +404,12 @@ def determine_road_status_by_minute(
     last_segment_validation : pd.DataFrame | None
     Last segment validation dataframe, if provided.
 
-    Returns
+    Returns:
     -------
     pd.DataFrame
         Updated DataFrame with running mean and SEGMENT_CLOSURE_STATUS.
-    """
 
+    """
     # When the validation cycle is started, the is no "last_segment_validation " for reference, hence, the default values are used for the running mean.
     prev_running_mean = 0.5
     k = K_START
@@ -478,17 +464,17 @@ def determine_road_status_by_minute(
 
 
 def set_segment_closure_status(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Sets the SEGMENT_CLOSURE_STATUS column based on running mean thresholds.
+    """Sets the SEGMENT_CLOSURE_STATUS column based on running mean thresholds.
 
     Parameters
     ----------
     df : pd.DataFrame with the running mean column.
 
-    Returns
+    Returns:
     -------
     pd.DataFrame
         Updated DataFrame with SEGMENT_CLOSURE_STATUS.
+
     """
     conditions = [
         df.running_mean < OPEN_LIMIT,

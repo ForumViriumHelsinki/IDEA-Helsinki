@@ -44,6 +44,7 @@ def create_repositories(
     Returns:
         Tuple of (SegmentRepository, DisturbanceRepository, ProfileRepository | None).
         ProfileRepository is None when using the JSON backend.
+
     """
     flags = get_feature_flags()
     use_sqlite = flags.is_enabled(FeatureFlag.USE_SQLITE_STORAGE)

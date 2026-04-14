@@ -33,6 +33,7 @@ class UpdateCycleHealthCheck(HealthCheck):
             timeout: Timeout in seconds for the check
             critical: Whether this check is critical for readiness
             cache_ttl: Cache time-to-live in seconds
+
         """
         super().__init__(name, timeout, critical, cache_ttl)
         self.healthy_threshold = timedelta(minutes=healthy_threshold_minutes)
@@ -53,6 +54,7 @@ class UpdateCycleHealthCheck(HealthCheck):
 
         Returns:
             HealthCheckResult indicating update cycle health
+
         """
         now = datetime.now(UTC)
 
@@ -141,6 +143,7 @@ class SegmentMappingFreshnessHealthCheck(HealthCheck):
             timeout: Timeout in seconds for the check
             critical: Whether this check is critical for readiness
             cache_ttl: Cache time-to-live in seconds
+
         """
         super().__init__(name, timeout, critical, cache_ttl)
         self.mapping_file = Path(mapping_file_path)
@@ -151,6 +154,7 @@ class SegmentMappingFreshnessHealthCheck(HealthCheck):
 
         Returns:
             HealthCheckResult indicating file freshness
+
         """
         try:
             if not self.mapping_file.exists():
@@ -227,6 +231,7 @@ class ProcessingPipelineHealthCheck(HealthCheck):
             timeout: Timeout in seconds for the check
             critical: Whether this check is critical for readiness
             cache_ttl: Cache time-to-live in seconds
+
         """
         super().__init__(name, timeout, critical, cache_ttl)
         self.blobs_processed = 0
@@ -244,6 +249,7 @@ class ProcessingPipelineHealthCheck(HealthCheck):
 
         Args:
             blobs_count: Number of blobs processed in this cycle
+
         """
         self.processing_end_time = datetime.now(UTC)
         self.blobs_processed += blobs_count
@@ -253,6 +259,7 @@ class ProcessingPipelineHealthCheck(HealthCheck):
 
         Args:
             error: Error message
+
         """
         self.last_error = error
         self.last_error_time = datetime.now(UTC)
@@ -262,6 +269,7 @@ class ProcessingPipelineHealthCheck(HealthCheck):
 
         Returns:
             HealthCheckResult indicating pipeline status
+
         """
         metadata: dict[str, Any] = {
             "total_blobs_processed": self.blobs_processed,

@@ -41,13 +41,16 @@ class ChangelogResult:
 
 
 def get_fcd_geometries(fcd_file: dict) -> dict:
-    """
-    Loops through the fcd aggregation file and forms a dictionary from segment IDs and their geometry.
+    """Loop through the fcd aggregation file and form a dictionary from segment IDs and their geometry.
+
     This dictionary is used for intersection detection with traffic disturbance data.
+
     Args:
         fcd_file: based on the FCD Data model (docs/data_models.md)
+
     Returns:
         A dictionary from segment IDs and their geometry.
+
     """
     if not fcd_file:
         return {}
@@ -78,8 +81,7 @@ def get_fcd_geometries(fcd_file: dict) -> dict:
 def extract_timestamp_str_from_file_name(
     file_name: str, include_microseconds: bool | None = False
 ) -> str | None:
-    """
-    Function for extracting timestamps from KYMP Azure blob names: Formatted as 'YYYY-MM-DDTHH:MM:SS.ffffff.json'
+    """Function for extracting timestamps from KYMP Azure blob names: Formatted as 'YYYY-MM-DDTHH:MM:SS.ffffff.json'.
 
     Args:
         file_name: The blob name to parse.
@@ -88,8 +90,8 @@ def extract_timestamp_str_from_file_name(
 
     Returns:
         A validated timestamp string or None if not found/invalid.
-    """
 
+    """
     # Looks for a 'T' separator, then HH:MM:SS, and optionally '.' followed by 1 to 6 digits for microseconds.
     match = re.search(r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?)", file_name)
 
@@ -121,15 +123,15 @@ def extract_timestamp_str_from_file_name(
 def parse_json_from_bytes(
     content_bytes: bytes, file_name_for_log: str | None = "json file"
 ) -> dict | None:
-    """
-    Function for parsing JSON data from bytes.
+    """Function for parsing JSON data from bytes.
 
     Args:
         content_bytes: The bytes to parse.
         file_name_for_log: The name logging.
 
-    returns:
+    Returns:
         The parsed JSON data or None is the data could not be parsed.
+
     """
     try:
         content_str = content_bytes.decode("utf-8")
@@ -150,8 +152,7 @@ def parse_json_from_bytes(
 
 
 def write_json_records(records: dict, json_file: str) -> bool:
-    """
-    Function for writing JSON records to a file using atomic writes.
+    """Function for writing JSON records to a file using atomic writes.
 
     Uses atomic write pattern (temp file + rename) to prevent corruption
     and includes retry logic for ESTALE errors on GCS FUSE mounts.
@@ -162,6 +163,7 @@ def write_json_records(records: dict, json_file: str) -> bool:
 
     Returns:
         True if the file was written, False otherwise.
+
     """
     segment_ids = records.get("segmentId")
     if not isinstance(segment_ids, dict):
@@ -184,13 +186,14 @@ def write_json_records(records: dict, json_file: str) -> bool:
 
 
 def read_existing_json_records(json_file: str) -> dict:
-    """
-    Function for reading existing JSON records from a file.
+    """Function for reading existing JSON records from a file.
+
     Args:
         json_file: The name of the JSON file to read.
 
     Returns:
         A dictionary from the JSON file.
+
     """
     records = {}
     existing_content = read_json_with_retry(json_file)
@@ -222,8 +225,7 @@ def find_matching_historical_segments(
     metric_crs: str = "EPSG:3879",
     geographic_crs: str = "EPSG:4326",
 ) -> dict:
-    """
-    Finds removed segments that geographically match new segments for history inheritance.
+    """Finds removed segments that geographically match new segments for history inheritance.
 
     When FCD segments are updated by TomTom, old segment IDs may be replaced by new ones at
     the same physical location. This function detects such replacements by comparing segment
@@ -251,6 +253,7 @@ def find_matching_historical_segments(
         Dict mapping {new_segment_id: best_matching_old_segment_id} for every match that
         exceeds the threshold. Each new segment is matched to at most one old segment
         (the best-scoring one).
+
     """
     if not new_segment_geometries or not removed_segment_records:
         return {}
@@ -334,16 +337,16 @@ def update_segment_changelog(
     archive_file_path: str,
     processing_date: datetime,
 ) -> None:
-    """
-    Compares a fresh segment mapping file against a master changelog to detect,
-    log, and catalog segment changes, moving removed segments to an archive.
-    Note that the assumption is that the fresh mapping file represents the current and valid geometry structure for segments.
+    """Compare a fresh segment mapping file against a master changelog to detect, log, and catalog segment changes.
+
+    Moves removed segments to an archive. Assumes the fresh mapping file represents the current and valid geometry structure for segments.
 
     Args:
         fresh_mapping_file_path: Path to the new segments_mapping.json.
         changelog_file_path: Path to the persistent JSON changelog file.
         archive_file_path: Path to the JSON archive for removed segments.
         processing_date: Date the segment changelog was processed (datetime.now(timezone.utc)) or if processing historical data, the past date for processing.
+
     """
     # Prepare the Path variables
     changelog_path = Path(changelog_file_path)
@@ -526,6 +529,7 @@ def extract_fresh_segments(segments_data: dict) -> dict:
 
     Returns:
         Dict mapping segment_id to geometry dict.
+
     """
     fresh_segments = {}
     for seg_id, seg_value in segments_data.get("segmentId", {}).items():
@@ -553,6 +557,7 @@ def process_segment_changelog(
 
     Returns:
         ChangelogResult with updated changelog, archive, and change details.
+
     """
     # Deep copy to avoid mutating caller's data (nested dicts contain lists/dicts)
     changelog = copy.deepcopy(changelog)
@@ -629,6 +634,7 @@ def update_segment_changelog_from_repo(
     Args:
         repository: SegmentRepository instance providing data access.
         processing_date: Timestamp for recording changes.
+
     """
     segments_data = repository.get_segments()
     if not segments_data:
