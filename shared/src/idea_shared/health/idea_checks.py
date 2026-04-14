@@ -43,6 +43,7 @@ class AzureBlobStorageHealthCheck(HealthCheck):
             timeout: Timeout in seconds for the check
             critical: Whether this check is critical for readiness
             cache_ttl: Cache time-to-live in seconds
+
         """
         super().__init__(name, timeout, critical, cache_ttl)
         self.account_name = account_name
@@ -55,6 +56,7 @@ class AzureBlobStorageHealthCheck(HealthCheck):
 
         Returns:
             HealthCheckResult indicating storage status
+
         """
         try:
             # Run sync operations in executor to avoid blocking
@@ -127,6 +129,7 @@ class WFSServiceHealthCheck(ExternalAPIHealthCheck):
             timeout: Timeout in seconds for the check
             critical: Whether this check is critical for readiness
             cache_ttl: Cache time-to-live in seconds
+
         """
         # Build a GetCapabilities request URL
         capabilities_url = f"{url}?service=WFS&request=GetCapabilities"
@@ -149,6 +152,7 @@ class WFSServiceHealthCheck(ExternalAPIHealthCheck):
 
         Returns:
             HealthCheckResult indicating WFS service status
+
         """
         result = await super().check()
 
@@ -187,6 +191,7 @@ class InfluxDBHealthCheck(DatabaseHealthCheck):
             timeout: Timeout in seconds for the check
             critical: Whether this check is critical for readiness
             cache_ttl: Cache time-to-live in seconds
+
         """
         # Pass a dummy connection string to base class
         super().__init__(name, f"{url}/{org}/{bucket}", timeout, critical, cache_ttl)
@@ -200,6 +205,7 @@ class InfluxDBHealthCheck(DatabaseHealthCheck):
 
         Returns:
             HealthCheckResult indicating database status
+
         """
         try:
             # Run sync operations in executor
@@ -284,6 +290,7 @@ class FCDDataFreshnessHealthCheck(DatabaseHealthCheck):
             timeout: Timeout in seconds for the check
             critical: Whether this check is critical for readiness
             cache_ttl: Cache time-to-live in seconds
+
         """
         super().__init__(name, f"{url}/{org}/{bucket}", timeout, critical, cache_ttl)
         self.url = url
@@ -299,6 +306,7 @@ class FCDDataFreshnessHealthCheck(DatabaseHealthCheck):
 
         Returns:
             HealthCheckResult indicating data freshness status
+
         """
         try:
             loop = asyncio.get_running_loop()
@@ -403,6 +411,7 @@ class SegmentMappingIntegrityHealthCheck(FileSystemHealthCheck):
             critical: Whether this check is critical for readiness
             cache_ttl: Cache time-to-live in seconds
             startup_grace_minutes: Grace period in minutes during initial backfill
+
         """
         super().__init__(
             name=name,
@@ -425,6 +434,7 @@ class SegmentMappingIntegrityHealthCheck(FileSystemHealthCheck):
 
         Returns:
             HealthCheckResult indicating mapping file status
+
         """
         elapsed = datetime.now(UTC) - self._startup_time
         if elapsed < self._startup_grace_period:
@@ -545,6 +555,7 @@ class SqliteHealthCheck(HealthCheck):
             critical: Whether this check is critical for readiness.
             cache_ttl: Cache time-to-live in seconds.
             startup_grace_minutes: Grace period in minutes during initial data population.
+
         """
         super().__init__(name, timeout, critical, cache_ttl)
         self.db_path = Path(db_path)
@@ -558,6 +569,7 @@ class SqliteHealthCheck(HealthCheck):
 
         Returns:
             HealthCheckResult indicating database status.
+
         """
         # Grace period for initial data population
         elapsed = datetime.now(UTC) - self._startup_time

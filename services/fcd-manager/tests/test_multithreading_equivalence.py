@@ -1,5 +1,4 @@
-"""
-Equivalence tests for FCD processing with varying worker counts.
+"""Equivalence tests for FCD processing with varying worker counts.
 
 This module validates that the ThreadCoordinator produces correct output
 regardless of worker count and blob ordering.
@@ -69,8 +68,7 @@ class TestMultithreadingEquivalence:
         return MockAzureBlobStorage(fixture_dir, seed=42)
 
     def test_streaming_processing_baseline(self, mock_azure):
-        """
-        Baseline test: Verify streaming processing works.
+        """Baseline test: Verify streaming processing works.
 
         This establishes the "golden output" for comparison.
         """
@@ -95,8 +93,7 @@ class TestMultithreadingEquivalence:
             )
 
     def test_coordinator_vs_direct_streaming_equivalence(self, mock_azure, fixture_dir):
-        """
-        Core equivalence test: Verify ThreadCoordinator produces same output as direct streaming.
+        """Core equivalence test: Verify ThreadCoordinator produces same output as direct streaming.
 
         Tests:
         1. Both approaches process same test data
@@ -163,8 +160,7 @@ class TestMultithreadingEquivalence:
         assert stats["date_queue"]["completed_ranges"] > 0
 
     def test_with_varying_worker_counts(self, mock_azure):
-        """
-        Test processing with different worker counts, including single-worker mode.
+        """Test processing with different worker counts, including single-worker mode.
 
         Verifies that worker count doesn't affect output correctness.
         Single-worker mode (1) provides sequential processing equivalent.
@@ -203,8 +199,7 @@ class TestMultithreadingEquivalence:
             coordinator.shutdown()
 
     def test_with_shuffled_blob_order(self, mock_azure_shuffled):
-        """
-        Test that blob processing order doesn't affect output.
+        """Test that blob processing order doesn't affect output.
 
         Uses seeded shuffling to ensure reproducible but different ordering.
         """
@@ -226,8 +221,7 @@ class TestMultithreadingEquivalence:
 
     @pytest.mark.skip(reason="Requires InfluxDB output capture integration")
     def test_detailed_output_comparison(self):
-        """
-        Detailed comparison of InfluxDB points between worker configurations.
+        """Detailed comparison of InfluxDB points between worker configurations.
 
         This test will be implemented once we have full output capture
         from ThreadCoordinator integrated with MockInfluxWriter.

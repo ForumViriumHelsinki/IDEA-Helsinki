@@ -12,6 +12,7 @@ def setup_sync_signal_handlers(shutdown_handler) -> None:
 
     Args:
         shutdown_handler: Callable(signum, frame) to handle shutdown.
+
     """
     signal.signal(signal.SIGTERM, shutdown_handler)
     signal.signal(signal.SIGINT, shutdown_handler)

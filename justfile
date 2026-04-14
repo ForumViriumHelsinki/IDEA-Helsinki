@@ -162,6 +162,26 @@ test-equivalence *args:
     @echo "Equivalence tests passed!"
 
 ####################
+# Documentation
+####################
+
+# Build documentation site
+docs-build:
+    @echo "Building documentation..."
+    uv run --group docs mkdocs build
+    @echo "Documentation built in site/"
+
+# Serve documentation locally with live reload
+docs-serve:
+    uv run --group docs mkdocs serve
+
+# Check documentation builds without errors (strict mode)
+docs-check:
+    @echo "Checking documentation..."
+    uv run --group docs mkdocs build --strict
+    @echo "Documentation check passed!"
+
+####################
 # Workflows
 ####################
 

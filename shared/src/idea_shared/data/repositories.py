@@ -26,6 +26,7 @@ class SegmentRepository(ABC):
         Returns:
             Dict in format ``{"segmentId": {id: {"geometry": ...}}}``,
             or empty dict if no data available.
+
         """
 
     @abstractmethod
@@ -37,6 +38,7 @@ class SegmentRepository(ABC):
 
         Returns:
             True if successful, False otherwise.
+
         """
 
     @abstractmethod
@@ -45,6 +47,7 @@ class SegmentRepository(ABC):
 
         Returns:
             Dict mapping segment_id to history records, or empty dict.
+
         """
 
     @abstractmethod
@@ -56,6 +59,7 @@ class SegmentRepository(ABC):
 
         Raises:
             OSError: If the write operation fails.
+
         """
 
     @abstractmethod
@@ -64,6 +68,7 @@ class SegmentRepository(ABC):
 
         Returns:
             Dict mapping segment_id to archived records, or empty dict.
+
         """
 
     @abstractmethod
@@ -75,6 +80,7 @@ class SegmentRepository(ABC):
 
         Raises:
             OSError: If the write operation fails.
+
         """
 
 
@@ -92,6 +98,7 @@ class DisturbanceRepository(ABC):
         Returns:
             Dict in format ``{"segmentId": {id: {"geometry": ..., "detailedCollisions": [...]}}}``,
             or empty dict if no data available.
+
         """
 
     @abstractmethod
@@ -103,6 +110,7 @@ class DisturbanceRepository(ABC):
 
         Returns:
             True if successful, False otherwise.
+
         """
 
 
@@ -122,6 +130,7 @@ class ProfileRepository(ABC):
 
         Returns:
             Serialized profile bytes, or None if not found.
+
         """
 
     @abstractmethod
@@ -141,6 +150,7 @@ class ProfileRepository(ABC):
             profile_data: Serialized profile bytes.
             computed_at: ISO 8601 timestamp of when the profile was computed.
             expires_at: ISO 8601 timestamp of when the profile expires.
+
         """
 
     @abstractmethod
@@ -149,6 +159,7 @@ class ProfileRepository(ABC):
 
         Args:
             segment_id: The segment identifier.
+
         """
 
     @abstractmethod
@@ -157,6 +168,7 @@ class ProfileRepository(ABC):
 
         Returns:
             List of segment IDs with stored profiles.
+
         """
 
     @abstractmethod
@@ -165,4 +177,5 @@ class ProfileRepository(ABC):
 
         Returns:
             Number of profiles deleted.
+
         """

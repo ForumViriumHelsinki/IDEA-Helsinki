@@ -8,20 +8,19 @@ class MockBlob:
     """Mock blob object matching Azure SDK interface."""
 
     def __init__(self, name: str, content: bytes):
-        """
-        Initialize mock blob.
+        """Initialize mock blob.
 
         Args:
             name: Blob name (includes timestamp pattern)
             content: Blob content bytes
+
         """
         self.name = name
         self._content = content
 
 
 class MockAzureBlobStorage:
-    """
-    Mock Azure Blob Storage for deterministic testing.
+    """Mock Azure Blob Storage for deterministic testing.
 
     Features:
     - In-memory blob list with predefined content
@@ -30,12 +29,12 @@ class MockAzureBlobStorage:
     """
 
     def __init__(self, fixture_dir: Path, seed: int | None = None):
-        """
-        Initialize mock Azure storage.
+        """Initialize mock Azure storage.
 
         Args:
             fixture_dir: Directory containing test fixture JSON files
             seed: Random seed for deterministic shuffling (None = no shuffle)
+
         """
         self.fixture_dir = fixture_dir
         self.seed = seed
@@ -50,8 +49,7 @@ class MockAzureBlobStorage:
             self._blobs.append(MockBlob(name=json_file.name, content=content))
 
     def get_blobs_in_range(self, start_time, end_time) -> list[MockBlob]:
-        """
-        Get blobs in time range, optionally shuffled.
+        """Get blobs in time range, optionally shuffled.
 
         Args:
             start_time: Start datetime (ignored in mock)
@@ -59,6 +57,7 @@ class MockAzureBlobStorage:
 
         Returns:
             List of mock blobs, potentially shuffled
+
         """
         blobs = self._blobs.copy()
 
@@ -70,14 +69,14 @@ class MockAzureBlobStorage:
         return blobs
 
     def download_blob_content(self, blob_name: str) -> bytes | None:
-        """
-        Download blob content by name.
+        """Download blob content by name.
 
         Args:
             blob_name: Blob name string
 
         Returns:
             Blob content bytes
+
         """
         # Find blob by name
         for blob in self._blobs:

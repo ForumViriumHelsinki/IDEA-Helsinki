@@ -1,6 +1,4 @@
-"""
-Thread coordination utilities for FCD Manager multi-threading.
-"""
+"""Thread coordination utilities for FCD Manager multi-threading."""
 
 from .coordinator import ThreadCoordinator
 from .date_queue import DateRange, DateRangeQueue

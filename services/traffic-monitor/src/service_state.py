@@ -36,6 +36,7 @@ class ServiceState:
             success: Whether the fetch was successful
             disturbance_count: Number of disturbances fetched (if successful)
             error: Error message if fetch failed
+
         """
         with self._lock:
             self.last_wfs_attempt = datetime.now(UTC)
@@ -56,6 +57,7 @@ class ServiceState:
 
         Args:
             processing_time: When processing completed
+
         """
         with self._lock:
             self.last_processing_time = processing_time
@@ -66,6 +68,7 @@ class ServiceState:
 
         Args:
             detector: IntersectionDetector instance
+
         """
         with self._lock:
             self.detector = detector
@@ -75,6 +78,7 @@ class ServiceState:
 
         Returns:
             IntersectionDetector instance or None
+
         """
         with self._lock:
             return self.detector
@@ -84,6 +88,7 @@ class ServiceState:
 
         Args:
             processing: Whether processing is active
+
         """
         with self._lock:
             self.is_processing = processing
@@ -97,6 +102,7 @@ class ServiceState:
 
         Returns:
             Dictionary containing state summary
+
         """
         with self._lock:
             now = datetime.now(UTC)
@@ -136,6 +142,7 @@ class ServiceState:
 
         Returns:
             Minutes since last success or None if never succeeded
+
         """
         with self._lock:
             if self.last_wfs_success:
@@ -147,6 +154,7 @@ class ServiceState:
 
         Returns:
             Minutes since last processing or None if never processed
+
         """
         with self._lock:
             if self.last_processing_time:
@@ -160,6 +168,7 @@ class ServiceState:
 
         Returns:
             Number of consecutive failures
+
         """
         with self._lock:
             return self.wfs_consecutive_failures
@@ -174,6 +183,7 @@ class ServiceState:
 
         Args:
             intersection_count: Number of intersections calculated
+
         """
         with self._lock:
             self.last_intersection_calc = datetime.now(UTC)
@@ -185,6 +195,7 @@ class ServiceState:
         Args:
             success: Whether the file write was successful
             error: Error message if write failed
+
         """
         with self._lock:
             self.last_file_write = datetime.now(UTC)
@@ -196,6 +207,7 @@ class ServiceState:
 
         Returns:
             Dictionary containing detailed status information
+
         """
         with self._lock:
             summary = self.get_summary()  # Start with basic summary

@@ -1,5 +1,4 @@
-"""
-Tests for ThreadCoordinator backfill functionality in main.py.
+"""Tests for ThreadCoordinator backfill functionality in main.py.
 
 This module tests backfill functionality, particularly focusing on
 timezone-aware datetime handling.
@@ -34,8 +33,7 @@ sys.modules["openfeature.provider.provider"] = MagicMock()
 
 
 def fast_processing_function(azure_manager, start_date, end_date, batch_size=50):
-    """
-    Fast processing function for integration tests.
+    """Fast processing function for integration tests.
 
     Returns realistic FCD data structure with minimal delay.
     """
@@ -56,8 +54,7 @@ class TestMultithreadedMode:
     """Tests for ThreadCoordinator backfill functionality."""
 
     def test_naive_datetime_comparison_raises_error(self):
-        """
-        Test that comparing naive and aware datetimes raises TypeError.
+        """Test that comparing naive and aware datetimes raises TypeError.
 
         This demonstrates the bug that was fixed: when FCD_HISTORY_START_DATE
         was parsed without timezone info, it created a naive datetime that
@@ -91,8 +88,7 @@ class TestMultithreadedMode:
             azure_manager.get_blobs_in_range(naive_start_date, aware_end_date)
 
     def test_timezone_aware_dates_can_be_compared(self):
-        """
-        Test that timezone-aware dates can be compared without errors.
+        """Test that timezone-aware dates can be compared without errors.
 
         This test demonstrates the correct behavior after the fix.
         """
@@ -122,8 +118,7 @@ class TestMultithreadedMode:
         assert result == []
 
     def test_thread_coordinator_timezone_aware_workflow(self):
-        """
-        Integration test for ThreadCoordinator with timezone-aware datetimes.
+        """Integration test for ThreadCoordinator with timezone-aware datetimes.
 
         This test uses REAL ThreadCoordinator execution to verify timezone-aware
         datetime handling throughout the multithreaded workflow, which was the root

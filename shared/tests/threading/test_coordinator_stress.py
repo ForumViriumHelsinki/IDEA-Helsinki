@@ -1,5 +1,4 @@
-"""
-Stress and integration tests for ThreadCoordinator.
+"""Stress and integration tests for ThreadCoordinator.
 
 Tests system behavior under high load, concurrent access, fault injection,
 and resource constraints. These tests validate production readiness.
@@ -26,8 +25,7 @@ def create_mock_processing_function(
     failure_rate: float = 0.0,
     processing_delay: float = 0.0,
 ):
-    """
-    Create a configurable mock processing function for stress testing.
+    """Create a configurable mock processing function for stress testing.
 
     Args:
         blob_count_per_range: Number of blobs to simulate per date range
@@ -37,6 +35,7 @@ def create_mock_processing_function(
 
     Returns:
         Processing function compatible with ThreadCoordinator
+
     """
 
     def processing_function(azure_manager, start_date, end_date, batch_size=50):

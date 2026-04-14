@@ -1,5 +1,4 @@
-"""
-Unit tests for retry resilience patterns.
+"""Unit tests for retry resilience patterns.
 
 Tests async_retry decorator, with_retry function, and ErrorTracker.
 """
@@ -274,7 +273,7 @@ class TestErrorTracker:
         assert stats["total_successes"] == 1
 
     def test_reset(self):
-        """reset should clear all counters."""
+        """Reset should clear all counters."""
         tracker = ErrorTracker(max_consecutive=5)
         tracker.record_failure()
         tracker.record_failure()

@@ -1,5 +1,4 @@
-"""
-Canonicalization utilities for deterministic testing.
+"""Canonicalization utilities for deterministic testing.
 
 Provides order-agnostic comparison of InfluxDB points by:
 1. Creating canonical keys from (measurement, sorted tags, timestamp)
@@ -11,8 +10,7 @@ from typing import Any
 
 
 class CanonicalPoint:
-    """
-    Canonical representation of an InfluxDB point.
+    """Canonical representation of an InfluxDB point.
 
     Provides deterministic comparison independent of:
     - Processing order
@@ -21,11 +19,11 @@ class CanonicalPoint:
     """
 
     def __init__(self, point: dict[str, Any]):
-        """
-        Create canonical point from raw point data.
+        """Create canonical point from raw point data.
 
         Args:
             point: Point dictionary with {measurement, tags, fields, time}
+
         """
         self.measurement = point["measurement"]
         self.tags = tuple(sorted(point["tags"].items()))
@@ -38,20 +36,20 @@ class CanonicalPoint:
         }
 
     def to_key(self) -> tuple:
-        """
-        Create canonical key for comparison.
+        """Create canonical key for comparison.
 
         Returns:
             Tuple of (measurement, tags, timestamp)
+
         """
         return (self.measurement, self.tags, self.timestamp)
 
     def to_value(self) -> dict:
-        """
-        Get canonical fields.
+        """Get canonical fields.
 
         Returns:
             Dictionary of rounded field values
+
         """
         return self.fields
 
@@ -76,14 +74,14 @@ class CanonicalPoint:
 
 
 def canonicalize_points(points: list[dict[str, Any]]) -> set[CanonicalPoint]:
-    """
-    Convert list of points to canonical set.
+    """Convert list of points to canonical set.
 
     Args:
         points: List of point dictionaries
 
     Returns:
         Set of canonical points for order-agnostic comparison
+
     """
     return {CanonicalPoint(p) for p in points}
 
@@ -91,8 +89,7 @@ def canonicalize_points(points: list[dict[str, Any]]) -> set[CanonicalPoint]:
 def compare_point_sets(
     points_a: list[dict[str, Any]], points_b: list[dict[str, Any]]
 ) -> tuple[bool, dict[str, Any]]:
-    """
-    Compare two point lists in an order-agnostic way.
+    """Compare two point lists in an order-agnostic way.
 
     Args:
         points_a: First point list
@@ -102,6 +99,7 @@ def compare_point_sets(
         Tuple of (is_equal, diff_info)
         - is_equal: True if points are equivalent
         - diff_info: Dictionary with comparison details
+
     """
     canonical_a = canonicalize_points(points_a)
     canonical_b = canonicalize_points(points_b)

@@ -23,10 +23,20 @@ select = [
     "B",   # flake8-bugbear
     "C4",  # flake8-comprehensions
     "UP",  # pyupgrade
+    "D",   # pydocstyle
 ]
 ignore = [
     "E501",  # line too long (handled by line-length)
+    "D100",  # missing docstring in public module
+    "D104",  # missing docstring in public package
+    "D107",  # missing docstring in __init__
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["D"]  # no docstring requirements in tests
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.ruff.format]
 quote-style = "double"
@@ -46,4 +56,9 @@ exclude = [
 [dependency-groups]
 dev = [
     "ty>=0.0.24",
+]
+docs = [
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.7.6",
+    "mkdocstrings[python]>=1.0.3",
 ]

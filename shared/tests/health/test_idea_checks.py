@@ -371,7 +371,6 @@ class TestFCDDataFreshnessHealthCheck:
         Verifies that backfill mode includes detailed progress information
         in the metadata, including timestamp and human-readable progress string.
         """
-
         check = FCDDataFreshnessHealthCheck(
             name="freshness_check",
             url="http://localhost:8086",

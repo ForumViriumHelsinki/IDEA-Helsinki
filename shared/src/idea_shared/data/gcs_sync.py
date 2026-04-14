@@ -57,6 +57,7 @@ class GCSSync:
             Normalized to ensure a trailing slash.
         credentials: Optional explicit credentials. Defaults to Application
             Default Credentials (automatic on GKE with Workload Identity).
+
     """
 
     def __init__(

@@ -1,6 +1,4 @@
-"""
-Integration tests for IDEA Helsinki health server.
-"""
+"""Integration tests for IDEA Helsinki health server."""
 
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch

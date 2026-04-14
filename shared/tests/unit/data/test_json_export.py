@@ -291,7 +291,7 @@ class TestExportDisturbancesGeoJson:
 
     @pytest.mark.unit
     def test_feature_includes_detailed_collisions(self, tmp_path, sample_disturbances):
-        """detailedCollisions are included in feature properties."""
+        """DetailedCollisions are included in feature properties."""
         repo = StubDisturbanceRepository(sample_disturbances)
         out = tmp_path / "disturbances.geojson"
 
