@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.26.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.25.0...fcd-manager-v0.26.0) (2026-04-14)
+
+
+### Features
+
+* introduce ObjectStorageSync protocol and configurable backend factory ([#385](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/385)) ([5dbae63](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/5dbae6362077adaaefd68a06daabac73b64cdfc7))
+
 ## [0.25.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.24.0...fcd-manager-v0.25.0) (2026-04-11)
 
 
