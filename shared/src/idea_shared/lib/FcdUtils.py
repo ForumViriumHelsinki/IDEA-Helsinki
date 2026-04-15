@@ -434,9 +434,7 @@ def _run_pending_migrations(
             changelog[seg_id]["timeseries_migrated_at"] = datetime.now(
                 processing_date.tzinfo or UTC
             ).isoformat()
-            logger.info(
-                f"Timeseries migration complete for '{old_id}' → '{seg_id}'."
-            )
+            logger.info(f"Timeseries migration complete for '{old_id}' → '{seg_id}'.")
         except Exception as exc:
             logger.error(
                 f"Timeseries migration failed for '{old_id}' → '{seg_id}': {exc}. "

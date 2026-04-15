@@ -95,9 +95,7 @@ def main() -> int:
             no_match += 1
             continue
 
-        matches = find_matching_historical_segments(
-            {new_id: current_geom}, candidates
-        )
+        matches = find_matching_historical_segments({new_id: current_geom}, candidates)
         if new_id not in matches:
             no_match += 1
             continue

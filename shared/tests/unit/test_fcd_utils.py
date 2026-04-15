@@ -522,7 +522,6 @@ class TestUpdateSegmentChangelogGeoInheritance:
         assert "new1" in updated
         assert updated["new1"].get("geo_inherited_from") is None
 
-
     @pytest.mark.unit
     def test_lookback_inherits_from_previous_cycle_archive(self, tmp_path):
         """New segment inherits from an archived segment from a recent past cycle."""
