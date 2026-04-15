@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.27.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.26.0...idea-shared-v0.27.0) (2026-04-15)
+
+
+### Features
+
+* migrate InfluxDB timeseries on segment geo-inheritance ([#391](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/391)) ([4ec879d](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/4ec879d053f8553c19fed7159a1871794262ce36))
+
 ## [0.26.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.25.0...idea-shared-v0.26.0) (2026-04-14)
 
 
