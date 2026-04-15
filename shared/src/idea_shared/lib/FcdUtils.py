@@ -9,7 +9,7 @@ import json
 import re
 import shutil
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -331,6 +331,70 @@ def find_matching_historical_segments(
     return matches
 
 
+def _collect_lookback_candidates(
+    archived_segments: dict,
+    changelog: dict,
+    processing_date: datetime,
+    lookback_hours: float,
+    same_cycle_ids: set[str],
+) -> dict[str, dict]:
+    """Collect archived segments eligible for cross-cycle geo-inheritance.
+
+    Returns archived records whose ``date_archived`` falls within the
+    ``lookback_hours`` window ending at ``processing_date``, excluding:
+
+    - segments already collected as same-cycle candidates, and
+    - segments already referenced as ``geo_inherited_from`` on any existing
+      changelog entry (guards against double-inheritance across cycles).
+
+    Records with a missing or unparseable ``date_archived`` are skipped.
+
+    Args:
+        archived_segments: ``{old_id: record}`` archive dict.
+        changelog: Current changelog, scanned for existing
+            ``geo_inherited_from`` references.
+        processing_date: Timestamp for the current processing cycle.
+        lookback_hours: Size of the lookback window.
+        same_cycle_ids: Segment IDs already included in the same-cycle
+            candidate pool — excluded to avoid duplicate entries.
+
+    Returns:
+        ``{old_id: record}`` of lookback candidates.
+
+    """
+    already_inherited: set[str] = {
+        record["geo_inherited_from"]
+        for record in changelog.values()
+        if isinstance(record, dict) and "geo_inherited_from" in record
+    }
+    cutoff = processing_date - timedelta(hours=lookback_hours)
+
+    candidates: dict[str, dict] = {}
+    for old_id, record in archived_segments.items():
+        if old_id in same_cycle_ids or old_id in already_inherited:
+            continue
+        date_archived_str = record.get("date_archived")
+        if not date_archived_str:
+            continue
+        try:
+            date_archived = datetime.fromisoformat(date_archived_str)
+        except ValueError:
+            continue
+        # Keep naive/aware comparison safe: if one side is naive, treat both
+        # as naive by stripping tzinfo from the aware one.
+        if (date_archived.tzinfo is None) != (processing_date.tzinfo is None):
+            date_archived = date_archived.replace(tzinfo=None)
+            cutoff_cmp = cutoff.replace(tzinfo=None)
+        else:
+            cutoff_cmp = cutoff
+        if date_archived < cutoff_cmp:
+            continue
+        # Strictly cross-cycle: exclude anything archived at the exact same
+        # instant as the current processing_date (that's a same-cycle event).
+        candidates[old_id] = record
+    return candidates
+
+
 def _run_pending_migrations(
     changelog: dict,
     processing_date: datetime,
@@ -353,8 +417,6 @@ def _run_pending_migrations(
             migrator.
 
     """
-    from datetime import timezone as _tz
-
     # Local import keeps the InfluxDB dependency optional for callers that
     # don't provide migration_targets (e.g. unit tests that omit the param).
     from idea_shared.classes.InfluxDBSegmentMigrator import migrate_segment_timeseries
@@ -370,7 +432,7 @@ def _run_pending_migrations(
                 targets=migration_targets,
             )
             changelog[seg_id]["timeseries_migrated_at"] = datetime.now(
-                processing_date.tzinfo or _tz.utc
+                processing_date.tzinfo or UTC
             ).isoformat()
             logger.info(
                 f"Timeseries migration complete for '{old_id}' → '{seg_id}'."
@@ -389,6 +451,7 @@ def update_segment_changelog(
     archive_file_path: str,
     processing_date: datetime,
     migration_targets: list | None = None,
+    lookback_hours: float | None = None,
 ) -> None:
     """Compare a fresh segment mapping file against a master changelog to detect, log, and catalog segment changes.
 
@@ -405,6 +468,13 @@ def update_segment_changelog(
             location), the migrator re-tags the retired segment's timeseries
             points to the new ID and records a ``timeseries_migrated_at``
             marker in the changelog. If ``None``, migration is skipped.
+        lookback_hours: Optional window (hours) for cross-cycle geo-inheritance.
+            When set, archived segments with ``date_archived`` within this
+            window are considered as candidates in addition to same-cycle
+            removals. Archived records are left in place on match; a guard
+            against double-inheritance excludes any ``old_id`` that already
+            appears as ``geo_inherited_from`` on an existing changelog entry.
+            ``None`` (default) preserves the original same-cycle-only behaviour.
 
     """
     # Prepare the Path variables
@@ -522,16 +592,34 @@ def update_segment_changelog(
     if not newly_added_ids and not removed_segments_ids and not modified_ids:
         logger.info("Segment inventory check complete. No changes detected.")
 
-    # Geo-inheritance: when both new and removed segments exist in the same cycle,
-    # check whether any new segment geographically matches a removed one.
-    # If so, the new segment inherits the removed segment's accumulated history so
-    # that the InfluxDB history gap caused by a segment ID change can be bridged.
-    if newly_added_ids and removed_segments_ids:
+    # Geo-inheritance: check whether any new segment geographically matches a
+    # removed one. Same-cycle removals are always eligible; when
+    # ``lookback_hours`` is set, recently archived segments (from previous
+    # cycles) are added as additional candidates to bridge cross-cycle
+    # replacements. If a match is found, the new segment inherits the removed
+    # segment's accumulated history so that the InfluxDB history gap caused by
+    # a segment ID change can be bridged.
+    if newly_added_ids and (removed_segments_ids or lookback_hours is not None):
         removed_records_for_matching = {
             seg_id: archived_segments[seg_id]
             for seg_id in removed_segments_ids
             if seg_id in archived_segments
         }
+        if lookback_hours is not None:
+            lookback_candidates = _collect_lookback_candidates(
+                archived_segments=archived_segments,
+                changelog=changelog,
+                processing_date=processing_date,
+                lookback_hours=lookback_hours,
+                same_cycle_ids=set(removed_records_for_matching.keys()),
+            )
+            removed_records_for_matching.update(lookback_candidates)
+            if lookback_candidates:
+                logger.info(
+                    f"Considering {len(lookback_candidates)} cross-cycle "
+                    f"archived segment(s) within {lookback_hours}h lookback "
+                    "for geo-inheritance."
+                )
         new_geometries_for_matching = {
             seg_id: fresh_segments[seg_id] for seg_id in newly_added_ids
         }
@@ -691,6 +779,7 @@ def update_segment_changelog_from_repo(
     repository: SegmentRepository,
     processing_date: datetime,
     migration_targets: list | None = None,
+    lookback_hours: float | None = None,
 ) -> None:
     """Update segment changelog using a SegmentRepository.
 
@@ -708,6 +797,12 @@ def update_segment_changelog_from_repo(
             new ID and records a ``timeseries_migrated_at`` marker.  Pending
             migrations are also retried on every call until they succeed.  If
             ``None``, migration is skipped.
+        lookback_hours: Optional window (hours) for cross-cycle geo-inheritance.
+            When set, archived segments with ``date_archived`` within this
+            window are considered as candidates in addition to same-cycle
+            removals. A guard against double-inheritance excludes any
+            ``old_id`` already referenced as ``geo_inherited_from`` in the
+            changelog. ``None`` (default) preserves same-cycle-only behaviour.
 
     """
     segments_data = repository.get_segments()
@@ -729,12 +824,27 @@ def update_segment_changelog_from_repo(
 
     # Geo-inheritance: check whether any new segment geographically matches a
     # removed one and inherit its history (mirrors update_segment_changelog).
-    if result.newly_added_ids and result.removed_ids:
+    if result.newly_added_ids and (result.removed_ids or lookback_hours is not None):
         removed_records_for_matching = {
             seg_id: result.archive[seg_id]
             for seg_id in result.removed_ids
             if seg_id in result.archive
         }
+        if lookback_hours is not None:
+            lookback_candidates = _collect_lookback_candidates(
+                archived_segments=result.archive,
+                changelog=result.changelog,
+                processing_date=processing_date,
+                lookback_hours=lookback_hours,
+                same_cycle_ids=set(removed_records_for_matching.keys()),
+            )
+            removed_records_for_matching.update(lookback_candidates)
+            if lookback_candidates:
+                logger.info(
+                    f"Considering {len(lookback_candidates)} cross-cycle "
+                    f"archived segment(s) within {lookback_hours}h lookback "
+                    "for geo-inheritance."
+                )
         new_geometries_for_matching = {
             seg_id: fresh_segments[seg_id] for seg_id in result.newly_added_ids
         }

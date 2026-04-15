@@ -29,6 +29,20 @@ FCD_MAPPING_MAX_AGE_MINUTES = (
     15  # FCD mapping file should be updated at least every 15 minutes
 )
 
+# Cross-cycle geo-inheritance lookback window.
+# When set, `update_segment_changelog` will also consider segments archived
+# within this many hours before the current cycle as candidates for
+# geo-based history inheritance. This handles the case where TomTom removes
+# a segment in one cycle and publishes its replacement in a later cycle.
+# `None` preserves the original same-cycle-only behaviour (opt-in rollout).
+# Guard: an archived segment is only used once; subsequent cycles exclude
+# sources that already appear as `geo_inherited_from` in the changelog.
+SEGMENT_GEO_INHERITANCE_LOOKBACK_HOURS: float | None = (
+    float(os.environ["SEGMENT_GEO_INHERITANCE_LOOKBACK_HOURS"])
+    if os.getenv("SEGMENT_GEO_INHERITANCE_LOOKBACK_HOURS")
+    else None
+)
+
 # FCD segment id and geometry info = segment ids and their location
 FCD_MAP_DATA_FILE_LOCATION = os.path.join(DATA_DIR, "segments_mapping.json")
 
