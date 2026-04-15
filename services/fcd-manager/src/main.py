@@ -47,8 +47,6 @@ from idea_shared.lib.Constants.Constants import (
     FCD_SHUTDOWN_TIMEOUT_SECONDS,
     FCD_UPDATE_FREQUENCY,
     FCD_WRITE_QUEUE_MAX_SIZE,
-    GCS_BUCKET_NAME,
-    GCS_PREFIX,
     HEALTH_CHECK_CACHE_TTL_SECONDS,
     HEALTH_CHECK_PORT,
     MASTER_SEGMENT_HISTORY_FILE_LOCATION,
@@ -95,7 +93,7 @@ pipeline_check = None
 thread_coordinator = None
 
 # SQLite migration globals
-gcs_sync = None
+storage_sync = None
 use_sqlite = False
 sqlite_dir = None
 
@@ -318,13 +316,13 @@ def run(
                     finally:
                         _write_in_progress.clear()
 
-                    # When using SQLite, upload DB to GCS and export JSON for compatibility
-                    if use_sqlite and gcs_sync is not None:
+                    # When using SQLite, upload DB to object storage and export JSON for compatibility
+                    if use_sqlite and storage_sync is not None:
                         from pathlib import Path
 
                         from idea_shared.data.json_export import export_segments_json
 
-                        gcs_sync.upload(
+                        storage_sync.upload(
                             sqlite_dir / SQLITE_SEGMENTS_DB,
                             SQLITE_SEGMENTS_DB,
                         )
@@ -522,7 +520,7 @@ def main():
     logger.info(f"  - Details:   http://0.0.0.0:{HEALTH_CHECK_PORT}/health/detail")
 
     # Initialize segment repository for data access
-    global gcs_sync, use_sqlite, sqlite_dir
+    global storage_sync, use_sqlite, sqlite_dir
 
     flags = get_feature_flags()
     use_sqlite = flags.is_enabled(FeatureFlag.USE_SQLITE_STORAGE)
@@ -530,7 +528,7 @@ def main():
     if use_sqlite:
         from pathlib import Path
 
-        from idea_shared.data.gcs_sync import GCSSync
+        from idea_shared.data.object_storage import create_object_storage_sync
         from idea_shared.data.sqlite_backend import create_sqlite_repositories
         from idea_shared.health.idea_checks import SqliteHealthCheck
 
@@ -541,11 +539,8 @@ def main():
         db_path = sqlite_dir / SQLITE_SEGMENTS_DB
         segment_repo, _, _ = create_sqlite_repositories(db_path)
 
-        # Initialize GCS sync for uploading database to other services
-        gcs_sync = GCSSync(
-            bucket_name=GCS_BUCKET_NAME,
-            prefix=GCS_PREFIX,
-        )
+        # Initialize object storage sync for uploading database to other services
+        storage_sync = create_object_storage_sync()
 
         # Add SQLite health check
         sqlite_health = SqliteHealthCheck(

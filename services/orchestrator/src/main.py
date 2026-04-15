@@ -114,12 +114,10 @@ async def main():
     if use_sqlite:
         from pathlib import Path
 
-        from idea_shared.data.gcs_sync import GCSSync
+        from idea_shared.data.object_storage import create_object_storage_sync
         from idea_shared.data.sqlite_backend import create_sqlite_repositories
         from idea_shared.health.idea_checks import SqliteHealthCheck
         from idea_shared.lib.Constants.Constants import (
-            GCS_BUCKET_NAME,
-            GCS_PREFIX,
             SQLITE_DIR,
             SQLITE_DISTURBANCES_DB,
             SQLITE_PROFILES_DB,
@@ -130,17 +128,17 @@ async def main():
         sqlite_dir = Path(SQLITE_DIR)
         sqlite_dir.mkdir(parents=True, exist_ok=True)
 
-        # Initialize GCS sync
-        gcs_sync = GCSSync(bucket_name=GCS_BUCKET_NAME, prefix=GCS_PREFIX)
+        # Initialize object storage sync
+        storage_sync = create_object_storage_sync()
 
-        # Download databases from GCS (written by other services)
+        # Download databases from object storage (written by other services)
         segments_db_path = sqlite_dir / SQLITE_SEGMENTS_DB
         disturbances_db_path = sqlite_dir / SQLITE_DISTURBANCES_DB
         profiles_db_path = sqlite_dir / SQLITE_PROFILES_DB
 
-        logger.info("Downloading databases from GCS...")
-        gcs_sync.download_if_changed(SQLITE_SEGMENTS_DB, segments_db_path)
-        gcs_sync.download_if_changed(SQLITE_DISTURBANCES_DB, disturbances_db_path)
+        logger.info("Downloading databases from object storage...")
+        storage_sync.download_if_changed(SQLITE_SEGMENTS_DB, segments_db_path)
+        storage_sync.download_if_changed(SQLITE_DISTURBANCES_DB, disturbances_db_path)
 
         # Create repos from downloaded databases
         seg_repos = create_sqlite_repositories(segments_db_path)
