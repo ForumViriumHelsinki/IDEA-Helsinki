@@ -367,7 +367,16 @@ def _collect_lookback_candidates(
         for record in changelog.values()
         if isinstance(record, dict) and "geo_inherited_from" in record
     }
-    cutoff = processing_date - timedelta(hours=lookback_hours)
+    # Normalize processing_date to UTC-aware so comparisons against archived
+    # timestamps are unambiguous regardless of whether callers pass naive or
+    # aware values. Naive inputs are assumed to represent UTC, matching the
+    # convention used elsewhere in this module (see _run_pending_migrations).
+    processing_date_utc = (
+        processing_date
+        if processing_date.tzinfo is not None
+        else processing_date.replace(tzinfo=UTC)
+    )
+    cutoff = processing_date_utc - timedelta(hours=lookback_hours)
 
     candidates: dict[str, dict] = {}
     for old_id, record in archived_segments.items():
@@ -380,14 +389,11 @@ def _collect_lookback_candidates(
             date_archived = datetime.fromisoformat(date_archived_str)
         except ValueError:
             continue
-        # Keep naive/aware comparison safe: if one side is naive, treat both
-        # as naive by stripping tzinfo from the aware one.
-        if (date_archived.tzinfo is None) != (processing_date.tzinfo is None):
-            date_archived = date_archived.replace(tzinfo=None)
-            cutoff_cmp = cutoff.replace(tzinfo=None)
-        else:
-            cutoff_cmp = cutoff
-        if date_archived < cutoff_cmp:
+        # Normalize archived timestamp to UTC-aware for comparison with the
+        # (already UTC-aware) cutoff. Assumes naive archived timestamps are UTC.
+        if date_archived.tzinfo is None:
+            date_archived = date_archived.replace(tzinfo=UTC)
+        if date_archived < cutoff:
             continue
         # Strictly cross-cycle: exclude anything archived at the exact same
         # instant as the current processing_date (that's a same-cycle event).
