@@ -168,12 +168,18 @@ def main():
             cache_ttl=WFS_HEALTH_CHECK_CACHE_TTL,
         ),
     )
-    health_server.add_check(
-        "fcd_mapping",
-        FCDMappingHealthCheck(
-            max_age_minutes=FCD_MAPPING_MAX_AGE_MINUTES,
-        ),
-    )
+    # Only register the legacy segments_mapping.json check when running in
+    # JSON-file mode. In SQLite mode the file is no longer produced on this
+    # pod's EmptyDir volume (see PR #350), so the critical check would fail
+    # forever and keep the deployment 0/1 Available. SQLite-backed segment
+    # integrity is covered by the sqlite_segments check registered below.
+    if not use_sqlite:
+        health_server.add_check(
+            "fcd_mapping",
+            FCDMappingHealthCheck(
+                max_age_minutes=FCD_MAPPING_MAX_AGE_MINUTES,
+            ),
+        )
     health_server.add_check(
         "output_file",
         OutputFileHealthCheck(critical=False),
