@@ -522,6 +522,129 @@ class TestUpdateSegmentChangelogGeoInheritance:
         assert "new1" in updated
         assert updated["new1"].get("geo_inherited_from") is None
 
+    @pytest.mark.unit
+    def test_lookback_inherits_from_previous_cycle_archive(self, tmp_path):
+        """New segment inherits from an archived segment from a recent past cycle."""
+        archive = {
+            "old1": {
+                "current_geometry": _make_linestring(SEG_A_COORDS),
+                "current_hash": "old_hash",
+                "date_added": "2025-01-01T00:00:00",
+                "history": [],
+                "date_archived": "2025-05-31T22:00:00",  # 2 h before processing
+            }
+        }
+        # No existing changelog entries; no same-cycle removals.
+        mapping_path = self._write_mapping(tmp_path, {"new1": SEG_B_COORDS})
+        changelog_path = self._write_changelog(tmp_path, {})
+        archive_path = self._write_archive(tmp_path, archive)
+
+        processing_date = datetime.fromisoformat("2025-06-01T00:00:00")
+        FcdUtils.update_segment_changelog(
+            mapping_path,
+            changelog_path,
+            str(archive_path),
+            processing_date,
+            lookback_hours=24,
+        )
+
+        updated = json.loads(Path(changelog_path).read_text())
+        assert updated["new1"].get("geo_inherited_from") == "old1"
+        # Inherited history contains the old segment's final geometry entry.
+        assert len(updated["new1"]["history"]) == 1
+
+    @pytest.mark.unit
+    def test_lookback_respects_window(self, tmp_path):
+        """Archived segment outside the lookback window is not used."""
+        archive = {
+            "old1": {
+                "current_geometry": _make_linestring(SEG_A_COORDS),
+                "current_hash": "old_hash",
+                "date_added": "2025-01-01T00:00:00",
+                "history": [],
+                "date_archived": "2025-05-30T00:00:00",  # 48 h before processing
+            }
+        }
+        mapping_path = self._write_mapping(tmp_path, {"new1": SEG_B_COORDS})
+        changelog_path = self._write_changelog(tmp_path, {})
+        archive_path = self._write_archive(tmp_path, archive)
+
+        processing_date = datetime.fromisoformat("2025-06-01T00:00:00")
+        FcdUtils.update_segment_changelog(
+            mapping_path,
+            changelog_path,
+            str(archive_path),
+            processing_date,
+            lookback_hours=24,
+        )
+
+        updated = json.loads(Path(changelog_path).read_text())
+        assert "geo_inherited_from" not in updated["new1"]
+
+    @pytest.mark.unit
+    def test_lookback_skips_already_inherited_source(self, tmp_path):
+        """An archived source already used as geo_inherited_from is not re-used."""
+        archive = {
+            "old1": {
+                "current_geometry": _make_linestring(SEG_A_COORDS),
+                "current_hash": "old_hash",
+                "date_added": "2025-01-01T00:00:00",
+                "history": [],
+                "date_archived": "2025-05-31T22:00:00",
+            }
+        }
+        # Existing changelog entry already inherits from old1 (previous cycle).
+        changelog = {
+            "prev_new": {
+                "current_geometry": _make_linestring(SEG_C_COORDS),
+                "current_hash": "prev_hash",
+                "date_added": "2025-05-31T22:05:00",
+                "history": [],
+                "geo_inherited_from": "old1",
+            }
+        }
+        mapping_path = self._write_mapping(
+            tmp_path, {"prev_new": SEG_C_COORDS, "new1": SEG_B_COORDS}
+        )
+        changelog_path = self._write_changelog(tmp_path, changelog)
+        archive_path = self._write_archive(tmp_path, archive)
+
+        processing_date = datetime.fromisoformat("2025-06-01T00:00:00")
+        FcdUtils.update_segment_changelog(
+            mapping_path,
+            changelog_path,
+            str(archive_path),
+            processing_date,
+            lookback_hours=24,
+        )
+
+        updated = json.loads(Path(changelog_path).read_text())
+        assert "geo_inherited_from" not in updated["new1"]
+
+    @pytest.mark.unit
+    def test_lookback_disabled_by_default(self, tmp_path):
+        """Omitting lookback_hours preserves the original same-cycle-only behaviour."""
+        archive = {
+            "old1": {
+                "current_geometry": _make_linestring(SEG_A_COORDS),
+                "current_hash": "old_hash",
+                "date_added": "2025-01-01T00:00:00",
+                "history": [],
+                "date_archived": "2025-05-31T23:30:00",  # recent, but lookback off
+            }
+        }
+        mapping_path = self._write_mapping(tmp_path, {"new1": SEG_B_COORDS})
+        changelog_path = self._write_changelog(tmp_path, {})
+        archive_path = self._write_archive(tmp_path, archive)
+
+        processing_date = datetime.fromisoformat("2025-06-01T00:00:00")
+        FcdUtils.update_segment_changelog(
+            mapping_path, changelog_path, str(archive_path), processing_date
+        )
+
+        updated = json.loads(Path(changelog_path).read_text())
+        assert "geo_inherited_from" not in updated["new1"]
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

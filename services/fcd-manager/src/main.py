@@ -50,6 +50,7 @@ from idea_shared.lib.Constants.Constants import (
     HEALTH_CHECK_CACHE_TTL_SECONDS,
     HEALTH_CHECK_PORT,
     MASTER_SEGMENT_HISTORY_FILE_LOCATION,
+    SEGMENT_GEO_INHERITANCE_LOOKBACK_HOURS,
     SQLITE_DIR,
     SQLITE_SEGMENTS_DB,
     UPDATE_FRESHNESS_DEGRADED_MINUTES,
@@ -303,7 +304,10 @@ def run(
                         ]
                         if segment_repo is not None:
                             FcdUtils.update_segment_changelog_from_repo(
-                                segment_repo, current_time, migration_targets=migration_targets
+                                segment_repo,
+                                current_time,
+                                migration_targets=migration_targets,
+                                lookback_hours=SEGMENT_GEO_INHERITANCE_LOOKBACK_HOURS,
                             )
                         else:
                             FcdUtils.update_segment_changelog(
@@ -312,6 +316,7 @@ def run(
                                 ARCHIVED_SEGMENT_HISTORY_FILE_LOCATION,
                                 current_time,
                                 migration_targets=migration_targets,
+                                lookback_hours=SEGMENT_GEO_INHERITANCE_LOOKBACK_HOURS,
                             )
                     finally:
                         _write_in_progress.clear()
