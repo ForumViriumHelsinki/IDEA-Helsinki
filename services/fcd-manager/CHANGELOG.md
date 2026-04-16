@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.28.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.27.0...fcd-manager-v0.28.0) (2026-04-16)
+
+
+### Features
+
+* lookback window for cross-cycle segment geo-inheritance ([#395](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/395)) ([4c4c2ac](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/4c4c2acb740d3430bc532b0e5eaa86eaae8a7efd))
+
 ## [0.27.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.26.0...fcd-manager-v0.27.0) (2026-04-15)
 
 

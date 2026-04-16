@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.28.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.27.0...traffic-monitor-v0.28.0) (2026-04-16)
+
+
+### Bug Fixes
+
+* **traffic-monitor:** gate fcd_mapping health check on JSON-file mode ([#399](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/399)) ([791933c](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/791933c1277c42d3740492cd7a45799f5d5313fa))
+
 ## [0.27.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.26.0...traffic-monitor-v0.27.0) (2026-04-15)
 
 
