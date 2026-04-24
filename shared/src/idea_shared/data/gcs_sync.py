@@ -73,8 +73,11 @@ class GCSSync:
             if not self._bucket.exists():
                 logger.info("Bucket %s does not exist. Creating it...", bucket_name)
                 self._bucket.create()
+        except (gcs_exceptions.Forbidden, gcs_exceptions.Conflict):
+            # Expected in production (lack of bucket-level permissions) or race conditions.
+            pass
         except Exception as e:
-            logger.warning("Failed to check or create bucket %s: %s", bucket_name, e)
+            logger.warning("Unexpected error checking/creating bucket %s: %s", bucket_name, e)
 
         self._prefix = prefix.rstrip("/") + "/" if prefix else ""
         self._etag_cache: dict[str, str] = {}
