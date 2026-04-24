@@ -77,7 +77,9 @@ class GCSSync:
             # Expected in production (lack of bucket-level permissions) or race conditions.
             pass
         except Exception as e:
-            logger.warning("Unexpected error checking/creating bucket %s: %s", bucket_name, e)
+            logger.warning(
+                "Unexpected error checking/creating bucket %s: %s", bucket_name, e
+            )
 
         self._prefix = prefix.rstrip("/") + "/" if prefix else ""
         self._etag_cache: dict[str, str] = {}
