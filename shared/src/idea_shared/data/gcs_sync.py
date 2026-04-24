@@ -68,6 +68,14 @@ class GCSSync:
     ) -> None:
         self._client = storage.Client(credentials=credentials)
         self._bucket = self._client.bucket(bucket_name)
+
+        try:
+            if not self._bucket.exists():
+                logger.info("Bucket %s does not exist. Creating it...", bucket_name)
+                self._bucket.create()
+        except Exception as e:
+            logger.warning("Failed to check or create bucket %s: %s", bucket_name, e)
+
         self._prefix = prefix.rstrip("/") + "/" if prefix else ""
         self._etag_cache: dict[str, str] = {}
         logger.info(
