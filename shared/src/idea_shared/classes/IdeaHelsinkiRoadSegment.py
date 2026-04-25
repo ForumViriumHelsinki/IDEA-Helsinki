@@ -4,6 +4,7 @@
 import asyncio
 from contextlib import nullcontext
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
@@ -12,6 +13,10 @@ import pandas as pd
 # ------------------------------------------------------#
 from idea_shared.classes.FCDInfluxDBManager import FCDInfluxDBManager
 from idea_shared.classes.Logger import Logger
+from idea_shared.data.profile_serialization import (
+    deserialize_profile,
+    serialize_profile,
+)
 from idea_shared.lib import IdeaHelsinkiDataPreProcessor
 
 # ------------------------------------------------------#
@@ -23,6 +28,9 @@ from idea_shared.lib.idea.profile.profile import calculate_profile_from_hourly
 from idea_shared.lib.idea.validation.validation import validate_roadwork
 from idea_shared.resilience import CircuitBreaker
 from idea_shared.resilience.retry import ErrorTracker, calculate_backoff
+
+if TYPE_CHECKING:
+    from idea_shared.data.repositories import ProfileRepository
 
 
 class IdeaHelsinkiRoadSegment:
@@ -51,11 +59,13 @@ class IdeaHelsinkiRoadSegment:
         profiling_semaphore: asyncio.Semaphore | None = None,
         validation_semaphore: asyncio.Semaphore | None = None,
         validation_history_weeks: int = 4,
+        profile_repository: "ProfileRepository | None" = None,
     ):
         self.segment_id = segment_id
         self.validation_frequency: int = validation_frequency
         self.profile_time_frame_weeks: int = profile_time_frame_weeks
         self.profile_end_lead_time_hours: int = profile_end_lead_time_hours
+        self.profile_repository = profile_repository
         self.db_org: str = db_org
         self.db_url: str = db_url
         self.db_fcd_bucket: str = db_fcd_bucket
@@ -166,7 +176,15 @@ class IdeaHelsinkiRoadSegment:
         # Sleep for 10 seconds before beginning validation, so the current segment data is updated and available.
         await asyncio.sleep(10)
 
-        if self.segment_profile is None:
+        needs_generation = True
+        if self.segment_profile is not None:
+            needs_generation = False
+        elif self.profile_repository is not None:
+            existing_data = self.profile_repository.get_profile(self.segment_id)
+            if existing_data is not None:
+                needs_generation = False
+
+        if needs_generation:
             self.logger.info("Generating segment profile...")
             async with (
                 self.profiling_semaphore
@@ -194,7 +212,31 @@ class IdeaHelsinkiRoadSegment:
 
                     if not profile.empty:
                         self.logger.info("Segment profile generated")
-                        self.segment_profile = profile
+                        if self.profile_repository is not None:
+                            try:
+                                serialized_profile = serialize_profile(profile)
+                                now_str = datetime.now(UTC).isoformat()
+                                # Profile expires 1 week after generation. Can be re-generated if needed.
+                                expires_str = (
+                                    datetime.now(UTC) + timedelta(days=7)
+                                ).isoformat()
+                                self.profile_repository.save_profile(
+                                    segment_id=self.segment_id,
+                                    profile_data=serialized_profile,
+                                    computed_at=now_str,
+                                    expires_at=expires_str,
+                                )
+                                self.segment_profile = (
+                                    None  # explicit None to drop memory
+                                )
+                            except Exception as e:
+                                self.logger.error(
+                                    f"Failed to save profile to SQLite: {e}"
+                                )
+                                # fallback to memory if save fails
+                                self.segment_profile = profile
+                        else:
+                            self.segment_profile = profile
                     else:
                         self.logger.error("IDEA returned an empty segment profile")
                         return
@@ -206,6 +248,8 @@ class IdeaHelsinkiRoadSegment:
                         f"{self.profiling_start_date} to {self.profiling_end_date}."
                     )
                     return
+        else:
+            self.logger.info("DEBUG : Segment profile FETCHED FROM DATABASE :)")
 
         assert self.last_validation_update is not None, (
             "last_validation_update must be set before validation"
@@ -237,14 +281,36 @@ class IdeaHelsinkiRoadSegment:
                 )
 
         if segment_data_to_validate is not None and not segment_data_to_validate.empty:
-            segment_validation = await asyncio.to_thread(
-                validate_roadwork,
-                fcd_during_roadwork=segment_data_to_validate,
-                profile=self.segment_profile,
-                last_segment_validation=self.last_segment_validation
-                if self.last_segment_validation is not None
-                else pd.DataFrame(),
-            )
+            active_profile = self.segment_profile
+            if self.profile_repository is not None:
+                serialized_data = self.profile_repository.get_profile(self.segment_id)
+                if serialized_data is not None:
+                    try:
+                        active_profile = deserialize_profile(serialized_data)
+                    except Exception as e:
+                        self.logger.error(
+                            f"Failed to deserialize profile for validation: {e}"
+                        )
+                        return
+
+            if active_profile is None:
+                self.logger.error("Active profile is None during validation phase.")
+                return
+
+            try:
+                segment_validation = await asyncio.to_thread(
+                    validate_roadwork,
+                    fcd_during_roadwork=segment_data_to_validate,
+                    profile=active_profile,
+                    last_segment_validation=self.last_segment_validation
+                    if self.last_segment_validation is not None
+                    else pd.DataFrame(),
+                )
+            finally:
+                # Explicitly delete the local DataFrame reference to ensure garbage
+                # collection can reclaim the memory immediately.
+                del active_profile
+
             if not segment_validation.empty:
                 if await self.__write_dataframe_to_influxdb(
                     df=segment_validation,
@@ -677,6 +743,11 @@ class IdeaHelsinkiRoadSegment:
             )
             # Reassign the segment_profile attribute to None. This change will be caught in the main loop, and the segment will be reprofiled if needed.
             self.segment_profile = None
+            if self.profile_repository is not None:
+                try:
+                    self.profile_repository.delete_profile(self.segment_id)
+                except Exception as e:
+                    self.logger.error(f"Failed to delete profile from SQLite: {e}")
 
         if new_disturbance_end_date.date() != self.disturbance_end_date.date():
             self.disturbance_end_date = new_disturbance_end_date

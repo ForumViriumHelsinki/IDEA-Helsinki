@@ -149,7 +149,7 @@ async def main():
 
         # Create local profiles database (not shared via GCS)
         profile_repos = create_sqlite_repositories(profiles_db_path)
-        _profile_repo = profile_repos[2]  # SqliteProfileRepository
+        profile_repo = profile_repos[2]  # SqliteProfileRepository
 
         # Add SQLite health checks
         health_server.add_check(
@@ -182,6 +182,7 @@ async def main():
         disturbance_repo = JsonDisturbanceRepository(
             data_path=TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION
         )
+        profile_repo = None
         logger.info("Using JSON file storage backend")
 
     # Create an instance of the manager with the required configuration.
@@ -195,6 +196,7 @@ async def main():
         traffic_disturbance_update_frequency=TRAFFIC_DISTURBANCE_UPDATE_FREQUENCY,
         target_fcd_segments=None,
         disturbance_repository=disturbance_repo,
+        profile_repository=profile_repo,
         db_org=INFLUX_DB_ORG,
         db_url=INFLUX_DB_URL,
         db_fcd_bucket=INFLUX_DB_FCD_BUCKET,

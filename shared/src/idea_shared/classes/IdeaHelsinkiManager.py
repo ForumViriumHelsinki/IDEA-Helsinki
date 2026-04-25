@@ -17,7 +17,7 @@ from idea_shared.resilience.retry import ErrorTracker, calculate_backoff
 from idea_shared.threading.file_locks import read_json_with_retry
 
 if TYPE_CHECKING:
-    from idea_shared.data.repositories import DisturbanceRepository
+    from idea_shared.data.repositories import DisturbanceRepository, ProfileRepository
 
 
 class IdeaHelsinkiManager:
@@ -55,6 +55,7 @@ class IdeaHelsinkiManager:
         target_fcd_segments: list | None = None,
         validation_max_age_days: int | None = None,
         disturbance_repository: DisturbanceRepository | None = None,
+        profile_repository: ProfileRepository | None = None,
     ):
         self.validation_frequency = validation_frequency
         self.profile_time_frame_weeks = profile_time_frame_weeks
@@ -65,6 +66,8 @@ class IdeaHelsinkiManager:
             traffic_disturbance_data_file_location
         )
         self.traffic_disturbance_update_frequency = traffic_disturbance_update_frequency
+        self.disturbance_repository = disturbance_repository
+        self.profile_repository = profile_repository
         self.db_org: str = db_org
         self.db_url: str = db_url
         self.db_fcd_bucket: str = db_fcd_bucket
@@ -96,6 +99,9 @@ class IdeaHelsinkiManager:
             recovery_timeout=60.0,
             half_open_max_calls=3,
         )
+
+        # Track when we last cleaned up expired profiles from the SQLite database
+        self.last_profile_cleanup: datetime | None = None
 
     def _get_disturbance_data(self, file_path: str) -> dict:
         """Loads the latest validated disturbance data with intersections.
@@ -155,6 +161,27 @@ class IdeaHelsinkiManager:
         self.last_cycle_time = datetime.now(UTC)
 
         self.logger.info("Manager starting new cycle: discovering and updating tasks.")
+
+        # Periodic cleanup of expired segment profiles (once per hour)
+        if self.profile_repository is not None:
+            if self.last_profile_cleanup is None or (
+                datetime.now(UTC) - self.last_profile_cleanup
+            ) > timedelta(hours=1):
+                try:
+                    # Executes sync database deletion. Run in a thread if it blocks the loop for too long,
+                    # but typically this is a fast indexed deletion.
+                    deleted_count = await asyncio.to_thread(
+                        self.profile_repository.delete_expired_profiles
+                    )
+                    self.logger.info(
+                        f"Cleanup: Removed {deleted_count} expired profiles from SQLite."
+                    )
+                except Exception as e:
+                    self.logger.error(
+                        f"Failed to cleanup expired profiles from SQLite: {e}"
+                    )
+                finally:
+                    self.last_profile_cleanup = datetime.now(UTC)
 
         # Load the latest disturbance data with intersections
         disturbance_data = self._get_disturbance_data(
@@ -221,6 +248,7 @@ class IdeaHelsinkiManager:
                     profiling_semaphore=self._profiling_semaphore,
                     validation_semaphore=self._validation_semaphore,
                     validation_history_weeks=self.validation_history_weeks,
+                    profile_repository=self.profile_repository,
                 )
                 # Wrap worker lifecycle with error isolation
                 task = asyncio.create_task(
