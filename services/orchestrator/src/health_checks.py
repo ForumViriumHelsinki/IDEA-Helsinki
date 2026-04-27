@@ -19,6 +19,8 @@ from idea_shared.lib.Constants.Constants import (
     DISTURBANCE_DATA_MAX_AGE_MINUTES,
     HEALTH_CHECK_FCD_DATABASE,
     HEALTH_CHECK_VALIDATION_DATABASE,
+    INFLUX_FCD_MEASUREMENT,
+    INFLUX_VALIDATION_MEASUREMENT,
     INFLUXDB_CONNECTION_TTL_SECONDS,
     INFLUXDB_MAX_CONNECTIONS,
     INFLUXDB_PING_CACHE_TTL_SECONDS,
@@ -119,6 +121,20 @@ class InfluxDBConnectionManager:
             for instance in cls._instances.values():
                 instance.close()
             cls._instances.clear()
+
+    @classmethod
+    def cleanup_all_sync(cls):
+        """Close all connections without taking the asyncio lock.
+
+        Used during process shutdown when the health-server thread (which owns
+        the loop ``cls._lock`` is bound to) has already been joined and no
+        concurrent access is possible.  Calling the async ``cleanup_all`` from
+        the worker loop after the lock has bound to the health-server loop
+        raises ``RuntimeError: ... is bound to a different event loop``.
+        """
+        for instance in cls._instances.values():
+            instance.close()
+        cls._instances.clear()
 
     async def get_client(self) -> InfluxDBClient:
         """Get or create a client instance (thread-safe)."""
@@ -261,7 +277,7 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
                         query_api=query_api,
                         org=self.org,
                         bucket=self.bucket,
-                        measurement="fcd_segment",
+                        measurement=INFLUX_FCD_MEASUREMENT,
                         freshness_threshold_minutes=freshness_threshold_minutes,
                         backfill_lookback_days=self.backfill_lookback_days,
                     )
@@ -457,7 +473,7 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
                     query = f"""
                     from(bucket: "{self.bucket}")
                         |> range(start: -24h)
-                        |> filter(fn: (r) => r["_measurement"] == "validation_result")
+                        |> filter(fn: (r) => r["_measurement"] == "{INFLUX_VALIDATION_MEASUREMENT}")
                         |> keep(columns: ["_time"])
                         |> limit(n: 1)
                     """
@@ -474,6 +490,27 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
                             if last_write_time:
                                 break
 
+                        if last_write_time is None:
+                            # Bucket reachable but no validation rows in 24h.
+                            # Treat as degraded so the gap is visible in /health/detail
+                            # rather than masked behind a healthy ping.
+                            warning_msg = (
+                                f"Validation database accessible but no '{INFLUX_VALIDATION_MEASUREMENT}' "
+                                f"data in last 24h (queried from {time_range['start']} to {time_range['end']})"
+                            )
+                            logger.warning(warning_msg)
+                            return HealthCheckResult(
+                                name=self.name,
+                                status="degraded",
+                                message=warning_msg,
+                                metadata={
+                                    "bucket": self.bucket,
+                                    "measurement": INFLUX_VALIDATION_MEASUREMENT,
+                                    "has_recent_data": False,
+                                    "query_time_range": time_range,
+                                },
+                            )
+
                         logger.debug(
                             f"Validation database health check passed: bucket '{self.bucket}' accessible"
                         )
@@ -483,11 +520,8 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
                             message="Validation database is accessible",
                             metadata={
                                 "bucket": self.bucket,
-                                "last_write": (
-                                    last_write_time.isoformat()
-                                    if last_write_time
-                                    else None
-                                ),
+                                "measurement": INFLUX_VALIDATION_MEASUREMENT,
+                                "last_write": last_write_time.isoformat(),
                                 "query_time_range": time_range,
                             },
                         )
@@ -508,18 +542,24 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
                             },
                         )
                     except Exception as query_error:
-                        # Other errors - treat as accessible but empty
-                        logger.warning(
-                            f"Validation database accessible but no recent data in bucket '{self.bucket}'"
+                        # Unexpected exception — surface the failure rather
+                        # than masking it as "healthy (empty bucket)". This
+                        # branch previously hid SSL errors, network blips, and
+                        # decode failures behind a healthy status.
+                        error_msg = (
+                            f"Validation database query failed for bucket "
+                            f"'{self.bucket}' with unexpected {type(query_error).__name__}: "
+                            f"{str(query_error)}"
                         )
+                        logger.warning(error_msg)
                         return HealthCheckResult(
                             name=self.name,
-                            status="healthy",
-                            message="Validation database is accessible (no recent data)",
+                            status="degraded",
+                            message=error_msg,
                             metadata={
                                 "bucket": self.bucket,
-                                "note": "Database may be empty",
                                 "error_type": type(query_error).__name__,
+                                "error_details": str(query_error),
                                 "query_time_range": time_range,
                             },
                         )
@@ -769,8 +809,13 @@ class WorkerStatusHealthCheck(HealthCheck):
     async def check(self) -> HealthCheckResult:
         """Check status of worker tasks."""
         try:
-            # Get active segments count
-            total_workers = len(self.manager.active_segments)
+            # Snapshot active_segments before iterating: the worker loop runs on
+            # a different OS thread (uvicorn now lives on its own thread/loop)
+            # and may add/pop entries during iteration, which would raise
+            # ``RuntimeError: dictionary changed size during iteration``.
+            # ``dict(...)`` is a single C-level call and atomic under the GIL.
+            active_segments_snapshot = dict(self.manager.active_segments)
+            total_workers = len(active_segments_snapshot)
 
             if total_workers == 0:
                 # No workers is normal when no disturbances are active
@@ -788,7 +833,7 @@ class WorkerStatusHealthCheck(HealthCheck):
             failed_workers = 0
             current_task_ids = set()
 
-            for _segment_id, segment_info in self.manager.active_segments.items():
+            for _segment_id, segment_info in active_segments_snapshot.items():
                 task = segment_info["task"]
                 task_id = id(task)
                 current_task_ids.add(task_id)

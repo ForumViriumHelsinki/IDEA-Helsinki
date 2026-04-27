@@ -26,6 +26,7 @@ from idea_shared.health.idea_checks import (
     WFSServiceHealthCheck,
 )
 from idea_shared.health.server import HealthServer
+from idea_shared.lib.Constants.Constants import INFLUX_FCD_MEASUREMENT
 
 
 # Custom health check implementation for demonstration
@@ -329,7 +330,7 @@ def example_idea_helsinki_service():
         url="http://localhost:8086",
         token="your_token",  # Replace with actual token
         org="idea_helsinki",
-        bucket="fcd_data",
+        bucket="idea-fcd-bucket",
         timeout=5.0,
         critical=True,
         cache_ttl=10.0,
@@ -337,14 +338,16 @@ def example_idea_helsinki_service():
     server.add_check("influxdb", influx_check)
 
     # Add FCD data freshness check
+    # NOTE: measurement defaults to INFLUX_FCD_MEASUREMENT; do not pass a
+    # literal — the producer/consumer name must stay in sync (issue #397).
     freshness_check = FCDDataFreshnessHealthCheck(
         name="fcd_freshness",
         url="http://localhost:8086",
         token="your_token",  # Replace with actual token
         org="idea_helsinki",
-        bucket="fcd_data",
+        bucket="idea-fcd-bucket",
         max_age_minutes=30,
-        measurement="fcd_data",
+        measurement=INFLUX_FCD_MEASUREMENT,
         timeout=10.0,
         critical=False,  # Not critical for readiness
         cache_ttl=60.0,

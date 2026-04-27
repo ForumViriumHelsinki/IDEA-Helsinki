@@ -138,6 +138,14 @@ FCD_DATA_FRESHNESS_HOURS = 1  # Maximum age of FCD data in hours to consider fre
 HEALTH_CHECK_FCD_DATABASE = "fcd_database"
 HEALTH_CHECK_VALIDATION_DATABASE = "validation_database"
 
+# InfluxDB measurement names — single source of truth for both producers
+# (FCDInfluxDBManager.write_fcd_model, IdeaHelsinkiRoadSegment writes) and
+# consumers (orchestrator and fcd-manager health checks). Do NOT inline these
+# as string literals; mismatched literals between producer and consumer caused
+# silent health-check false positives across PRs #29, #30, #42, #117.
+INFLUX_FCD_MEASUREMENT = "segment_data"
+INFLUX_VALIDATION_MEASUREMENT = "idea_validation"
+
 # Update freshness thresholds for Traffic Monitor
 UPDATE_FRESHNESS_HEALTHY_MINUTES = 90  # Consider healthy if last update < 90 minutes
 UPDATE_FRESHNESS_DEGRADED_MINUTES = (

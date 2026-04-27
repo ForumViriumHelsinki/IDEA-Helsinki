@@ -90,12 +90,21 @@ class WFSAPIHealthCheck(ExternalAPIHealthCheck):
 
     @classmethod
     def close_session_sync(cls):
-        """Close the shared session from a synchronous context."""
-        if cls._session and not cls._session.closed:
-            try:
-                asyncio.run(cls.close_session())
-            except Exception as e:
-                logger.error(f"Error closing WFS session: {e}")
+        """Discard the cached session during process shutdown.
+
+        Called from the SIGTERM handler after ``health_server.stop()`` has
+        joined the health-server thread.  ``cls._session_lock`` and the
+        ``aiohttp.ClientSession`` it guards are both bound to that thread's
+        now-dead event loop, so awaiting them from a fresh ``asyncio.run``
+        loop raises ``RuntimeError: ... is bound to a different event loop``.
+
+        Clearing the reference is sufficient: the daemon health-server thread
+        has exited, no concurrent access is possible, and the loop's own
+        teardown closes the underlying transports.  Same shape as the
+        ``InfluxDBConnectionManager.cleanup_all_sync`` workaround in the
+        orchestrator (PR #402).
+        """
+        cls._session = None
 
     async def check(self) -> HealthCheckResult:
         """Check WFS API accessibility and feature type availability.
@@ -503,27 +512,37 @@ class UpdateFreshnessHealthCheck(HealthCheck):
                 message="Service state not available",
             )
 
+        # Take a single lock-protected snapshot of ServiceState rather than
+        # reading attributes individually.  The check runs on the health-server
+        # thread while the worker thread mutates ServiceState in
+        # ``update_wfs_fetch`` / ``set_processing`` / ``update_intersection``,
+        # which assign related fields on separate lines (e.g. last_wfs_attempt
+        # then last_wfs_fetch then last_wfs_success).  Without the snapshot we
+        # could observe a half-applied update and report inconsistent state.
+        snapshot = self.service_state.get_status_summary()
+
         now = datetime.now(UTC)
+        is_processing = snapshot.get("is_processing", False)
+        last_wfs_success = snapshot.get("last_wfs_success")
+        last_wfs_fetch = snapshot.get("last_wfs_fetch")
+        last_intersection_calc = snapshot.get("last_intersection_calc")
+
         metadata = {
             "healthy_threshold_minutes": self.healthy_minutes,
             "degraded_threshold_minutes": self.degraded_minutes,
-            "is_processing": self.service_state.is_processing,
+            "is_processing": is_processing,
         }
 
         # Check last successful WFS fetch
         wfs_age_minutes = None  # Initialize the variable
-        if self.service_state.last_wfs_success:
-            wfs_age_minutes = (
-                now - self.service_state.last_wfs_success
-            ).total_seconds() / 60
+        if last_wfs_success:
+            wfs_age_minutes = (now - last_wfs_success).total_seconds() / 60
             metadata["last_wfs_success_minutes_ago"] = wfs_age_minutes
         else:
             # Service hasn't successfully fetched WFS data yet
-            if self.service_state.last_wfs_fetch:
+            if last_wfs_fetch:
                 # There was an attempt but it failed
-                attempt_age = (
-                    now - self.service_state.last_wfs_fetch
-                ).total_seconds() / 60
+                attempt_age = (now - last_wfs_fetch).total_seconds() / 60
                 metadata["last_wfs_attempt_minutes_ago"] = attempt_age
                 return HealthCheckResult(
                     name=self.name,
@@ -543,17 +562,19 @@ class UpdateFreshnessHealthCheck(HealthCheck):
                 )
 
         # Check last intersection calculation
-        if self.service_state.last_intersection_calc:
-            calc_age_minutes = (
-                now - self.service_state.last_intersection_calc
-            ).total_seconds() / 60
+        if last_intersection_calc:
+            calc_age_minutes = (now - last_intersection_calc).total_seconds() / 60
             metadata["last_intersection_calc_minutes_ago"] = calc_age_minutes
 
         # Add current counts to metadata
         metadata.update(
             {
-                "current_disturbance_count": self.service_state.current_disturbance_count,
-                "current_intersection_count": self.service_state.current_intersection_count,
+                "current_disturbance_count": snapshot.get(
+                    "current_disturbance_count", 0
+                ),
+                "current_intersection_count": snapshot.get(
+                    "current_intersection_count", 0
+                ),
             }
         )
 
@@ -573,7 +594,7 @@ class UpdateFreshnessHealthCheck(HealthCheck):
             )
 
         # If currently processing, add that to the message
-        if self.service_state.is_processing:
+        if is_processing:
             message += " - currently processing"
 
         return HealthCheckResult(
