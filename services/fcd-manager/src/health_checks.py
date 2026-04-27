@@ -63,10 +63,13 @@ class UpdateCycleHealthCheck(HealthCheck):
             HealthCheckResult indicating update cycle health
 
         """
-        now = datetime.now(UTC)
-
         with self._lock:
             last_update_time = self.last_update_time
+        # Sample ``now`` after reading the shared state.  If we sampled it
+        # before the snapshot, the worker thread could call update_timestamp()
+        # in between and ``last_update_time`` would be slightly *after*
+        # ``now``, producing a negative ``time_since_update`` in the message.
+        now = datetime.now(UTC)
 
         # During startup grace period, always return healthy
         if (now - self.startup_time) < self.startup_grace_period:
