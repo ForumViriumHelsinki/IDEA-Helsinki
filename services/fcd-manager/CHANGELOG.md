@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.28.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.28.0...fcd-manager-v0.28.1) (2026-04-27)
+
+
+### Bug Fixes
+
+* align InfluxDB measurement names between producers and health checks ([#405](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/405)) ([047cbdb](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/047cbdbbd10bcacda21dcb5dadfd8ae8d9cb5ace))
+* **health:** make fcd-manager and traffic-monitor health checks thread-safe ([#404](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/404)) ([348c4e9](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/348c4e9a0d514f03665aced43e7afa9869be5f71))
+
 ## [0.28.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/fcd-manager-v0.27.0...fcd-manager-v0.28.0) (2026-04-16)
 
 
