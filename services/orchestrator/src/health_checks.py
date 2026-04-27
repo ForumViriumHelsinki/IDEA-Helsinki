@@ -120,6 +120,20 @@ class InfluxDBConnectionManager:
                 instance.close()
             cls._instances.clear()
 
+    @classmethod
+    def cleanup_all_sync(cls):
+        """Close all connections without taking the asyncio lock.
+
+        Used during process shutdown when the health-server thread (which owns
+        the loop ``cls._lock`` is bound to) has already been joined and no
+        concurrent access is possible.  Calling the async ``cleanup_all`` from
+        the worker loop after the lock has bound to the health-server loop
+        raises ``RuntimeError: ... is bound to a different event loop``.
+        """
+        for instance in cls._instances.values():
+            instance.close()
+        cls._instances.clear()
+
     async def get_client(self) -> InfluxDBClient:
         """Get or create a client instance (thread-safe)."""
         async with self._client_lock:
@@ -769,8 +783,13 @@ class WorkerStatusHealthCheck(HealthCheck):
     async def check(self) -> HealthCheckResult:
         """Check status of worker tasks."""
         try:
-            # Get active segments count
-            total_workers = len(self.manager.active_segments)
+            # Snapshot active_segments before iterating: the worker loop runs on
+            # a different OS thread (uvicorn now lives on its own thread/loop)
+            # and may add/pop entries during iteration, which would raise
+            # ``RuntimeError: dictionary changed size during iteration``.
+            # ``dict(...)`` is a single C-level call and atomic under the GIL.
+            active_segments_snapshot = dict(self.manager.active_segments)
+            total_workers = len(active_segments_snapshot)
 
             if total_workers == 0:
                 # No workers is normal when no disturbances are active
@@ -788,7 +807,7 @@ class WorkerStatusHealthCheck(HealthCheck):
             failed_workers = 0
             current_task_ids = set()
 
-            for _segment_id, segment_info in self.manager.active_segments.items():
+            for _segment_id, segment_info in active_segments_snapshot.items():
                 task = segment_info["task"]
                 task_id = id(task)
                 current_task_ids.add(task_id)

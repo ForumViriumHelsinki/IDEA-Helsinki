@@ -77,9 +77,12 @@ async def shutdown(signal_received, loop):
     # Wait for all tasks to complete cancellation
     await asyncio.gather(*tasks, return_exceptions=True)
 
-    # Clean up InfluxDB connections
+    # Clean up InfluxDB connections.  Use the sync variant: the health-server
+    # thread (which owns the loop the cached asyncio.Lock bound to) has already
+    # been stopped by ``health_server.stop()`` above, so no concurrent access is
+    # possible and we must not await a Lock from a different loop.
     logger.info("Cleaning up InfluxDB connections...")
-    await InfluxDBConnectionManager.cleanup_all()
+    InfluxDBConnectionManager.cleanup_all_sync()
 
     loop.stop()
 
