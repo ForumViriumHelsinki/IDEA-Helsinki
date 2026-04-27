@@ -528,18 +528,24 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
                             },
                         )
                     except Exception as query_error:
-                        # Other errors - treat as accessible but empty
-                        logger.warning(
-                            f"Validation database accessible but no recent data in bucket '{self.bucket}'"
+                        # Unexpected exception — surface the failure rather
+                        # than masking it as "healthy (empty bucket)". This
+                        # branch previously hid SSL errors, network blips, and
+                        # decode failures behind a healthy status.
+                        error_msg = (
+                            f"Validation database query failed for bucket "
+                            f"'{self.bucket}' with unexpected {type(query_error).__name__}: "
+                            f"{str(query_error)}"
                         )
+                        logger.warning(error_msg)
                         return HealthCheckResult(
                             name=self.name,
-                            status="healthy",
-                            message="Validation database is accessible (no recent data)",
+                            status="degraded",
+                            message=error_msg,
                             metadata={
                                 "bucket": self.bucket,
-                                "note": "Database may be empty",
                                 "error_type": type(query_error).__name__,
+                                "error_details": str(query_error),
                                 "query_time_range": time_range,
                             },
                         )
