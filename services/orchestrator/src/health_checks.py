@@ -19,6 +19,8 @@ from idea_shared.lib.Constants.Constants import (
     DISTURBANCE_DATA_MAX_AGE_MINUTES,
     HEALTH_CHECK_FCD_DATABASE,
     HEALTH_CHECK_VALIDATION_DATABASE,
+    INFLUX_FCD_MEASUREMENT,
+    INFLUX_VALIDATION_MEASUREMENT,
     INFLUXDB_CONNECTION_TTL_SECONDS,
     INFLUXDB_MAX_CONNECTIONS,
     INFLUXDB_PING_CACHE_TTL_SECONDS,
@@ -261,7 +263,7 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
                         query_api=query_api,
                         org=self.org,
                         bucket=self.bucket,
-                        measurement="fcd_segment",
+                        measurement=INFLUX_FCD_MEASUREMENT,
                         freshness_threshold_minutes=freshness_threshold_minutes,
                         backfill_lookback_days=self.backfill_lookback_days,
                     )
@@ -457,7 +459,7 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
                     query = f"""
                     from(bucket: "{self.bucket}")
                         |> range(start: -24h)
-                        |> filter(fn: (r) => r["_measurement"] == "validation_result")
+                        |> filter(fn: (r) => r["_measurement"] == "{INFLUX_VALIDATION_MEASUREMENT}")
                         |> keep(columns: ["_time"])
                         |> limit(n: 1)
                     """
@@ -474,6 +476,27 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
                             if last_write_time:
                                 break
 
+                        if last_write_time is None:
+                            # Bucket reachable but no validation rows in 24h.
+                            # Treat as degraded so the gap is visible in /health/detail
+                            # rather than masked behind a healthy ping.
+                            warning_msg = (
+                                f"Validation database accessible but no '{INFLUX_VALIDATION_MEASUREMENT}' "
+                                f"data in last 24h (queried from {time_range['start']} to {time_range['end']})"
+                            )
+                            logger.warning(warning_msg)
+                            return HealthCheckResult(
+                                name=self.name,
+                                status="degraded",
+                                message=warning_msg,
+                                metadata={
+                                    "bucket": self.bucket,
+                                    "measurement": INFLUX_VALIDATION_MEASUREMENT,
+                                    "has_recent_data": False,
+                                    "query_time_range": time_range,
+                                },
+                            )
+
                         logger.debug(
                             f"Validation database health check passed: bucket '{self.bucket}' accessible"
                         )
@@ -483,11 +506,8 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
                             message="Validation database is accessible",
                             metadata={
                                 "bucket": self.bucket,
-                                "last_write": (
-                                    last_write_time.isoformat()
-                                    if last_write_time
-                                    else None
-                                ),
+                                "measurement": INFLUX_VALIDATION_MEASUREMENT,
+                                "last_write": last_write_time.isoformat(),
                                 "query_time_range": time_range,
                             },
                         )

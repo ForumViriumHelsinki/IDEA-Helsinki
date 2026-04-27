@@ -8,6 +8,7 @@ from pathlib import Path
 from azure.storage.blob import BlobServiceClient
 from influxdb_client.client.influxdb_client import InfluxDBClient
 
+from idea_shared.lib.Constants.Constants import INFLUX_FCD_MEASUREMENT
 from idea_shared.threading.file_locks import read_json_with_retry
 
 from .checks import (
@@ -271,7 +272,7 @@ class FCDDataFreshnessHealthCheck(DatabaseHealthCheck):
         bucket: str,
         max_age_minutes: int = 30,
         backfill_lookback_days: int = 7,
-        measurement: str = "fcd_data",
+        measurement: str = INFLUX_FCD_MEASUREMENT,
         timeout: float = 10.0,
         critical: bool = False,
         cache_ttl: float = 60.0,

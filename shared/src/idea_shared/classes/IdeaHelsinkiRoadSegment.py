@@ -13,6 +13,10 @@ import pandas as pd
 from idea_shared.classes.FCDInfluxDBManager import FCDInfluxDBManager
 from idea_shared.classes.Logger import Logger
 from idea_shared.lib import IdeaHelsinkiDataPreProcessor
+from idea_shared.lib.Constants.Constants import (
+    INFLUX_FCD_MEASUREMENT,
+    INFLUX_VALIDATION_MEASUREMENT,
+)
 
 # ------------------------------------------------------#
 # ------------- PROJECT MODULE IMPORTS -----------------#
@@ -249,7 +253,7 @@ class IdeaHelsinkiRoadSegment:
                 if await self.__write_dataframe_to_influxdb(
                     df=segment_validation,
                     segment_id=self.segment_id,
-                    measurement_name="idea_validation",
+                    measurement_name=INFLUX_VALIDATION_MEASUREMENT,
                 ):
                     self.logger.info("Segment validation updated to database.")
                     self.last_segment_validation = segment_validation
@@ -427,7 +431,7 @@ class IdeaHelsinkiRoadSegment:
                     segment_date = await asyncio.to_thread(
                         manager.get_last_segment_update_timestamp,
                         segment_id=segment_id,
-                        measurement_name="segment_data",
+                        measurement_name=INFLUX_FCD_MEASUREMENT,
                     )
         except Exception as e:
             self.logger.error(f"FCD database query failed: {e}")
@@ -463,7 +467,7 @@ class IdeaHelsinkiRoadSegment:
                     segment_date = await asyncio.to_thread(
                         manager.get_first_segment_update_timestamp,
                         segment_id=segment_id,
-                        measurement_name="segment_data",
+                        measurement_name=INFLUX_FCD_MEASUREMENT,
                     )
         except Exception as e:
             self.logger.error(f"FCD database query failed: {e}")
@@ -555,7 +559,7 @@ class IdeaHelsinkiRoadSegment:
                     segment_data_df = await asyncio.to_thread(
                         manager.get_segment_data_dataframe,
                         segment_id=segment_id,
-                        measurement_name="segment_data",
+                        measurement_name=INFLUX_FCD_MEASUREMENT,
                         start_time=start_time,
                         end_time=end_time,
                         latest_only=False,
@@ -610,7 +614,7 @@ class IdeaHelsinkiRoadSegment:
                     validation_data_df = await asyncio.to_thread(
                         manager.get_segment_data_dataframe,
                         segment_id=segment_id,
-                        measurement_name="idea_validation",
+                        measurement_name=INFLUX_VALIDATION_MEASUREMENT,
                         start_time=start_time,
                         end_time=end_time,
                         latest_only=True,
