@@ -64,8 +64,9 @@ async def shutdown(signal_received, loop):
     logger.info(f"Received exit signal {signal_received.name}...")
 
     if health_server:
-        # Stop the health server gracefully
-        await health_server.stop_async()
+        # Health server runs in its own thread; stop() signals uvicorn to exit
+        # and waits briefly for the thread to terminate.
+        health_server.stop()
 
     # Cancel all running tasks
     tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
@@ -295,12 +296,13 @@ async def main():
         ),
     )
 
-    # Start health server with async integration
+    # Start health server in a background thread with its own event loop.
+    # This decouples uvicorn from the worker event loop so probes still respond
+    # when the orchestrator's loop is busy with the synchronized :05 worker burst
+    # (see https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/396).
     logger.info(f"Starting health server on port {HEALTH_CHECK_PORT}...")
-    # Run health server as background task to avoid blocking; store reference
-    # so exceptions are not silently swallowed and the task can be cancelled on shutdown.
-    health_task = asyncio.create_task(health_server.start_async())
-    await asyncio.sleep(0.1)  # Give server time to start
+    health_server.start_background()
+    await asyncio.sleep(0.1)  # Give server time to bind before serving requests
 
     try:
         # Start the manager's main loop and let it run forever.
@@ -317,19 +319,11 @@ async def main():
         )
         sys.exit(1)  # Exit with an error code
     finally:
-        # stop_async() sets should_exit=True and waits for uvicorn to complete
-        # its ASGI lifespan shutdown sequence before returning.  This prevents
-        # asyncio.CancelledError from propagating through starlette's lifespan
-        # receive queue (see https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/371).
-        await health_server.stop_async()
-        # By the time stop_async() returns, health_task should already be done.
-        # Cancel only as a fallback in case of a timeout or unexpected state.
-        if not health_task.done():
-            logger.debug(
-                "Health task still running after stop_async(); cancelling as fallback"
-            )
-            health_task.cancel()
-        await asyncio.gather(health_task, return_exceptions=True)
+        # Signal the background uvicorn thread to exit and wait briefly for it
+        # to finish its ASGI lifespan shutdown.  Because uvicorn now runs on its
+        # own event loop, lifespan shutdown cannot propagate CancelledError into
+        # the orchestrator's loop (see issue #371).
+        health_server.stop()
 
 
 if __name__ == "__main__":
