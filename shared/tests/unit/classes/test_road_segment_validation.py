@@ -9,7 +9,7 @@ Issue: https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/267
 
 import asyncio
 from datetime import UTC, datetime, timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pandas as pd
 import pytest
@@ -239,7 +239,7 @@ class TestManagerValidationSemaphore:
             with patch("asyncio.create_task") as mock_create_task:
                 # We don't want the task to actually run, so we just mock create_task
                 await manager._run_management_cycle_with_error_isolation()
-                
+
                 # Clean up the unawaited coroutines to prevent RuntimeWarnings
                 for call in mock_create_task.call_args_list:
                     coro = call.args[0]
@@ -274,7 +274,7 @@ class TestManagerValidationSemaphore:
             with patch("asyncio.create_task") as mock_create_task:
                 # We don't want the task to actually run, so we just mock create_task
                 await manager._run_management_cycle_with_error_isolation()
-                
+
                 # Clean up the unawaited coroutines to prevent RuntimeWarnings
                 for call in mock_create_task.call_args_list:
                     coro = call.args[0]

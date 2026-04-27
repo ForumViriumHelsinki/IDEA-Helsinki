@@ -177,11 +177,14 @@ class IdeaHelsinkiRoadSegment:
         await asyncio.sleep(10)
 
         needs_generation = True
+        existing_serialized_profile: bytes | None = None
         if self.segment_profile is not None:
             needs_generation = False
         elif self.profile_repository is not None:
-            existing_data = self.profile_repository.get_profile(self.segment_id)
-            if existing_data is not None:
+            existing_serialized_profile = await asyncio.to_thread(
+                self.profile_repository.get_profile, self.segment_id
+            )
+            if existing_serialized_profile is not None:
                 needs_generation = False
 
         if needs_generation:
@@ -215,17 +218,20 @@ class IdeaHelsinkiRoadSegment:
                         if self.profile_repository is not None:
                             try:
                                 serialized_profile = serialize_profile(profile)
-                                now_str = datetime.now(UTC).isoformat()
+                                now = datetime.now(UTC)
+                                now_str = now.isoformat()
                                 # Profile expires 1 week after generation. Can be re-generated if needed.
-                                expires_str = (
-                                    datetime.now(UTC) + timedelta(days=7)
-                                ).isoformat()
-                                self.profile_repository.save_profile(
+                                expires_str = (now + timedelta(days=7)).isoformat()
+                                await asyncio.to_thread(
+                                    self.profile_repository.save_profile,
                                     segment_id=self.segment_id,
                                     profile_data=serialized_profile,
                                     computed_at=now_str,
                                     expires_at=expires_str,
                                 )
+                                # Reuse the just-serialized bytes for the validation
+                                # phase below to avoid a redundant DB fetch.
+                                existing_serialized_profile = serialized_profile
                                 self.segment_profile = (
                                     None  # explicit None to drop memory
                                 )
@@ -249,7 +255,9 @@ class IdeaHelsinkiRoadSegment:
                     )
                     return
         else:
-            self.logger.info("DEBUG : Segment profile FETCHED FROM DATABASE :)")
+            self.logger.debug(
+                f"Segment profile fetched from database for segment {self.segment_id}"
+            )
 
         assert self.last_validation_update is not None, (
             "last_validation_update must be set before validation"
@@ -283,7 +291,11 @@ class IdeaHelsinkiRoadSegment:
         if segment_data_to_validate is not None and not segment_data_to_validate.empty:
             active_profile = self.segment_profile
             if self.profile_repository is not None:
-                serialized_data = self.profile_repository.get_profile(self.segment_id)
+                serialized_data = existing_serialized_profile
+                if serialized_data is None:
+                    serialized_data = await asyncio.to_thread(
+                        self.profile_repository.get_profile, self.segment_id
+                    )
                 if serialized_data is not None:
                     try:
                         active_profile = deserialize_profile(serialized_data)
@@ -711,7 +723,7 @@ class IdeaHelsinkiRoadSegment:
     # --------------- PUBLIC CLASS METHODS -----------------#
     # ------------------------------------------------------#
 
-    def update_segment(self, reported_disturbances: list):
+    async def update_segment(self, reported_disturbances: list):
         """Update the segment profile based on updated disturbance data.
 
         This usually affects the start and/or end of the reported disturbances,
@@ -745,7 +757,9 @@ class IdeaHelsinkiRoadSegment:
             self.segment_profile = None
             if self.profile_repository is not None:
                 try:
-                    self.profile_repository.delete_profile(self.segment_id)
+                    await asyncio.to_thread(
+                        self.profile_repository.delete_profile, self.segment_id
+                    )
                 except Exception as e:
                     self.logger.error(f"Failed to delete profile from SQLite: {e}")
 

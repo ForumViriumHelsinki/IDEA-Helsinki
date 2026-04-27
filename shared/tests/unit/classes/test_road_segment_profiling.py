@@ -8,7 +8,7 @@ Issue: https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/269
 
 import asyncio
 from datetime import UTC, datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pandas as pd
 import pytest

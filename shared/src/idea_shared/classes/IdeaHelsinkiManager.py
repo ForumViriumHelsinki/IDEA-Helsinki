@@ -223,7 +223,7 @@ class IdeaHelsinkiManager:
         for segment_id, disturbances in segments_to_process.items():
             if segment_id in self.active_segments:
                 # If already active, update it with the latest disturbance info
-                self.active_segments[segment_id]["instance"].update_segment(
+                await self.active_segments[segment_id]["instance"].update_segment(
                     disturbances
                 )
             else:
