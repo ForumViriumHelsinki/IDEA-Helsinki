@@ -49,6 +49,8 @@ from idea_shared.lib.Constants.Constants import (
     FCD_WRITE_QUEUE_MAX_SIZE,
     HEALTH_CHECK_CACHE_TTL_SECONDS,
     HEALTH_CHECK_PORT,
+    INFLUX_FCD_MEASUREMENT,
+    INFLUX_VALIDATION_MEASUREMENT,
     MASTER_SEGMENT_HISTORY_FILE_LOCATION,
     SEGMENT_GEO_INHERITANCE_LOOKBACK_HOURS,
     SQLITE_DIR,
@@ -295,11 +297,12 @@ def run(
 
                         migration_targets = [
                             BucketTarget(
-                                manager=influx_manager, measurement="segment_data"
+                                manager=influx_manager,
+                                measurement=INFLUX_FCD_MEASUREMENT,
                             ),
                             BucketTarget(
                                 manager=validation_manager,
-                                measurement="idea_validation",
+                                measurement=INFLUX_VALIDATION_MEASUREMENT,
                             ),
                         ]
                         if segment_repo is not None:
@@ -428,7 +431,7 @@ def main():
         org=INFLUX_DB_ORG,
         bucket=INFLUX_DB_FCD_BUCKET,
         max_age_minutes=UPDATE_FRESHNESS_DEGRADED_MINUTES,
-        measurement="fcd_data",
+        measurement=INFLUX_FCD_MEASUREMENT,
         timeout=10.0,
         critical=False,  # Not critical for readiness
         cache_ttl=60.0,

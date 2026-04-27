@@ -18,6 +18,7 @@ from tenacity import (
 from urllib3.util.retry import Retry
 
 from idea_shared.classes.Logger import Logger
+from idea_shared.lib.Constants.Constants import INFLUX_FCD_MEASUREMENT
 
 # 5 minutes — must exceed worst-case query time to prevent abandoned queries
 # that keep running server-side after client disconnect (causing InfluxDB saturation)
@@ -289,7 +290,9 @@ class FCDInfluxDBManager:
                     )
                     continue
                 point = (
-                    Point("segment_data").tag("segmentId", segment_id).time(dt_object)
+                    Point(INFLUX_FCD_MEASUREMENT)
+                    .tag("segmentId", segment_id)
+                    .time(dt_object)
                 )
                 for key, value in properties.items():
                     if isinstance(value, int | float | str | bool):
@@ -350,7 +353,7 @@ class FCDInfluxDBManager:
 
         """
         range_start = "0" if search_all else "-30d"
-        flux_query = f'from(bucket: "{self.bucket}") |> range(start: {range_start}) |> filter(fn: (r) => r._measurement == "segment_data") |> last() |> keep(columns: ["_time"])'
+        flux_query = f'from(bucket: "{self.bucket}") |> range(start: {range_start}) |> filter(fn: (r) => r._measurement == "{INFLUX_FCD_MEASUREMENT}") |> last() |> keep(columns: ["_time"])'
         try:
             tables = self.query_api.query(query=flux_query, org=self.org)
             if tables and tables[0].records:
