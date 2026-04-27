@@ -1,5 +1,6 @@
 """FCD Manager specific health check implementations."""
 
+import threading
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -41,13 +42,19 @@ class UpdateCycleHealthCheck(HealthCheck):
         self.last_update_time: datetime | None = None
         self.startup_time = datetime.now(UTC)
         self.startup_grace_period = timedelta(minutes=healthy_threshold_minutes)
+        # Guards last_update_time across the worker thread (writer) and the
+        # health-server thread (reader).  HealthServer.start_background runs
+        # uvicorn on its own thread/loop, so without the lock an attribute
+        # read could observe a stale value.
+        self._lock = threading.Lock()
 
     def update_timestamp(self) -> None:
         """Update the last successful update timestamp.
 
         This should be called by the main loop after each successful update cycle.
         """
-        self.last_update_time = datetime.now(UTC)
+        with self._lock:
+            self.last_update_time = datetime.now(UTC)
 
     async def check(self) -> HealthCheckResult:
         """Check if the update cycle is running within expected timeframes.
@@ -56,6 +63,12 @@ class UpdateCycleHealthCheck(HealthCheck):
             HealthCheckResult indicating update cycle health
 
         """
+        with self._lock:
+            last_update_time = self.last_update_time
+        # Sample ``now`` after reading the shared state.  If we sampled it
+        # before the snapshot, the worker thread could call update_timestamp()
+        # in between and ``last_update_time`` would be slightly *after*
+        # ``now``, producing a negative ``time_since_update`` in the message.
         now = datetime.now(UTC)
 
         # During startup grace period, always return healthy
@@ -72,7 +85,7 @@ class UpdateCycleHealthCheck(HealthCheck):
             )
 
         # If no updates have been recorded yet after grace period
-        if self.last_update_time is None:
+        if last_update_time is None:
             return HealthCheckResult(
                 name=self.name,
                 status="unhealthy",
@@ -87,7 +100,7 @@ class UpdateCycleHealthCheck(HealthCheck):
             )
 
         # Calculate time since last update
-        time_since_update = now - self.last_update_time
+        time_since_update = now - last_update_time
         minutes_since_update = time_since_update.total_seconds() / 60
 
         # Determine health status
@@ -108,7 +121,7 @@ class UpdateCycleHealthCheck(HealthCheck):
             status=status,
             message=message,
             metadata={
-                "last_update": self.last_update_time.isoformat(),
+                "last_update": last_update_time.isoformat(),
                 "minutes_since_update": minutes_since_update,
                 "healthy_threshold_minutes": self.healthy_threshold.total_seconds()
                 / 60,
@@ -239,10 +252,17 @@ class ProcessingPipelineHealthCheck(HealthCheck):
         self.last_error_time: datetime | None = None
         self.processing_start_time: datetime | None = None
         self.processing_end_time: datetime | None = None
+        # Guards the mutable state fields above.  ``record_*`` runs on the
+        # worker thread while ``check`` runs on the health-server thread (uvicorn
+        # background thread / loop), and several writers update multiple fields
+        # on separate lines — without the lock a reader can observe a torn
+        # state (e.g. ``last_error_time`` set but ``last_error`` still stale).
+        self._lock = threading.Lock()
 
     def record_processing_start(self) -> None:
         """Record the start of a processing cycle."""
-        self.processing_start_time = datetime.now(UTC)
+        with self._lock:
+            self.processing_start_time = datetime.now(UTC)
 
     def record_processing_complete(self, blobs_count: int) -> None:
         """Record successful completion of a processing cycle.
@@ -251,8 +271,9 @@ class ProcessingPipelineHealthCheck(HealthCheck):
             blobs_count: Number of blobs processed in this cycle
 
         """
-        self.processing_end_time = datetime.now(UTC)
-        self.blobs_processed += blobs_count
+        with self._lock:
+            self.processing_end_time = datetime.now(UTC)
+            self.blobs_processed += blobs_count
 
     def record_error(self, error: str) -> None:
         """Record a processing error.
@@ -261,8 +282,9 @@ class ProcessingPipelineHealthCheck(HealthCheck):
             error: Error message
 
         """
-        self.last_error = error
-        self.last_error_time = datetime.now(UTC)
+        with self._lock:
+            self.last_error = error
+            self.last_error_time = datetime.now(UTC)
 
     async def check(self) -> HealthCheckResult:
         """Check the overall processing pipeline health.
@@ -271,15 +293,24 @@ class ProcessingPipelineHealthCheck(HealthCheck):
             HealthCheckResult indicating pipeline status
 
         """
+        # Snapshot all mutable fields under the lock so the rest of the
+        # function works on a consistent point-in-time view.
+        with self._lock:
+            blobs_processed = self.blobs_processed
+            last_error = self.last_error
+            last_error_time = self.last_error_time
+            processing_start_time = self.processing_start_time
+            processing_end_time = self.processing_end_time
+
         metadata: dict[str, Any] = {
-            "total_blobs_processed": self.blobs_processed,
+            "total_blobs_processed": blobs_processed,
         }
 
         # Check if there was a recent error
-        if self.last_error_time:
-            time_since_error = datetime.now(UTC) - self.last_error_time
+        if last_error_time:
+            time_since_error = datetime.now(UTC) - last_error_time
             minutes_since_error = time_since_error.total_seconds() / 60
-            metadata["last_error"] = self.last_error
+            metadata["last_error"] = last_error
             metadata["minutes_since_error"] = minutes_since_error
 
             # If error was very recent, mark as degraded
@@ -287,12 +318,12 @@ class ProcessingPipelineHealthCheck(HealthCheck):
                 return HealthCheckResult(
                     name=self.name,
                     status="degraded",
-                    message=f"Recent processing error: {self.last_error}",
+                    message=f"Recent processing error: {last_error}",
                     metadata=metadata,
                 )
 
         # Check if processing has started
-        if self.processing_start_time is None:
+        if processing_start_time is None:
             return HealthCheckResult(
                 name=self.name,
                 status="healthy",
@@ -301,10 +332,8 @@ class ProcessingPipelineHealthCheck(HealthCheck):
             )
 
         # Check if processing is currently running
-        if self.processing_end_time is None or (
-            self.processing_start_time > self.processing_end_time
-        ):
-            processing_duration = datetime.now(UTC) - self.processing_start_time
+        if processing_end_time is None or (processing_start_time > processing_end_time):
+            processing_duration = datetime.now(UTC) - processing_start_time
             duration_minutes = processing_duration.total_seconds() / 60
             metadata["processing_duration_minutes"] = duration_minutes
 
@@ -325,12 +354,12 @@ class ProcessingPipelineHealthCheck(HealthCheck):
             )
 
         # Pipeline has completed at least one cycle
-        if self.processing_end_time:
-            metadata["last_processing_complete"] = self.processing_end_time.isoformat()
+        if processing_end_time:
+            metadata["last_processing_complete"] = processing_end_time.isoformat()
 
         return HealthCheckResult(
             name=self.name,
             status="healthy",
-            message=f"Processing pipeline is healthy ({self.blobs_processed} total blobs processed)",
+            message=f"Processing pipeline is healthy ({blobs_processed} total blobs processed)",
             metadata=metadata,
         )
