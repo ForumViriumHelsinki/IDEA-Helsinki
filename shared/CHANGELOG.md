@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.28.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.28.0...idea-shared-v0.28.1) (2026-04-27)
+
+
+### Bug Fixes
+
+* align InfluxDB measurement names between producers and health checks ([#405](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/405)) ([047cbdb](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/047cbdbbd10bcacda21dcb5dadfd8ae8d9cb5ace))
+
 ## [0.28.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.27.0...idea-shared-v0.28.0) (2026-04-16)
 
 

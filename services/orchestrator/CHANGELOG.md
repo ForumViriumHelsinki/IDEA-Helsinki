@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.28.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/orchestrator-v0.28.0...orchestrator-v0.28.1) (2026-04-27)
+
+
+### Bug Fixes
+
+* align InfluxDB measurement names between producers and health checks ([#405](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/405)) ([047cbdb](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/047cbdbbd10bcacda21dcb5dadfd8ae8d9cb5ace))
+* **orchestrator:** run health server on a dedicated thread to avoid event-loop starvation ([#402](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/402)) ([4e1ac58](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/4e1ac58881bbdbc251a2b50c5c3da7b72bda24ed))
+
 ## [0.28.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/orchestrator-v0.27.0...orchestrator-v0.28.0) (2026-04-16)
 
 
