@@ -250,18 +250,19 @@ class IntersectionDetector:
         # Build {feature_id: GeoJSON-dict} so each collision can re-attach its
         # source disturbance geometry. The sjoin in find_intersecting_features
         # discards the right-hand geometry, so we look it up here.
+        # zip() over columns avoids the per-row Series allocation that
+        # iterrows() incurs.
         wfs_geometry_lookup: dict[Any, Any] = {}
         if wfs_gdf is not None and not wfs_gdf.empty and "id" in wfs_gdf.columns:
-            for _wfs_index, wfs_row in wfs_gdf.iterrows():
-                feature_id = wfs_row.get("id")
-                geom = wfs_row.geometry
-                if feature_id is not None and geom is not None:
-                    try:
-                        wfs_geometry_lookup[feature_id] = mapping(geom)
-                    except Exception as e:  # noqa: BLE001
-                        self.logger.warning(
-                            f"Skipping WFS geometry for id={feature_id}: {e}"
-                        )
+            for feature_id, geom in zip(wfs_gdf["id"], wfs_gdf.geometry, strict=False):
+                if feature_id is None or geom is None:
+                    continue
+                try:
+                    wfs_geometry_lookup[feature_id] = mapping(geom)
+                except Exception as e:  # noqa: BLE001
+                    self.logger.warning(
+                        f"Skipping WFS geometry for id={feature_id}: {e}"
+                    )
 
         self.logger.info(
             f"Processing {len(intersecting_gdf)} intersecting features into extended data model "
@@ -270,29 +271,33 @@ class IntersectionDetector:
 
         output_data: dict = {"segmentId": {}}
 
-        for _index, row in intersecting_gdf.iterrows():
-            segment_id = row.get("segmentId")
+        # itertuples is materially faster than iterrows for this loop —
+        # iterrows boxes each row into a Series, while itertuples returns a
+        # lightweight namedtuple. getattr(..., None) tolerates absent columns
+        # (e.g. older WFS features lacking osoite / kaupunginosa).
+        for row in intersecting_gdf.itertuples(index=False):
+            segment_id = getattr(row, "segmentId", None)
             if not segment_id:
                 self.logger.warning(f"Skipping row due to missing segmentId: {row}")
                 continue
 
-            feature_id = row.get("id")
+            feature_id = getattr(row, "id", None)
 
             collision_properties = {
-                "traffic_disturbance_type": row.get("hakemus", "Unknown Type"),
+                "traffic_disturbance_type": getattr(row, "hakemus", "Unknown Type"),
                 "traffic_disturbance_id": (
                     feature_id if feature_id is not None else "Unknown ID"
                 ),
-                "application_id": row.get("hakemustunnus", "Unknown App ID"),
-                "star_date": row.get("tyo_alkaa"),
-                "end_date": row.get("tyo_paattyy"),
-                "address": row.get("osoite"),
-                "district": row.get("kaupunginosa"),
+                "application_id": getattr(row, "hakemustunnus", "Unknown App ID"),
+                "star_date": getattr(row, "tyo_alkaa", None),
+                "end_date": getattr(row, "tyo_paattyy", None),
+                "address": getattr(row, "osoite", None),
+                "district": getattr(row, "kaupunginosa", None),
             }
 
             if segment_id not in output_data["segmentId"]:
                 output_data["segmentId"][segment_id] = {
-                    "geometry": mapping(row.geometry),
+                    "geometry": mapping(getattr(row, "geometry", None)),
                     "detailedCollisions": [],
                 }
 

@@ -343,7 +343,7 @@ Compared to the legacy model, each `detailedCollisions[*]` entry adds:
 ```json
 {
   "segmentId": {
-    "segmentId": "string" { // Unique identifier for the segment that intersects
+    "<segmentId>": { // Unique identifier for the segment that intersects
       "geometry": { // Geometry of the intersecting segment
         "type": "LineString",
         "coordinates": [
