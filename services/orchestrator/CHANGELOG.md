@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.29.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/orchestrator-v0.28.1...orchestrator-v0.29.0) (2026-04-28)
+
+
+### Features
+
+* **orchestrator:** wire SQLite profile storage for segment workers ([#406](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/406)) ([823c17f](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/823c17fa1777211998aecc0c3aa01e5a3db070d2))
+
 ## [0.28.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/orchestrator-v0.28.0...orchestrator-v0.28.1) (2026-04-27)
 
 
