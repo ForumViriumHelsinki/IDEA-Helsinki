@@ -180,8 +180,7 @@ class IdeaHelsinkiManager:
                 await asyncio.to_thread(self._disturbance_refresh)
             except Exception as e:
                 self.logger.warning(
-                    f"Failed to refresh disturbance data from upstream: {e}",
-                    exc_info=True,
+                    f"Failed to refresh disturbance data from upstream: {e}"
                 )
                 self.logger.debug(
                     "Disturbance refresh failure traceback:", exc_info=True
