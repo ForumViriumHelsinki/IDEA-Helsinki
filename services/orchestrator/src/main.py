@@ -115,6 +115,8 @@ async def main():
     flags = get_feature_flags()
     use_sqlite = flags.is_enabled(FeatureFlag.USE_SQLITE_STORAGE)
 
+    disturbance_refresh = None
+
     if use_sqlite:
         from pathlib import Path
 
@@ -143,6 +145,14 @@ async def main():
         logger.info("Downloading databases from object storage...")
         storage_sync.download_if_changed(SQLITE_SEGMENTS_DB, segments_db_path)
         storage_sync.download_if_changed(SQLITE_DISTURBANCES_DB, disturbances_db_path)
+
+        # Per-cycle refresh hook: re-pull the disturbances DB before the manager
+        # reads from it, so changes written by traffic-monitor each hour become
+        # visible. download_if_changed is a no-op when the remote ETag matches.
+        def disturbance_refresh() -> None:
+            storage_sync.download_if_changed(
+                SQLITE_DISTURBANCES_DB, disturbances_db_path
+            )
 
         # Create repos from downloaded databases
         seg_repos = create_sqlite_repositories(segments_db_path)
@@ -201,6 +211,7 @@ async def main():
         target_fcd_segments=None,
         disturbance_repository=disturbance_repo,
         profile_repository=profile_repo,
+        disturbance_refresh=disturbance_refresh,
         db_org=INFLUX_DB_ORG,
         db_url=INFLUX_DB_URL,
         db_fcd_bucket=INFLUX_DB_FCD_BUCKET,
@@ -273,15 +284,20 @@ async def main():
         ),
     )
 
-    # Disturbance data health check
-    health_server.add_check(
-        "disturbance_data",
-        DisturbanceDataHealthCheck(
-            file_path=TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION,
-            max_age_minutes=DISTURBANCE_DATA_MAX_AGE_MINUTES,
-            critical=False,  # Service can start without disturbance data
-        ),
-    )
+    # Disturbance data health check — only meaningful in JSON-file mode.
+    # Under USE_SQLITE_STORAGE the orchestrator reads disturbances from the
+    # SQLite snapshot (covered by SqliteHealthCheck above); the JSON file is
+    # not produced inside this pod's EmptyDir, so checking it would spam
+    # warnings on every probe.
+    if not use_sqlite:
+        health_server.add_check(
+            "disturbance_data",
+            DisturbanceDataHealthCheck(
+                file_path=TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION,
+                max_age_minutes=DISTURBANCE_DATA_MAX_AGE_MINUTES,
+                critical=False,  # Service can start without disturbance data
+            ),
+        )
 
     # Worker and orchestrator health checks
     health_server.add_check(

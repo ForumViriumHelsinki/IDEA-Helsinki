@@ -17,6 +17,8 @@ from idea_shared.resilience.retry import ErrorTracker, calculate_backoff
 from idea_shared.threading.file_locks import read_json_with_retry
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from idea_shared.data.repositories import DisturbanceRepository, ProfileRepository
 
 
@@ -56,6 +58,7 @@ class IdeaHelsinkiManager:
         validation_max_age_days: int | None = None,
         disturbance_repository: DisturbanceRepository | None = None,
         profile_repository: ProfileRepository | None = None,
+        disturbance_refresh: Callable[[], None] | None = None,
     ):
         self.validation_frequency = validation_frequency
         self.profile_time_frame_weeks = profile_time_frame_weeks
@@ -68,6 +71,10 @@ class IdeaHelsinkiManager:
         self.traffic_disturbance_update_frequency = traffic_disturbance_update_frequency
         self.disturbance_repository = disturbance_repository
         self.profile_repository = profile_repository
+        # Optional hook to refresh upstream disturbance data (e.g. download a
+        # fresh SQLite snapshot from object storage) before each management
+        # cycle reads from the repository.
+        self._disturbance_refresh = disturbance_refresh
         self.db_org: str = db_org
         self.db_url: str = db_url
         self.db_fcd_bucket: str = db_fcd_bucket
@@ -161,6 +168,18 @@ class IdeaHelsinkiManager:
         self.last_cycle_time = datetime.now(UTC)
 
         self.logger.info("Manager starting new cycle: discovering and updating tasks.")
+
+        # Refresh disturbance data from upstream (e.g. SQLite snapshot in GCS)
+        # before reading from the repository, so we see what traffic-monitor
+        # produced in the most recent hourly cycle. Failures here are logged
+        # but non-fatal — the cycle continues with whatever data is local.
+        if self._disturbance_refresh is not None:
+            try:
+                await asyncio.to_thread(self._disturbance_refresh)
+            except Exception as e:
+                self.logger.warning(
+                    f"Failed to refresh disturbance data from upstream: {e}"
+                )
 
         # Periodic cleanup of expired segment profiles (once per hour)
         if self.profile_repository is not None:
