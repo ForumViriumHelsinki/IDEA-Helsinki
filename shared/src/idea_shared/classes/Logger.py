@@ -48,13 +48,13 @@ class Logger:
                 file_handler.setFormatter(formatter)
                 self.logger.addHandler(file_handler)
 
-    def info(self, message):
+    def info(self, message, exc_info=False):
         """Log an info-level message."""
-        self.logger.info(message)
+        self.logger.info(message, exc_info=exc_info)
 
-    def warning(self, message):
+    def warning(self, message, exc_info=False):
         """Log a warning-level message."""
-        self.logger.warning(message)
+        self.logger.warning(message, exc_info=exc_info)
 
     def error(self, message, exc_info=False):
         """Log an error-level message."""
@@ -64,6 +64,6 @@ class Logger:
         """Log a critical-level message."""
         self.logger.critical(message, exc_info=exc_info)
 
-    def debug(self, message):
+    def debug(self, message, exc_info=False):
         """Log a debug-level message."""
-        self.logger.debug(message)
+        self.logger.debug(message, exc_info=exc_info)
