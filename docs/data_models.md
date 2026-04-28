@@ -321,3 +321,59 @@ FCD-Traffic disturbance collisions
   }
 }
 ```
+
+## Extended FCD segment - Traffic disturbance collisions
+
+Introduced in [#415](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/415).
+Layered on top of the legacy schema above so existing consumers are unaffected;
+produced by `IntersectionDetector.process_intersections_to_extended_model`.
+
+The extended model carries enough self-contained information to validate or
+re-export disturbances even when the upstream ALLU WFS service is unreachable
+(prior versions had to re-fetch the WFS layer to recover the disturbance
+geometry, address, and district). It is also the basis for future DATEXII
+export.
+
+Compared to the legacy model, each `detailedCollisions[*]` entry adds:
+
+- `geometry` — the WFS feature's geometry (typically `MultiPolygon`)
+- `properties.address` — from WFS `osoite`
+- `properties.district` — from WFS `kaupunginosa`
+
+```json
+{
+  "segmentId": {
+    "segmentId": "string" { // Unique identifier for the segment that intersects
+      "geometry": { // Geometry of the intersecting segment
+        "type": "LineString",
+        "coordinates": [
+          [ "longitude (float)", "latitude (float)" ]
+        ]
+      },
+      "detailedCollisions": [
+        {
+          "properties": {
+            "traffic_disturbance_type": "string", // from WFS feature 'hakemus'
+            "traffic_disturbance_id": "string",   // from WFS feature 'id'
+            "application_id": "string",           // from WFS feature 'hakemustunnus'
+            "star_date": "date (yyyy-mm-dd)",     // from WFS feature 'tyo_alkaa'
+            "end_date":  "date (yyyy-mm-dd)",     // from WFS feature 'tyo_paattyy'
+            "address":   "string",                // from WFS feature 'osoite'
+            "district":  "string"                 // from WFS feature 'kaupunginosa'
+          },
+          "geometry": {                           // WFS feature geometry, preserved here
+            "type": "MultiPolygon",
+            "coordinates": [
+              [ [ [ "longitude (float)", "latitude (float)" ] ] ]
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+`address`, `district`, and `geometry` are tolerated as missing for older or
+sparser WFS features: address/district default to `null`, and `geometry` is
+omitted from the collision entry when no WFS feature can be matched by `id`.

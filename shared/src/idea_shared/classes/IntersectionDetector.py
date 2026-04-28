@@ -209,6 +209,106 @@ class IntersectionDetector:
             self.logger.error(f"Error during spatial join or CRS transformation: {e}")
             return None
 
+    def process_intersections_to_extended_model(
+        self,
+        intersecting_gdf: geopandas.GeoDataFrame,
+        wfs_gdf: geopandas.GeoDataFrame | None = None,
+    ) -> dict:
+        """Build the extended traffic-disturbance data model.
+
+        Layered on top of the legacy schema (process_intersections_to_new_model)
+        with three additions per collision:
+
+        - ``geometry``: the WFS feature's geometry (typically MultiPolygon),
+          looked up from ``wfs_gdf`` by ``id``. The spatial join in
+          ``find_intersecting_features`` keeps only the segment geometry, so we
+          re-attach the disturbance geometry here.
+        - ``properties.address``: from the WFS ``osoite`` field.
+        - ``properties.district``: from the WFS ``kaupunginosa`` field.
+
+        See docs/data_models.md ("Extended FCD segment - Traffic disturbance
+        collisions") and issue #415 for rationale (DATEXII export, ALLU outage
+        fallback).
+
+        Args:
+            intersecting_gdf: spatial-join result.
+            wfs_gdf: original WFS GeoDataFrame; required to recover disturbance
+                geometries. If omitted, collisions will be emitted without
+                ``geometry``.
+
+        Returns:
+            Same top-level shape as the legacy model, but with extended
+            collision entries. ``{}`` when there are no intersections.
+
+        """
+        if intersecting_gdf is None or intersecting_gdf.empty:
+            self.logger.info(
+                "No intersecting features to process for the extended data model."
+            )
+            return {}
+
+        # Build {feature_id: GeoJSON-dict} so each collision can re-attach its
+        # source disturbance geometry. The sjoin in find_intersecting_features
+        # discards the right-hand geometry, so we look it up here.
+        wfs_geometry_lookup: dict[Any, Any] = {}
+        if wfs_gdf is not None and not wfs_gdf.empty and "id" in wfs_gdf.columns:
+            for _wfs_index, wfs_row in wfs_gdf.iterrows():
+                feature_id = wfs_row.get("id")
+                geom = wfs_row.geometry
+                if feature_id is not None and geom is not None:
+                    try:
+                        wfs_geometry_lookup[feature_id] = mapping(geom)
+                    except Exception as e:  # noqa: BLE001
+                        self.logger.warning(
+                            f"Skipping WFS geometry for id={feature_id}: {e}"
+                        )
+
+        self.logger.info(
+            f"Processing {len(intersecting_gdf)} intersecting features into extended data model "
+            f"(WFS geometry lookup size: {len(wfs_geometry_lookup)})."
+        )
+
+        output_data: dict = {"segmentId": {}}
+
+        for _index, row in intersecting_gdf.iterrows():
+            segment_id = row.get("segmentId")
+            if not segment_id:
+                self.logger.warning(f"Skipping row due to missing segmentId: {row}")
+                continue
+
+            feature_id = row.get("id")
+
+            collision_properties = {
+                "traffic_disturbance_type": row.get("hakemus", "Unknown Type"),
+                "traffic_disturbance_id": (
+                    feature_id if feature_id is not None else "Unknown ID"
+                ),
+                "application_id": row.get("hakemustunnus", "Unknown App ID"),
+                "star_date": row.get("tyo_alkaa"),
+                "end_date": row.get("tyo_paattyy"),
+                "address": row.get("osoite"),
+                "district": row.get("kaupunginosa"),
+            }
+
+            if segment_id not in output_data["segmentId"]:
+                output_data["segmentId"][segment_id] = {
+                    "geometry": mapping(row.geometry),
+                    "detailedCollisions": [],
+                }
+
+            collision: dict[str, Any] = {"properties": collision_properties}
+            wfs_geometry = wfs_geometry_lookup.get(feature_id)
+            if wfs_geometry is not None:
+                collision["geometry"] = wfs_geometry
+
+            output_data["segmentId"][segment_id]["detailedCollisions"].append(collision)
+
+        self.logger.info(
+            f"Processed {len(output_data['segmentId'])} unique segments with "
+            f"associated collisions (extended model)."
+        )
+        return output_data
+
     def process_intersections_to_new_model(
         self, intersecting_gdf: geopandas.GeoDataFrame
     ) -> dict:
