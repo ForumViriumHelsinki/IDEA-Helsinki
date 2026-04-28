@@ -173,6 +173,8 @@ class IdeaHelsinkiManager:
         # before reading from the repository, so we see what traffic-monitor
         # produced in the most recent hourly cycle. Failures here are logged
         # but non-fatal — the cycle continues with whatever data is local.
+        # Traceback is emitted at DEBUG so transient hiccups don't pollute
+        # production logs but stay recoverable when troubleshooting.
         if self._disturbance_refresh is not None:
             try:
                 await asyncio.to_thread(self._disturbance_refresh)
@@ -180,6 +182,9 @@ class IdeaHelsinkiManager:
                 self.logger.warning(
                     f"Failed to refresh disturbance data from upstream: {e}",
                     exc_info=True,
+                )
+                self.logger.debug(
+                    "Disturbance refresh failure traceback:", exc_info=True
                 )
 
         # Periodic cleanup of expired segment profiles (once per hour)
