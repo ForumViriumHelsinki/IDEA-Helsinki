@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/orchestrator-v0.30.0...orchestrator-v0.30.1) (2026-04-29)
+
+
+### Bug Fixes
+
+* **orchestrator:** unblock probe timeouts; demote DB checks to non-critical ([#427](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/427)) ([56a724c](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/56a724c4e95523b6837ebf5689efde898d0e98a5))
+
 ## [0.30.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/orchestrator-v0.29.0...orchestrator-v0.30.0) (2026-04-29)
 
 

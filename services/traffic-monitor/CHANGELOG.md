@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.30.0...traffic-monitor-v0.30.1) (2026-04-29)
+
+
+### Bug Fixes
+
+* **json-export:** upload legacy JSON to GCS for TFDS_Dashboard compat ([#425](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/425)) ([f36cc5d](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/f36cc5de69ae5747d995d4faea6e9d5eac755de1))
+
 ## [0.30.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.29.0...traffic-monitor-v0.30.0) (2026-04-29)
 
 
