@@ -186,9 +186,7 @@ class TestExportAndUploadSegmentsJson:
         ok = export_and_upload_segments_json(repo, local_path, sync)
 
         assert ok is True
-        assert sync.upload_calls == [
-            (str(local_path), LEGACY_SEGMENTS_MAPPING_GCS_KEY)
-        ]
+        assert sync.upload_calls == [(str(local_path), LEGACY_SEGMENTS_MAPPING_GCS_KEY)]
         # Dashboard FUSE-mount path: bucket root + "data/segments_mapping.json"
         uploaded_blob = tmp_path / "bucket" / "data" / "segments_mapping.json"
         assert uploaded_blob.is_file()
@@ -226,9 +224,7 @@ class TestExportAndUploadSegmentsJson:
         ok = export_and_upload_segments_json(repo, local_path, sync)
 
         assert ok is False
-        assert sync.upload_calls == [
-            (str(local_path), LEGACY_SEGMENTS_MAPPING_GCS_KEY)
-        ]
+        assert sync.upload_calls == [(str(local_path), LEGACY_SEGMENTS_MAPPING_GCS_KEY)]
 
     @pytest.mark.unit
     def test_default_key_is_dashboard_path(self):
@@ -243,9 +239,7 @@ class TestExportAndUploadDisturbancesJson:
     """Regression tests for the disturbances JSON → GCS backwards-compat path."""
 
     @pytest.mark.unit
-    def test_uploads_to_legacy_dashboard_key(
-        self, tmp_path, sample_disturbances
-    ):
+    def test_uploads_to_legacy_dashboard_key(self, tmp_path, sample_disturbances):
         """Helper uploads the local export under the dashboard's GCS key."""
         repo = StubDisturbanceRepository(sample_disturbances)
         local_path = tmp_path / "pod" / "data" / "traffic_disturbance_data.json"
@@ -257,9 +251,7 @@ class TestExportAndUploadDisturbancesJson:
         assert sync.upload_calls == [
             (str(local_path), LEGACY_TRAFFIC_DISTURBANCE_GCS_KEY)
         ]
-        uploaded_blob = (
-            tmp_path / "bucket" / "data" / "traffic_disturbance_data.json"
-        )
+        uploaded_blob = tmp_path / "bucket" / "data" / "traffic_disturbance_data.json"
         assert uploaded_blob.is_file()
         assert json.loads(uploaded_blob.read_text()) == sample_disturbances
 
@@ -267,8 +259,7 @@ class TestExportAndUploadDisturbancesJson:
     def test_default_key_is_dashboard_path(self):
         """Default key is the prefix the TFDS_Dashboard FUSE mount expects."""
         assert (
-            LEGACY_TRAFFIC_DISTURBANCE_GCS_KEY
-            == "data/traffic_disturbance_data.json"
+            LEGACY_TRAFFIC_DISTURBANCE_GCS_KEY == "data/traffic_disturbance_data.json"
         )
 
 
