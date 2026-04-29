@@ -84,7 +84,11 @@ Each service:
 1. Owns a local SQLite database for its primary data
 2. Uploads changed data to GCS via Object API (not FUSE)
 3. Downloads data from GCS that other services produce
-4. Exports JSON for backwards compatibility with TFDS_Dashboard
+4. Exports JSON **and uploads the export to GCS under the `data/`
+   prefix** for backwards compatibility with TFDS_Dashboard. The
+   dashboard reads the bucket via GCS FUSE, so a pod-local export is
+   not visible to it. See `LEGACY_SEGMENTS_MAPPING_GCS_KEY` /
+   `LEGACY_TRAFFIC_DISTURBANCE_GCS_KEY` in `Constants.py`.
 
 ### SQLite Schema (Phase 2)
 

@@ -328,16 +328,30 @@ def run(
                     if use_sqlite and storage_sync is not None:
                         from pathlib import Path
 
-                        from idea_shared.data.json_export import export_segments_json
+                        from idea_shared.data.json_export import (
+                            export_and_upload_segments_json,
+                        )
 
                         storage_sync.upload(
                             sqlite_dir / SQLITE_SEGMENTS_DB,
                             SQLITE_SEGMENTS_DB,
                         )
-                        export_segments_json(
+                        # Legacy JSON export must also reach GCS so
+                        # TFDS_Dashboard's GCS FUSE mount sees fresh data
+                        # (issue #424). Failure here doesn't fail the
+                        # cycle — the SQLite/InfluxDB writes above are
+                        # the primary success criterion — but surface a
+                        # warning so a stale dashboard doesn't go silent.
+                        if not export_and_upload_segments_json(
                             segment_repo,
                             Path(FCD_MAP_DATA_FILE_LOCATION),
-                        )
+                            storage_sync,
+                        ):
+                            logger.warning(
+                                "Legacy segments_mapping.json export/upload "
+                                "failed; TFDS_Dashboard may serve stale data "
+                                "until the next successful cycle"
+                            )
 
             # Update health check timestamp
             if update_cycle_check:

@@ -171,3 +171,11 @@ SQLITE_DIR = os.getenv("SQLITE_DIR", os.path.join(DATA_DIR, "sqlite"))
 SQLITE_SEGMENTS_DB = "segments.db"
 SQLITE_DISTURBANCES_DB = "disturbances.db"
 SQLITE_PROFILES_DB = "profiles.db"
+
+# Object-storage keys for the legacy JSON exports consumed by TFDS_Dashboard
+# via its GCS FUSE mount on `gs://<bucket>/`. Keep the `data/` prefix —
+# the dashboard mounts the bucket at `/usr/share/nginx/html/` with subPath
+# `data` and fetches `${DATA_BASE}/<file>.json` (see TFDS_Dashboard
+# src/queries/*.ts). Changing these keys breaks the dashboard.
+LEGACY_SEGMENTS_MAPPING_GCS_KEY = "data/segments_mapping.json"
+LEGACY_TRAFFIC_DISTURBANCE_GCS_KEY = "data/traffic_disturbance_data.json"

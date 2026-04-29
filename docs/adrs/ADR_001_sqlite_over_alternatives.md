@@ -28,7 +28,11 @@ Each service:
 1. Maintains its own SQLite database on local (emptyDir) storage
 2. Uploads changed data to a GCS bucket via the Object API (not FUSE)
 3. Downloads data from GCS that other services produce
-4. Optionally exports JSON for consumers that require it
+4. Optionally exports JSON for consumers that require it. **The export
+   must be uploaded to GCS under the `data/` prefix** (e.g.
+   `gs://<bucket>/data/segments_mapping.json`) — TFDS_Dashboard reads
+   that prefix via a GCS FUSE mount, so writing only to the pod's
+   emptyDir leaves the dashboard reading stale data (regression #424).
 
 ## Alternatives Considered
 
