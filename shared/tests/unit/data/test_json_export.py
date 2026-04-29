@@ -7,12 +7,19 @@ import json
 import pytest
 
 from idea_shared.data.json_export import (
+    export_and_upload_disturbances_json,
+    export_and_upload_segments_json,
     export_disturbances_geojson,
     export_disturbances_json,
     export_segments_geojson,
     export_segments_json,
 )
+from idea_shared.data.object_storage import LocalStorageSync
 from idea_shared.data.repositories import DisturbanceRepository, SegmentRepository
+from idea_shared.lib.Constants.Constants import (
+    LEGACY_SEGMENTS_MAPPING_GCS_KEY,
+    LEGACY_TRAFFIC_DISTURBANCE_GCS_KEY,
+)
 
 # ---------------------------------------------------------------------------
 # Concrete test implementations of the abstract repositories
@@ -142,6 +149,127 @@ class TestExportDisturbancesJson:
         with open(out) as f:
             written = json.load(f)
         assert written == {}
+
+
+# ---------------------------------------------------------------------------
+# Tests: TFDS_Dashboard backwards-compat helpers (export + upload)
+#
+# Regression cover for issue #424: the SQLite migration kept the local JSON
+# export but dropped the upload step that put the file under the GCS prefix
+# the dashboard reads. These tests pin the contract so the upload can't go
+# missing again.
+# ---------------------------------------------------------------------------
+
+
+class _RecordingStorageSync(LocalStorageSync):
+    """LocalStorageSync that also records each upload call for assertions."""
+
+    def __init__(self, base_dir):
+        super().__init__(base_dir=base_dir)
+        self.upload_calls: list[tuple[str, str]] = []
+
+    def upload(self, local_path, remote_key):
+        self.upload_calls.append((str(local_path), remote_key))
+        return super().upload(local_path, remote_key)
+
+
+class TestExportAndUploadSegmentsJson:
+    """Regression tests for the segments JSON → GCS backwards-compat path."""
+
+    @pytest.mark.unit
+    def test_uploads_to_legacy_dashboard_key(self, tmp_path, sample_segments):
+        """Helper uploads the local export under the dashboard's GCS key."""
+        repo = StubSegmentRepository(sample_segments)
+        local_path = tmp_path / "pod" / "data" / "segments_mapping.json"
+        sync = _RecordingStorageSync(tmp_path / "bucket")
+
+        ok = export_and_upload_segments_json(repo, local_path, sync)
+
+        assert ok is True
+        assert sync.upload_calls == [
+            (str(local_path), LEGACY_SEGMENTS_MAPPING_GCS_KEY)
+        ]
+        # Dashboard FUSE-mount path: bucket root + "data/segments_mapping.json"
+        uploaded_blob = tmp_path / "bucket" / "data" / "segments_mapping.json"
+        assert uploaded_blob.is_file()
+        assert json.loads(uploaded_blob.read_text()) == sample_segments
+
+    @pytest.mark.unit
+    def test_returns_false_when_local_export_fails(self, tmp_path, sample_segments):
+        """Skips upload when the local export step fails."""
+        repo = StubSegmentRepository(sample_segments)
+        sync = _RecordingStorageSync(tmp_path / "bucket")
+        # Path under a regular file → atomic_write_json fails
+        import tempfile
+        from pathlib import Path as _Path
+
+        with tempfile.NamedTemporaryFile() as f:
+            bad_local = _Path(f.name) / "subdir" / "segments_mapping.json"
+
+            ok = export_and_upload_segments_json(repo, bad_local, sync)
+
+        assert ok is False
+        assert sync.upload_calls == []
+
+    @pytest.mark.unit
+    def test_returns_false_when_upload_fails(self, tmp_path, sample_segments):
+        """Surfaces upload failure (does not silently swallow it)."""
+        repo = StubSegmentRepository(sample_segments)
+        local_path = tmp_path / "data" / "segments_mapping.json"
+
+        class _FailingSync(_RecordingStorageSync):
+            def upload(self, local_path, remote_key):
+                self.upload_calls.append((str(local_path), remote_key))
+                return False
+
+        sync = _FailingSync(tmp_path / "bucket")
+        ok = export_and_upload_segments_json(repo, local_path, sync)
+
+        assert ok is False
+        assert sync.upload_calls == [
+            (str(local_path), LEGACY_SEGMENTS_MAPPING_GCS_KEY)
+        ]
+
+    @pytest.mark.unit
+    def test_default_key_is_dashboard_path(self):
+        """Default key is the prefix the TFDS_Dashboard FUSE mount expects."""
+        # This frozen literal is the contract with TFDS_Dashboard. Changing
+        # it requires a coordinated dashboard release — keep the assertion
+        # explicit so the next reader sees the constraint.
+        assert LEGACY_SEGMENTS_MAPPING_GCS_KEY == "data/segments_mapping.json"
+
+
+class TestExportAndUploadDisturbancesJson:
+    """Regression tests for the disturbances JSON → GCS backwards-compat path."""
+
+    @pytest.mark.unit
+    def test_uploads_to_legacy_dashboard_key(
+        self, tmp_path, sample_disturbances
+    ):
+        """Helper uploads the local export under the dashboard's GCS key."""
+        repo = StubDisturbanceRepository(sample_disturbances)
+        local_path = tmp_path / "pod" / "data" / "traffic_disturbance_data.json"
+        sync = _RecordingStorageSync(tmp_path / "bucket")
+
+        ok = export_and_upload_disturbances_json(repo, local_path, sync)
+
+        assert ok is True
+        assert sync.upload_calls == [
+            (str(local_path), LEGACY_TRAFFIC_DISTURBANCE_GCS_KEY)
+        ]
+        uploaded_blob = (
+            tmp_path / "bucket" / "data" / "traffic_disturbance_data.json"
+        )
+        assert uploaded_blob.is_file()
+        assert json.loads(uploaded_blob.read_text()) == sample_disturbances
+
+    @pytest.mark.unit
+    def test_default_key_is_dashboard_path(self):
+        """Default key is the prefix the TFDS_Dashboard FUSE mount expects."""
+        assert (
+            LEGACY_TRAFFIC_DISTURBANCE_GCS_KEY
+            == "data/traffic_disturbance_data.json"
+        )
 
 
 # ---------------------------------------------------------------------------

@@ -131,12 +131,14 @@ Wire SQLite + GCS sync into all services and validate.
 
 ### JSON Export
 - [ ] Create `shared/src/idea_shared/data/json_export.py`
-  - `export_segments_json(repo: SegmentRepository, path: Path)` — for TFDS_Dashboard
-  - `export_disturbances_json(repo: DisturbanceRepository, path: Path)` — for TFDS_Dashboard
+  - `export_segments_json(repo: SegmentRepository, path: Path)` — local-only export
+  - `export_disturbances_json(repo: DisturbanceRepository, path: Path)` — local-only export
+  - `export_and_upload_segments_json(repo, path, storage_sync)` — uploads under `data/segments_mapping.json`. **Use this from service main loops** — TFDS_Dashboard reads the bucket via GCS FUSE, so a pod-local-only export is invisible to it (issue #424).
+  - `export_and_upload_disturbances_json(repo, path, storage_sync)` — uploads under `data/traffic_disturbance_data.json`.
 
 ### Service Changes
-- [ ] Wire `SqliteSegmentRepository` + `GCSSync.upload()` in fcd-manager
-- [ ] Wire `SqliteDisturbanceRepository` + `GCSSync.upload()` in traffic-monitor
+- [ ] Wire `SqliteSegmentRepository` + `GCSSync.upload()` in fcd-manager (DB **and** legacy JSON via `export_and_upload_segments_json`)
+- [ ] Wire `SqliteDisturbanceRepository` + `GCSSync.upload()` in traffic-monitor (DB **and** legacy JSON via `export_and_upload_disturbances_json`)
 - [ ] Wire `SqliteProfileRepository` + `GCSSync.download_if_changed()` in orchestrator
 - [ ] Traffic-monitor: `GCSSync.download_if_changed()` for segments data
 - [ ] Orchestrator: `GCSSync.download_if_changed()` for segments + disturbances

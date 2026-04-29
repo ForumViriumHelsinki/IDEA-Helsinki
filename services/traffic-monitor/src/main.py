@@ -465,23 +465,25 @@ def main():
                     service_state.update_file_write(success=True)
 
                     # Upload disturbances DB to GCS and export JSON for
-                    # TFDS_Dashboard backwards compatibility
+                    # TFDS_Dashboard backwards compatibility (issue #424:
+                    # the JSON must reach GCS, not just the local volume).
                     if (
                         use_sqlite
                         and storage_sync is not None
                         and disturbances_db_path is not None
                     ):
                         from idea_shared.data.json_export import (
-                            export_disturbances_json,
+                            export_and_upload_disturbances_json,
                         )
 
                         storage_sync.upload(
                             disturbances_db_path,
                             SQLITE_DISTURBANCES_DB,
                         )
-                        export_disturbances_json(
+                        export_and_upload_disturbances_json(
                             disturbance_repo,
                             Path(TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION),
+                            storage_sync,
                         )
                 except Exception as e:
                     logger.error(f"Failed to write output file: {e}")
