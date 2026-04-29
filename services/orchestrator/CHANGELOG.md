@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/orchestrator-v0.29.0...orchestrator-v0.30.0) (2026-04-29)
+
+
+### Features
+
+* **shared:** re-trigger release-please for extended traffic-disturbance model ([#419](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/419)) ([5881f48](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/5881f487543a03d8f8c8386988d7d198c9d1ff32))
+
 ## [0.29.0](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/orchestrator-v0.28.1...orchestrator-v0.29.0) (2026-04-28)
 
 
