@@ -493,15 +493,11 @@ class TestFCDDatabaseHealthCheckResilience:
         ) as mock_get_instance:
             # Real synchronous blocking ping — the regression vector.
             slow_client = MagicMock()
-            slow_client.ping = MagicMock(
-                side_effect=lambda: (time.sleep(2.0), True)[1]
-            )
+            slow_client.ping = MagicMock(side_effect=lambda: (time.sleep(2.0), True)[1])
 
             # Build a minimally-real InfluxDBConnectionManager so we exercise
             # the actual ping() path (not a mocked-away async ping).
-            real_manager = InfluxDBConnectionManager.__new__(
-                InfluxDBConnectionManager
-            )
+            real_manager = InfluxDBConnectionManager.__new__(InfluxDBConnectionManager)
             real_manager.url = "http://localhost:8086"
             real_manager.token = "t"
             real_manager.org = "o"

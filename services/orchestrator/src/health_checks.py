@@ -294,16 +294,14 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
                     # query is a blocking urllib3 call, and running it on
                     # the event loop blocks asyncio.wait_for from
                     # cancelling at the configured probe timeout (#426).
-                    has_data, age_minutes, backfill_timestamp = (
-                        await asyncio.to_thread(
-                            check_backfill_mode,
-                            query_api=query_api,
-                            org=self.org,
-                            bucket=self.bucket,
-                            measurement=INFLUX_FCD_MEASUREMENT,
-                            freshness_threshold_minutes=freshness_threshold_minutes,
-                            backfill_lookback_days=self.backfill_lookback_days,
-                        )
+                    has_data, age_minutes, backfill_timestamp = await asyncio.to_thread(
+                        check_backfill_mode,
+                        query_api=query_api,
+                        org=self.org,
+                        bucket=self.bucket,
+                        measurement=INFLUX_FCD_MEASUREMENT,
+                        freshness_threshold_minutes=freshness_threshold_minutes,
+                        backfill_lookback_days=self.backfill_lookback_days,
                     )
 
                     if has_data:
