@@ -147,7 +147,15 @@ class InfluxDBConnectionManager:
             return self._client
 
     async def ping(self) -> bool:
-        """Ping the InfluxDB server with caching."""
+        """Ping the InfluxDB server with caching.
+
+        ``client.ping()`` is a blocking urllib3 call. Run it on a worker
+        thread so ``asyncio.wait_for`` (in :class:`HealthCheck`) can
+        actually deliver cancellation when InfluxDB is slow — without
+        this hop, the event loop is held until the underlying HTTP read
+        timeout (~10 s) regardless of the configured probe timeout
+        (issue #426).
+        """
         now = datetime.now(UTC)
         if (
             self._last_ping_time
@@ -156,7 +164,7 @@ class InfluxDBConnectionManager:
             return True
 
         client = await self.get_client()
-        result = client.ping()
+        result = await asyncio.to_thread(client.ping)
         if result:
             self._last_ping_time = now
         return result
@@ -219,10 +227,19 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
 
         # Use URL as connection string proxy for InfluxDB
         connection_string = f"{url}/api/v2/buckets/{bucket}"
+        # critical=False: a slow or unavailable InfluxDB should NOT flip
+        # /ready to 503 and trigger a pod restart. The orchestrator already
+        # has a CircuitBreaker + retry layer (shared/idea_shared/resilience/)
+        # for handling transient InfluxDB outages — that's the right place
+        # to absorb them. Keeping the check informational (visible in
+        # /health/detail as `degraded`/`unhealthy` without failing
+        # readiness) prevents the deadlock observed in issue #426 where
+        # InfluxDB load made every probe time out and the kubelet
+        # restarted pods faster than the rollout could converge.
         super().__init__(
             name=name,
             connection_string=connection_string,
-            critical=True,
+            critical=False,
             cache_ttl=cache_ttl or 30,
         )
         self.url = url
@@ -272,8 +289,13 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
                 freshness_threshold_minutes = self.data_freshness_hours * 60
 
                 try:
-                    # Use shared backfill detection utility
-                    has_data, age_minutes, backfill_timestamp = check_backfill_mode(
+                    # Use shared backfill detection utility.
+                    # Run on a worker thread: the underlying influxdb-client
+                    # query is a blocking urllib3 call, and running it on
+                    # the event loop blocks asyncio.wait_for from
+                    # cancelling at the configured probe timeout (#426).
+                    has_data, age_minutes, backfill_timestamp = await asyncio.to_thread(
+                        check_backfill_mode,
                         query_api=query_api,
                         org=self.org,
                         bucket=self.bucket,
@@ -419,10 +441,13 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
 
         # Use URL as connection string proxy for InfluxDB
         connection_string = f"{url}/api/v2/buckets/{bucket}"
+        # critical=False — same rationale as FCDDatabaseHealthCheck (#426).
+        # Resilience module owns the InfluxDB-down case; readiness should
+        # not flap with InfluxDB latency.
         super().__init__(
             name=name,
             connection_string=connection_string,
-            critical=True,
+            critical=False,
             cache_ttl=cache_ttl or 30,
         )
         self.url = url
@@ -479,7 +504,11 @@ class ValidationDatabaseHealthCheck(DatabaseHealthCheck):
                     """
 
                     try:
-                        tables = query_api.query(query=query, org=self.org)
+                        # Run blocking urllib3 query on a worker thread so
+                        # the asyncio probe timeout can actually fire (#426).
+                        tables = await asyncio.to_thread(
+                            query_api.query, query=query, org=self.org
+                        )
                         last_write_time = None
 
                         for table in tables:
