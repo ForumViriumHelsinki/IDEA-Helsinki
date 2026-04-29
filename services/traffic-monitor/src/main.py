@@ -480,11 +480,21 @@ def main():
                             disturbances_db_path,
                             SQLITE_DISTURBANCES_DB,
                         )
-                        export_and_upload_disturbances_json(
+                        # Failure here doesn't abort the cycle — the
+                        # SQLite write above is the primary success
+                        # criterion — but surface a warning so a stale
+                        # dashboard doesn't go silent (issue #424).
+                        if not export_and_upload_disturbances_json(
                             disturbance_repo,
                             Path(TRAFFIC_DISTURBANCE_DATA_FILE_LOCATION),
                             storage_sync,
-                        )
+                        ):
+                            logger.warning(
+                                "Legacy traffic_disturbance_data.json "
+                                "export/upload failed; TFDS_Dashboard may "
+                                "serve stale data until the next successful "
+                                "cycle"
+                            )
                 except Exception as e:
                     logger.error(f"Failed to write output file: {e}")
                     service_state.update_file_write(success=False, error=str(e))

@@ -64,7 +64,11 @@ def export_and_upload_segments_json(
     """
     if not export_segments_json(repo, local_path):
         return False
-    return storage_sync.upload(local_path, gcs_key)
+    if storage_sync.upload(local_path, gcs_key):
+        logger.info("Uploaded segments JSON to %s", gcs_key)
+        return True
+    logger.error("Failed to upload segments JSON to %s", gcs_key)
+    return False
 
 
 def export_disturbances_json(repo: DisturbanceRepository, path: Path) -> bool:
@@ -101,7 +105,11 @@ def export_and_upload_disturbances_json(
     """
     if not export_disturbances_json(repo, local_path):
         return False
-    return storage_sync.upload(local_path, gcs_key)
+    if storage_sync.upload(local_path, gcs_key):
+        logger.info("Uploaded disturbances JSON to %s", gcs_key)
+        return True
+    logger.error("Failed to upload disturbances JSON to %s", gcs_key)
+    return False
 
 
 def export_segments_geojson(repo: SegmentRepository, path: Path) -> bool:
