@@ -65,7 +65,7 @@ class IdeaHelsinkiRoadSegment:
         validation_history_weeks: int = 4,
         profile_repository: "ProfileRepository | None" = None,
     ):
-        self.segment_id = segment_id
+        self.segment_id = str(segment_id)
         self.validation_frequency: int = validation_frequency
         self.profile_time_frame_weeks: int = profile_time_frame_weeks
         self.profile_end_lead_time_hours: int = profile_end_lead_time_hours
@@ -186,7 +186,7 @@ class IdeaHelsinkiRoadSegment:
             needs_generation = False
         elif self.profile_repository is not None:
             existing_serialized_profile = await asyncio.to_thread(
-                self.profile_repository.get_profile, self.segment_id
+                self.profile_repository.get_profile, str(self.segment_id)
             )
             if existing_serialized_profile is not None:
                 needs_generation = False
@@ -228,7 +228,7 @@ class IdeaHelsinkiRoadSegment:
                                 expires_str = (now + timedelta(days=7)).isoformat()
                                 await asyncio.to_thread(
                                     self.profile_repository.save_profile,
-                                    segment_id=self.segment_id,
+                                    segment_id=str(self.segment_id),
                                     profile_data=serialized_profile,
                                     computed_at=now_str,
                                     expires_at=expires_str,
@@ -298,7 +298,7 @@ class IdeaHelsinkiRoadSegment:
                 serialized_data = existing_serialized_profile
                 if serialized_data is None:
                     serialized_data = await asyncio.to_thread(
-                        self.profile_repository.get_profile, self.segment_id
+                        self.profile_repository.get_profile, str(self.segment_id)
                     )
                 if serialized_data is not None:
                     try:
@@ -762,7 +762,7 @@ class IdeaHelsinkiRoadSegment:
             if self.profile_repository is not None:
                 try:
                     await asyncio.to_thread(
-                        self.profile_repository.delete_profile, self.segment_id
+                        self.profile_repository.delete_profile, str(self.segment_id)
                     )
                 except Exception as e:
                     self.logger.error(f"Failed to delete profile from SQLite: {e}")

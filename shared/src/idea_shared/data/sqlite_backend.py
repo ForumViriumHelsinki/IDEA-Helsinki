@@ -396,10 +396,12 @@ class SqliteProfileRepository(ProfileRepository):
         """Retrieve a serialized profile by segment ID."""
         cursor = self._conn.execute(
             "SELECT profile_data FROM profiles WHERE segment_id = ?",
-            (segment_id,),
+            (str(segment_id),),
         )
         row = cursor.fetchone()
-        return bytes(row["profile_data"]) if row else None
+        if row and row["profile_data"] is not None:
+            return bytes(row["profile_data"])
+        return None
 
     def save_profile(
         self,
@@ -414,7 +416,7 @@ class SqliteProfileRepository(ProfileRepository):
                 "INSERT OR REPLACE INTO profiles "
                 "(segment_id, profile_data, computed_at, expires_at) "
                 "VALUES (?, ?, ?, ?)",
-                (segment_id, profile_data, computed_at, expires_at),
+                (str(segment_id), profile_data, computed_at, expires_at),
             )
 
     def delete_profile(self, segment_id: str) -> None:
@@ -422,7 +424,7 @@ class SqliteProfileRepository(ProfileRepository):
         with self._conn:
             self._conn.execute(
                 "DELETE FROM profiles WHERE segment_id = ?",
-                (segment_id,),
+                (str(segment_id),),
             )
 
     def get_all_profile_ids(self) -> list[str]:
