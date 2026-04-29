@@ -12,6 +12,7 @@ import importlib.resources
 import json
 import logging
 import sqlite3
+import threading
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -31,19 +32,17 @@ class _SqliteConnectionManager:
 
     def __init__(self, db_path: str | Path):
         self._db_path = str(db_path)
-        self._conn: sqlite3.Connection | None = None
+        self._local = threading.local()
 
     @property
     def connection(self) -> sqlite3.Connection:
-        if self._conn is None:
-            self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
-            self._conn.row_factory = sqlite3.Row
-            self._apply_pragmas()
-        return self._conn
+        if not hasattr(self._local, "conn"):
+            self._local.conn = sqlite3.connect(self._db_path, check_same_thread=True)
+            self._local.conn.row_factory = sqlite3.Row
+            self._apply_pragmas(self._local.conn)
+        return self._local.conn
 
-    def _apply_pragmas(self) -> None:
-        conn = self._conn
-        assert conn is not None
+    def _apply_pragmas(self, conn: sqlite3.Connection) -> None:
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
         conn.execute("PRAGMA foreign_keys=ON")
@@ -89,9 +88,9 @@ class _SqliteConnectionManager:
         logger.info("SQLite connection reset; will reconnect on next access.")
 
     def close(self) -> None:
-        if self._conn is not None:
-            self._conn.close()
-            self._conn = None
+        if hasattr(self._local, "conn") and self._local.conn is not None:
+            self._local.conn.close()
+            del self._local.conn
 
 
 def _extract_bounding_box(
