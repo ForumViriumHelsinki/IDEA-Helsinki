@@ -442,6 +442,100 @@ class TestFCDDatabaseHealthCheck:
             assert "Failed to ping" in result.message
 
 
+class TestFCDDatabaseHealthCheckResilience:
+    """Regression cover for issue #426.
+
+    Two failure modes the fix addresses:
+    1. Sync InfluxDB calls inside async ``check()`` blocked the loop and
+       silently disarmed ``asyncio.wait_for``, so the configured probe
+       timeout was ignored and probes ran for ~10 s before failing.
+    2. ``critical=True`` made any timeout fail ``/ready``, deadlocking
+       the rollout when InfluxDB was loaded.
+    """
+
+    @pytest.mark.asyncio
+    async def test_check_is_not_critical(self):
+        """fcd_database is informational — InfluxDB latency must not flap /ready."""
+        check = FCDDatabaseHealthCheck(
+            url="http://localhost:8086",
+            token="t",
+            org="o",
+            bucket="b",
+        )
+        # Critical-True regressions like #426 deadlock the rollout under load.
+        # Resilience layer (CircuitBreaker + retries) owns the InfluxDB-down
+        # case; readiness reflects orchestrator capability, not DB instantaneity.
+        assert check.critical is False
+
+    @pytest.mark.asyncio
+    async def test_validation_check_is_not_critical(self):
+        """validation_database is informational for the same reason."""
+        check = ValidationDatabaseHealthCheck(
+            url="http://localhost:8086",
+            token="t",
+            org="o",
+            bucket="b",
+        )
+        assert check.critical is False
+
+    @pytest.mark.asyncio
+    async def test_probe_timeout_is_honored_when_ping_blocks(self):
+        """Sync ``client.ping`` running on a worker thread lets wait_for fire.
+
+        Pre-fix, ``client.ping()`` ran on the asyncio loop and blocked the
+        wait_for timer for ~10 s. With ``asyncio.to_thread``, the loop is
+        free to deliver cancellation at the configured timeout.
+        """
+        import time
+
+        with patch(
+            "src.health_checks.InfluxDBConnectionManager.get_instance"
+        ) as mock_get_instance:
+            # Real synchronous blocking ping — the regression vector.
+            slow_client = MagicMock()
+            slow_client.ping = MagicMock(
+                side_effect=lambda: (time.sleep(2.0), True)[1]
+            )
+
+            # Build a minimally-real InfluxDBConnectionManager so we exercise
+            # the actual ping() path (not a mocked-away async ping).
+            real_manager = InfluxDBConnectionManager.__new__(
+                InfluxDBConnectionManager
+            )
+            real_manager.url = "http://localhost:8086"
+            real_manager.token = "t"
+            real_manager.org = "o"
+            real_manager._client = slow_client
+            real_manager._client_lock = asyncio.Lock()
+            real_manager._last_ping_time = None
+            real_manager._ping_cache_ttl = 0  # disable ping cache
+            real_manager._last_access_time = datetime.now(UTC)
+
+            mock_get_instance.return_value = real_manager
+
+            check = FCDDatabaseHealthCheck(
+                url="http://localhost:8086",
+                token="t",
+                org="o",
+                bucket="b",
+            )
+
+            # Probe timeout 0.3 s; mock blocks for 2.0 s. Without to_thread
+            # the await blocks the loop for ~2 s. With to_thread, the loop
+            # cancels at ~0.3 s.
+            start = time.monotonic()
+            with pytest.raises(asyncio.TimeoutError):
+                await asyncio.wait_for(check.check(), timeout=0.3)
+            elapsed = time.monotonic() - start
+
+            # Be generous to avoid flake in CI: the key distinction is
+            # "well under 2 s" (loop responsive) vs "≈2 s" (loop blocked).
+            assert elapsed < 1.0, (
+                f"asyncio.wait_for took {elapsed:.2f}s — looks like the "
+                "blocking ping is still running on the event loop"
+            )
+
+
 class TestValidationDatabaseHealthCheck:
     """Test validation database health check."""
 
