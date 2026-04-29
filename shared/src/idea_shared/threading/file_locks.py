@@ -120,7 +120,7 @@ def atomic_write_json(
             ) as f:
                 temp_path = Path(f.name)
                 temp_fd = f.fileno()
-                json.dump(data, f, indent=4)
+                json.dump(data, f, indent=4, ensure_ascii=False)
                 f.flush()
                 os.fsync(temp_fd)  # Force write to disk
 
@@ -190,7 +190,7 @@ class SegmentMappingFileManager:
 
                 # Write to temporary file
                 with open(temp_file, "w") as f:
-                    json.dump(data, f, indent=2)
+                    json.dump(data, f, indent=2, ensure_ascii=False)
 
                 # Atomic rename (POSIX systems)
                 os.rename(temp_file, file_path)
@@ -241,5 +241,5 @@ class SegmentMappingFileManager:
         """
         with self._lock:
             with open(file_path, "w") as f:
-                json.dump(data, f, indent=2)
+                json.dump(data, f, indent=2, ensure_ascii=False)
             return True

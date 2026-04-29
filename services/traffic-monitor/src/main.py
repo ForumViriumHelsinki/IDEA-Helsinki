@@ -319,7 +319,8 @@ def main():
                         {
                             "timestamp": datetime.now(UTC).isoformat(),
                             "data": allu_wfs_data,
-                        }
+                        },
+                        ensure_ascii=False,
                     )
                 )
             except OSError as e:

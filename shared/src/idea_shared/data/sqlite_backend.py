@@ -364,8 +364,10 @@ class SqliteDisturbanceRepository(DisturbanceRepository):
                         "VALUES (?, ?, ?, ?)",
                         (
                             seg_id,
-                            json.dumps(entry.get("geometry", {})),
-                            json.dumps(entry.get("detailedCollisions", [])),
+                            json.dumps(entry.get("geometry", {}), ensure_ascii=False),
+                            json.dumps(
+                                entry.get("detailedCollisions", []), ensure_ascii=False
+                            ),
                             now,
                         ),
                     )
