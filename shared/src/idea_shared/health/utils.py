@@ -1,5 +1,6 @@
 """Utility functions for health checks."""
 
+import asyncio
 from datetime import UTC, datetime
 
 from influxdb_client.client.query_api import QueryApi
@@ -21,7 +22,7 @@ def _get_latest_record_time(tables) -> datetime | None:
     return None
 
 
-def check_backfill_mode(
+async def check_backfill_mode(
     query_api: QueryApi,
     org: str,
     bucket: str,
@@ -72,7 +73,6 @@ def check_backfill_mode(
     from(bucket: "{bucket}")
         |> range(start: -{freshness_threshold_minutes}m)
         |> filter(fn: (r) => r["_measurement"] == "{measurement}")
-        |> last()
         |> keep(columns: ["_time"])
         |> limit(n: 1)
     """
@@ -82,13 +82,12 @@ def check_backfill_mode(
     from(bucket: "{bucket}")
         |> range(start: -{backfill_lookback_days}d)
         |> filter(fn: (r) => r["_measurement"] == "{measurement}")
-        |> last()
         |> keep(columns: ["_time"])
         |> limit(n: 1)
     """
 
     # Check for recent data first
-    recent_tables = query_api.query(query=recent_query, org=org)
+    recent_tables = await asyncio.to_thread(query_api.query, query=recent_query, org=org)
     last_record_time = _get_latest_record_time(recent_tables)
 
     if last_record_time is not None:
@@ -101,7 +100,7 @@ def check_backfill_mode(
         return True, age_minutes, None  # Real-time mode
 
     # No recent data - check if we're in backfill mode
-    latest_tables = query_api.query(query=latest_query, org=org)
+    latest_tables = await asyncio.to_thread(query_api.query, query=latest_query, org=org)
     latest_data_time = _get_latest_record_time(latest_tables)
 
     if latest_data_time is not None:
