@@ -15,7 +15,7 @@ Future backends (not yet implemented)
 - ``s3``: AWS S3
 - ``azure``: Azure Blob Storage
 
-Example
+Example:
 -------
 ::
 
