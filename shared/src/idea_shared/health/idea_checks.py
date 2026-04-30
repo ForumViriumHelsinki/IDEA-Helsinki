@@ -310,23 +310,29 @@ class FCDDataFreshnessHealthCheck(DatabaseHealthCheck):
 
         """
         try:
-            client = InfluxDBClient(url=self.url, token=self.token, org=self.org)
-            try:
-                query_api = client.query_api()
-                (
-                    has_recent_data,
-                    age_minutes,
-                    backfill_timestamp,
-                ) = await check_backfill_mode(
-                    query_api=query_api,
-                    org=self.org,
-                    bucket=self.bucket,
-                    measurement=self.measurement,
-                    freshness_threshold_minutes=self.max_age_minutes,
-                    backfill_lookback_days=self.backfill_lookback_days,
-                )
-            finally:
-                client.close()
+            loop = asyncio.get_running_loop()
+
+            def check_freshness():
+                """Check data freshness synchronously."""
+                client = InfluxDBClient(url=self.url, token=self.token, org=self.org)
+                try:
+                    query_api = client.query_api()
+                    return check_backfill_mode(
+                        query_api=query_api,
+                        org=self.org,
+                        bucket=self.bucket,
+                        measurement=self.measurement,
+                        freshness_threshold_minutes=self.max_age_minutes,
+                        backfill_lookback_days=self.backfill_lookback_days,
+                    )
+                finally:
+                    client.close()
+
+            (
+                has_recent_data,
+                age_minutes,
+                backfill_timestamp,
+            ) = await loop.run_in_executor(None, check_freshness)
 
             if has_recent_data:
                 if backfill_timestamp and age_minutes is not None:
