@@ -65,7 +65,7 @@ class IdeaHelsinkiRoadSegment:
         validation_history_weeks: int = 4,
         profile_repository: "ProfileRepository | None" = None,
     ):
-        self.segment_id = segment_id
+        self.segment_id = str(segment_id)
         self.validation_frequency: int = validation_frequency
         self.profile_time_frame_weeks: int = profile_time_frame_weeks
         self.profile_end_lead_time_hours: int = profile_end_lead_time_hours

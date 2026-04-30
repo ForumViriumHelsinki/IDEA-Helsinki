@@ -12,6 +12,7 @@ import importlib.resources
 import json
 import logging
 import sqlite3
+import threading
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -27,23 +28,37 @@ _CHANGELOG_RETENTION_LIMIT = 50
 
 
 class _SqliteConnectionManager:
-    """Manages SQLite connection lifecycle and schema migration."""
+    """Manages SQLite connection lifecycle and schema migration.
+
+    Each thread owns its own SQLite connection (via ``threading.local``) so
+    operations dispatched through ``asyncio.to_thread`` do not violate
+    ``check_same_thread`` and do not contend on a shared handle. A monotonic
+    *generation* counter coordinates ``reconnect()`` across threads: after the
+    underlying database file is replaced (e.g. downloaded from GCS), the
+    counter is bumped and every thread closes-and-reopens its cached
+    connection on next access.
+    """
 
     def __init__(self, db_path: str | Path):
         self._db_path = str(db_path)
-        self._conn: sqlite3.Connection | None = None
+        self._local = threading.local()
+        self._generation = 0
 
     @property
     def connection(self) -> sqlite3.Connection:
-        if self._conn is None:
-            self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
-            self._conn.row_factory = sqlite3.Row
-            self._apply_pragmas()
-        return self._conn
+        local_gen = getattr(self._local, "gen", None)
+        if local_gen != self._generation:
+            # Generation advanced (or first access in this thread): close any
+            # stale connection in this thread and reopen against the current
+            # database file.
+            self._close_local()
+            self._local.conn = sqlite3.connect(self._db_path, check_same_thread=True)
+            self._local.conn.row_factory = sqlite3.Row
+            self._apply_pragmas(self._local.conn)
+            self._local.gen = self._generation
+        return self._local.conn
 
-    def _apply_pragmas(self) -> None:
-        conn = self._conn
-        assert conn is not None
+    def _apply_pragmas(self, conn: sqlite3.Connection) -> None:
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
         conn.execute("PRAGMA foreign_keys=ON")
@@ -74,24 +89,53 @@ class _SqliteConnectionManager:
             logger.info("Applied schema migration 001_initial")
 
     def reconnect(self) -> None:
-        """Close and reopen the connection to pick up a replaced database file.
+        """Force every thread to reopen its connection on next access.
 
-        Also removes stale WAL/SHM journal files left by the previous
-        connection, which would otherwise cause SQLite to replay old
-        transactions on top of the newly downloaded database.
+        After the database file on disk has been replaced (e.g. a fresh
+        download from GCS), this method closes the calling thread's
+        connection, removes the stale WAL/SHM journal files left by the
+        previous database, and advances the generation counter so other
+        threads detect their cached connection is obsolete on next access
+        and re-open against the replaced file.
+
+        Threads that are mid-operation on the previous connection will lose
+        any uncommitted writes when their connection is closed on next
+        access — which is the intended behaviour: the database has been
+        replaced wholesale.
         """
-        self.close()
-        # Remove WAL/SHM files so the new connection reads the replaced file cleanly
+        # Close this thread's connection BEFORE unlinking journals so we are
+        # not holding a write handle to the WAL file we are about to delete.
+        self._close_local()
         if self._db_path != ":memory:":
             for suffix in ("-wal", "-shm"):
                 journal = Path(self._db_path + suffix)
                 journal.unlink(missing_ok=True)
-        logger.info("SQLite connection reset; will reconnect on next access.")
+        self._generation += 1
+        logger.info(
+            "SQLite connection reset (gen=%d); all threads will reconnect on next access.",
+            self._generation,
+        )
 
     def close(self) -> None:
-        if self._conn is not None:
-            self._conn.close()
-            self._conn = None
+        """Close the calling thread's connection and invalidate other threads' caches.
+
+        Bumping the generation ensures that other threads which still hold a
+        connection from the previous generation will reopen on next access
+        instead of operating on a connection whose database file has been
+        replaced or removed.
+        """
+        self._close_local()
+        self._generation += 1
+
+    def _close_local(self) -> None:
+        """Close the connection cached in this thread's storage, if any."""
+        conn = getattr(self._local, "conn", None)
+        if conn is not None:
+            try:
+                conn.close()
+            except sqlite3.Error:
+                logger.exception("Error closing SQLite connection")
+            self._local.conn = None
 
 
 def _extract_bounding_box(
@@ -396,10 +440,12 @@ class SqliteProfileRepository(ProfileRepository):
         """Retrieve a serialized profile by segment ID."""
         cursor = self._conn.execute(
             "SELECT profile_data FROM profiles WHERE segment_id = ?",
-            (segment_id,),
+            (str(segment_id),),
         )
         row = cursor.fetchone()
-        return bytes(row["profile_data"]) if row else None
+        if row and row["profile_data"] is not None:
+            return bytes(row["profile_data"])
+        return None
 
     def save_profile(
         self,
@@ -414,7 +460,7 @@ class SqliteProfileRepository(ProfileRepository):
                 "INSERT OR REPLACE INTO profiles "
                 "(segment_id, profile_data, computed_at, expires_at) "
                 "VALUES (?, ?, ?, ?)",
-                (segment_id, profile_data, computed_at, expires_at),
+                (str(segment_id), profile_data, computed_at, expires_at),
             )
 
     def delete_profile(self, segment_id: str) -> None:
@@ -422,7 +468,7 @@ class SqliteProfileRepository(ProfileRepository):
         with self._conn:
             self._conn.execute(
                 "DELETE FROM profiles WHERE segment_id = ?",
-                (segment_id,),
+                (str(segment_id),),
             )
 
     def get_all_profile_ids(self) -> list[str]:
