@@ -1,8 +1,15 @@
 """Tests for SQLite backend repository implementations."""
 
+import sqlite3
+import threading
+from pathlib import Path
+
 import pytest
 
-from idea_shared.data.sqlite_backend import create_sqlite_repositories
+from idea_shared.data.sqlite_backend import (
+    _SqliteConnectionManager,
+    create_sqlite_repositories,
+)
 
 
 @pytest.fixture
@@ -401,6 +408,107 @@ class TestSqliteReconnect:
         # but schema needs to be re-applied
         seg_repo._cm.ensure_schema()
         assert seg_repo.get_segments() == {}
+
+
+class TestConnectionManagerThreading:
+    """Cross-thread invariants for ``_SqliteConnectionManager``.
+
+    These regression tests cover the failure mode where ``reconnect()`` only
+    refreshed the calling thread's cached connection, leaving worker threads
+    operating on connections bound to a database file that had since been
+    replaced — a known cause of "database disk image is malformed" in
+    production (Sentry IDEA-HELSINKI-2K).
+    """
+
+    @pytest.mark.unit
+    def test_each_thread_gets_its_own_connection(self, tmp_path: Path) -> None:
+        """``connection`` returns a thread-local handle, not a shared one."""
+        cm = _SqliteConnectionManager(tmp_path / "db.sqlite")
+        cm.ensure_schema()
+        main_conn = cm.connection
+        worker_conn: list[sqlite3.Connection] = []
+
+        def worker() -> None:
+            worker_conn.append(cm.connection)
+
+        t = threading.Thread(target=worker)
+        t.start()
+        t.join()
+
+        assert worker_conn[0] is not main_conn
+
+    @pytest.mark.unit
+    def test_reconnect_bumps_generation_and_refreshes_caller(
+        self, tmp_path: Path
+    ) -> None:
+        """reconnect() bumps the generation and gives the caller a new handle.
+
+        The generation bump is what forces *other* threads to drop their
+        cached connection on next access — the regression check for Sentry
+        IDEA-HELSINKI-2K.
+        """
+        cm = _SqliteConnectionManager(tmp_path / "db.sqlite")
+        cm.ensure_schema()
+        before = cm.connection
+        gen_before = cm._generation
+
+        cm.reconnect()
+
+        assert cm._generation == gen_before + 1
+        # Calling thread's _local.conn was cleared by reconnect; next access
+        # opens a fresh handle.
+        after = cm.connection
+        assert after is not before
+
+    @pytest.mark.unit
+    def test_other_thread_drops_stale_connection_on_next_access(
+        self, tmp_path: Path
+    ) -> None:
+        """A worker that opened a connection BEFORE close() must reopen after.
+
+        Probes Gemini's high-priority concern: prior to the fix a worker's
+        ``_local.conn`` cached from a previous generation was reused
+        verbatim, leaving the worker bound to a database file inode that
+        had since been replaced. The generation bump on close()/reconnect()
+        is what makes the worker drop the stale handle on its next access.
+
+        Uses ``close()`` rather than ``reconnect()`` to isolate the
+        per-thread refresh invariant from the WAL/SHM file-replacement
+        dance, which has its own coverage in
+        ``test_reconnect_after_replacement_picks_up_new_data``.
+        """
+        cm = _SqliteConnectionManager(tmp_path / "db.sqlite")
+        cm.ensure_schema()
+
+        captured_first: list[sqlite3.Connection] = []
+        captured_second: list[sqlite3.Connection] = []
+        gate_after_first = threading.Event()
+        proceed_with_second = threading.Event()
+
+        def worker() -> None:
+            captured_first.append(cm.connection)
+            gate_after_first.set()
+            proceed_with_second.wait(timeout=5.0)
+            captured_second.append(cm.connection)
+
+        t = threading.Thread(target=worker)
+        t.start()
+
+        assert gate_after_first.wait(timeout=5.0)
+        cm.close()
+        proceed_with_second.set()
+        t.join(timeout=5.0)
+
+        assert captured_first and captured_second
+        assert captured_second[0] is not captured_first[0]
+
+    @pytest.mark.unit
+    def test_close_bumps_generation(self, tmp_path: Path) -> None:
+        cm = _SqliteConnectionManager(tmp_path / "db.sqlite")
+        cm.ensure_schema()
+        gen_before = cm._generation
+        cm.close()
+        assert cm._generation == gen_before + 1
 
 
 class TestSchemaIdempotency:
