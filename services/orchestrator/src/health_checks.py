@@ -292,7 +292,11 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
                     # Use shared backfill detection utility.
                     # The utility is now async and handles its own thread offloading
                     # for the blocking urllib3 calls to prevent event loop starvation.
-                    has_data, age_minutes, backfill_timestamp = await check_backfill_mode(
+                    (
+                        has_data,
+                        age_minutes,
+                        backfill_timestamp,
+                    ) = await check_backfill_mode(
                         query_api=query_api,
                         org=self.org,
                         bucket=self.bucket,
