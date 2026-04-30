@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.30.1...idea-shared-v0.30.2) (2026-04-30)
+
+
+### Bug Fixes
+
+* **sqlite:** resolve thread/type/null bugs in profile repository ([#432](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/432)) ([c741ccd](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/c741ccd2ec67b97956e53f2c83ea33cb34026c65))
+
 ## [0.30.1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.30.0...idea-shared-v0.30.1) (2026-04-29)
 
 
