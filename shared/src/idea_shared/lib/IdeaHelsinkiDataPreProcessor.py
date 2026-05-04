@@ -97,7 +97,7 @@ def determine_disturbance_dates(
     if len(reported_disturbances) > 0:
         try:
             earliest_start_date = min(
-                datetime.strptime(c["properties"]["star_date"], "%Y-%m-%d").replace(
+                datetime.strptime(c["properties"]["start_date"], "%Y-%m-%d").replace(
                     tzinfo=UTC
                 )
                 for c in reported_disturbances

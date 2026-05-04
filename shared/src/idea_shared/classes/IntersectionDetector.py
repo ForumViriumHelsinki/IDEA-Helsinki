@@ -289,7 +289,7 @@ class IntersectionDetector:
                     feature_id if feature_id is not None else "Unknown ID"
                 ),
                 "application_id": getattr(row, "hakemustunnus", "Unknown App ID"),
-                "star_date": getattr(row, "tyo_alkaa", None),
+                "start_date": getattr(row, "tyo_alkaa", None),
                 "end_date": getattr(row, "tyo_paattyy", None),
                 "address": getattr(row, "osoite", None),
                 "district": getattr(row, "kaupunginosa", None),
@@ -355,7 +355,7 @@ class IntersectionDetector:
                 "application_id": row.get(
                     "hakemustunnus", "Unknown App ID"
                 ),  # From Map Allu from WFS
-                "star_date": row.get("tyo_alkaa"),  # Expects "YYYY-MM-DD" format
+                "start_date": row.get("tyo_alkaa"),  # Expects "YYYY-MM-DD" format
                 "end_date": row.get("tyo_paattyy"),  # Expects "YYYY-MM-DD" format
             }
 

@@ -117,7 +117,7 @@ class TestProcessIntersectionsToNewModel:
         assert props["traffic_disturbance_type"] == "Kaivuilmoitus"
         assert props["traffic_disturbance_id"] == 1341
         assert props["application_id"] == "KP2501715-4"
-        assert props["star_date"] == "2025-07-28"
+        assert props["start_date"] == "2025-07-28"
         assert props["end_date"] == "2026-08-31"
 
         # Original schema must NOT include geometry/address/district inside
@@ -151,7 +151,7 @@ class TestProcessIntersectionsToExtendedModel:
         assert props["traffic_disturbance_type"] == "Kaivuilmoitus"
         assert props["traffic_disturbance_id"] == 1341
         assert props["application_id"] == "KP2501715-4"
-        assert props["star_date"] == "2025-07-28"
+        assert props["start_date"] == "2025-07-28"
         assert props["end_date"] == "2026-08-31"
 
     @pytest.mark.unit

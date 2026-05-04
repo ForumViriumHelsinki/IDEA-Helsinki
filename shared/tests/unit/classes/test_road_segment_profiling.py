@@ -26,7 +26,7 @@ def _make_segment(**kwargs) -> IdeaHelsinkiRoadSegment:
     disturbances = [
         {
             "properties": {
-                "star_date": "2025-06-01",
+                "start_date": "2025-06-01",
                 "end_date": "2025-06-30",
             }
         }
@@ -360,7 +360,7 @@ class TestManagerProfilingSemaphore:
                     "detailedCollisions": [
                         {
                             "properties": {
-                                "star_date": "2025-06-01",
+                                "start_date": "2025-06-01",
                                 "end_date": "2025-06-30",
                             }
                         }
