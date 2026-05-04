@@ -336,7 +336,7 @@ class IdeaHelsinkiRoadSegment:
                     measurement_name=INFLUX_VALIDATION_MEASUREMENT,
                 ):
                     self.logger.info("Segment validation updated to database.")
-                    self.last_segment_validation = segment_validation.tail(1)
+                    self.last_segment_validation = segment_validation.tail(1).copy()
                     self.last_validation_update = current_time
                 else:
                     self.logger.info("Segment validation NOT updated to database.")
