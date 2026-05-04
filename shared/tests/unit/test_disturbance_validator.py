@@ -56,6 +56,7 @@ class TestValidateDisturbanceDates:
                     {
                         "properties": {
                             "tyo_alkaa": "2024-02-10",
+                            "tyo_paattyy": "2025-12-31",
                             "name": "Test disturbance",
                         },
                         "geometry": {"type": "Polygon"},
@@ -84,6 +85,7 @@ class TestValidateDisturbanceDates:
                     {
                         "properties": {
                             "tyo_alkaa": future_date,
+                            "tyo_paattyy": "2025-12-31",
                             "name": "Future disturbance",
                         },
                         "geometry": {"type": "Polygon"},
@@ -108,6 +110,7 @@ class TestValidateDisturbanceDates:
                     {
                         "properties": {
                             "tyo_alkaa": "2024-01-15",  # Before validation date
+                            "tyo_paattyy": "2025-12-31",
                             "name": "Old disturbance",
                         }
                     }
@@ -130,18 +133,21 @@ class TestValidateDisturbanceDates:
                     {
                         "properties": {
                             "tyo_alkaa": "2023-12-15",  # Too old
+                            "tyo_paattyy": "2025-12-31",
                             "name": "Old",
                         }
                     },
                     {
                         "properties": {
                             "tyo_alkaa": "2024-02-10",  # Valid
+                            "tyo_paattyy": "2025-12-31",
                             "name": "Current",
                         }
                     },
                     {
                         "properties": {
                             "tyo_alkaa": "2024-03-01",  # Future, valid
+                            "tyo_paattyy": "2025-12-31",
                             "name": "Future",
                         }
                     },
@@ -212,7 +218,7 @@ class TestValidateDisturbanceDates:
             disturbance_data = {
                 "features": [
                     {
-                        "properties": {"tyo_alkaa": "2024-02-10"},
+                        "properties": {"tyo_alkaa": "2024-02-10", "tyo_paattyy": "2025-12-31"},
                         "type": "Feature",
                     }
                 ],

@@ -50,12 +50,19 @@ def validate_disturbance_dates(
             disturbance_start_date = datetime.strptime(
                 disturbance["properties"]["tyo_alkaa"], "%Y-%m-%d"
             )
-            # disturbance_end_date = datetime.strptime(disturbance['properties']['tyo_paattyy'], "%Y-%m-%d") # Not used since this can be misleading (extension in the disturbance comments but not updated to the variable9
+            disturbance_end_date = datetime.strptime(
+                disturbance["properties"]["tyo_paattyy"], "%Y-%m-%d"
+            )
 
         except (KeyError, TypeError, ValueError):
             logger.error(
                 'Skipping disturbance with missing, malformed, or invalid dates. expected "YYYY-MM-DD".'
             )
+            continue
+
+        # Check that the disturbance hasn't already ended.
+        if disturbance_end_date.date() < current_date.date():
+            invalid_disturbances += 1
             continue
 
         if disturbance_start_date.date() > current_date.date():
