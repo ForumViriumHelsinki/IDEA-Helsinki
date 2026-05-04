@@ -72,8 +72,8 @@ def check_backfill_mode(
     from(bucket: "{bucket}")
         |> range(start: -{freshness_threshold_minutes}m)
         |> filter(fn: (r) => r["_measurement"] == "{measurement}")
-        |> last()
         |> keep(columns: ["_time"])
+        |> sort(columns: ["_time"], desc: true)
         |> limit(n: 1)
     """
 
@@ -82,8 +82,8 @@ def check_backfill_mode(
     from(bucket: "{bucket}")
         |> range(start: -{backfill_lookback_days}d)
         |> filter(fn: (r) => r["_measurement"] == "{measurement}")
-        |> last()
         |> keep(columns: ["_time"])
+        |> sort(columns: ["_time"], desc: true)
         |> limit(n: 1)
     """
 

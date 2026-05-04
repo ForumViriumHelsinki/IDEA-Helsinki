@@ -289,12 +289,15 @@ class FCDDatabaseHealthCheck(DatabaseHealthCheck):
                 freshness_threshold_minutes = self.data_freshness_hours * 60
 
                 try:
-                    # Use shared backfill detection utility.
                     # Run on a worker thread: the underlying influxdb-client
                     # query is a blocking urllib3 call, and running it on
                     # the event loop blocks asyncio.wait_for from
                     # cancelling at the configured probe timeout (#426).
-                    has_data, age_minutes, backfill_timestamp = await asyncio.to_thread(
+                    (
+                        has_data,
+                        age_minutes,
+                        backfill_timestamp,
+                    ) = await asyncio.to_thread(
                         check_backfill_mode,
                         query_api=query_api,
                         org=self.org,
