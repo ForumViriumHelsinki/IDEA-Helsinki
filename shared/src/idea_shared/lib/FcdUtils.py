@@ -811,7 +811,7 @@ def update_segment_changelog_from_repo(
     """
     segments_data = repository.get_segments()
     if not segments_data:
-        logger.error("Could not read segment mapping from repository.")
+        logger.warning("Could not read segment mapping from repository.")
         return
 
     fresh_segments = extract_fresh_segments(segments_data)

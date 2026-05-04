@@ -251,8 +251,10 @@ class IdeaHelsinkiRoadSegment:
                         self.logger.error("IDEA returned an empty segment profile")
                         return
                 else:
-                    # No FCD data available at all for this segment/period
-                    self.logger.error(
+                    # No FCD data available at all for this segment/period.
+                    # Expected outcome for low-activity segments — log as warning
+                    # so it stays in pod logs but does not become a Sentry issue.
+                    self.logger.warning(
                         f"No FCD data available for segment. "
                         f"Query returned empty/None for period "
                         f"{self.profiling_start_date} to {self.profiling_end_date}."
