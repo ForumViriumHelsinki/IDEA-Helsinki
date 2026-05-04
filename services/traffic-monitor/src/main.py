@@ -398,7 +398,7 @@ def main():
                 fcd_segments_gdf = detector.load_segments_from_repo(segment_repo)
 
                 if fcd_segments_gdf is None:
-                    logger.error(
+                    logger.warning(
                         "Failed to load FCD segment data, skipping intersection detection"
                     )
                     service_state.set_processing(False)

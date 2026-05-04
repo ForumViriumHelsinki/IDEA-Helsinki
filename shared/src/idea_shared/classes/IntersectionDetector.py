@@ -443,7 +443,7 @@ class IntersectionDetector:
         """
         data = repository.get_segments()
         if not data:
-            self.logger.error("No segment data available from repository")
+            self.logger.warning("No segment data available from repository")
             return None
         return self._parse_segment_data(data)
 
