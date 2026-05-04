@@ -9,6 +9,12 @@ image:
   repository: ghcr.io/forumviriumhelsinki/idea-helsinki/fcd-manager
   tag: "0.30.3" # Updated by ArgoCD Image Updater
 replicaCount: 1
+# Recreate strategy avoids the dual-pod surge that deadlocks rollouts when
+# the new and old pod compete for InfluxDB's /ready check budget. Costs
+# ~30s of "no fcd-manager running" per deploy — acceptable for a singleton
+# background ingestion service. See ForumViriumHelsinki/IDEA-Helsinki#437.
+deploymentStrategy:
+  type: Recreate
 progressDeadlineSeconds: 1800 # 30 min: 20-min startup probe + GCS download on startup
 serviceAccount:
   create: false
