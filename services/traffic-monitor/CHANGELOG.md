@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.3](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.30.2...traffic-monitor-v0.30.3) (2026-05-04)
+
+
+### Bug Fixes
+
+* **observability:** demote expected-outcome logs from ERROR to WARNING ([#440](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/440)) ([f3da184](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/f3da1844b075647888f22bd74d4807b80c9b32a3))
+
 ## [0.30.2](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.30.1...traffic-monitor-v0.30.2) (2026-04-30)
 
 
