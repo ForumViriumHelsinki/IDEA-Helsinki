@@ -34,7 +34,7 @@ Since the legacy model will be completely superseded and is no longer required a
 - Ensure the extended model is documented as the sole standard schema for both `traffic_disturbance_data.json` and the SQLite `disturbances` table.
 
 ## Verification & Testing
-- **Unit Tests:** Verify all existing unit tests in `idea-shared` and `orchestrator` pass, ensuring mock data updates don't break legacy validation paths.
+- **Unit Tests:** Add new unit tests for process_intersections_to_extended_model to verify the correct mapping of extended fields. Also, verify all existing unit tests in idea-shared and orchestrator pass, ensuring mock data updates don't break legacy validation paths.
 - **Integration Test:** Run the `traffic-monitor` locally and verify that the output `traffic_disturbance_data.json` successfully contains the extended WFS `MultiPolygon` geometry and address properties.
 - **Consumer Test:** Run the `orchestrator` locally to confirm it successfully boots and parses the extended `detailedCollisions` without raising `KeyError` or schema validation exceptions.
 
