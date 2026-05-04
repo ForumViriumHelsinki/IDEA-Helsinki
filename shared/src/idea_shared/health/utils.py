@@ -1,6 +1,5 @@
 """Utility functions for health checks."""
 
-import asyncio
 from datetime import UTC, datetime
 
 from influxdb_client.client.query_api import QueryApi
