@@ -58,10 +58,14 @@ def validate_disturbance_dates(
             logger.error(
                 'Skipping disturbance with missing, malformed, or invalid dates. expected "YYYY-MM-DD".'
             )
+            invalid_disturbances += 1
             continue
 
-        # Check that the disturbance hasn't already ended.
-        if disturbance_end_date.date() < current_date.date():
+        # Check that the disturbance hasn't already ended, and is logically consistent
+        if (
+            disturbance_end_date.date() < current_date.date()
+            or disturbance_start_date.date() > disturbance_end_date.date()
+        ):
             invalid_disturbances += 1
             continue
 
