@@ -27,6 +27,9 @@ Modify `services/traffic-monitor/src/main.py` to use the new extended method.
 ### Step 2: Cleanup Legacy Method
 Since the legacy model will be completely superseded and is no longer required as a fallback:
 - Deprecate and remove `process_intersections_to_new_model` from `shared/src/idea_shared/classes/IntersectionDetector.py`.
+- Update `services/traffic-monitor/src/health_checks.py` (line 655 in `required_methods`) to reference the extended method instead — otherwise the readiness probe will report `Detector missing required methods` and the pod will stay at `0/1 Available`.
+- Update `services/traffic-monitor/tests/conftest.py` (the `mock_detector.process_intersections_to_new_model` fixture).
+- Update `services/traffic-monitor/tests/test_health_checks.py` (line 381 references the legacy method).
 - Clean up `shared/tests/unit/classes/test_intersection_detector.py` to remove legacy-specific tests.
 
 ### Step 3: Documentation Updates
