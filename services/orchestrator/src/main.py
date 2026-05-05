@@ -121,7 +121,10 @@ async def main():
         from pathlib import Path
 
         from idea_shared.data.object_storage import create_object_storage_sync
-        from idea_shared.data.sqlite_backend import create_sqlite_repositories
+        from idea_shared.data.sqlite_backend import (
+            SqliteDisturbanceRepository,
+            create_sqlite_repositories,
+        )
         from idea_shared.health.idea_checks import SqliteHealthCheck
         from idea_shared.lib.Constants.Constants import (
             SQLITE_DIR,
@@ -146,20 +149,25 @@ async def main():
         storage_sync.download_if_changed(SQLITE_SEGMENTS_DB, segments_db_path)
         storage_sync.download_if_changed(SQLITE_DISTURBANCES_DB, disturbances_db_path)
 
-        # Per-cycle refresh hook: re-pull the disturbances DB before the manager
-        # reads from it, so changes written by traffic-monitor each hour become
-        # visible. download_if_changed is a no-op when the remote ETag matches.
-        def disturbance_refresh() -> None:
-            storage_sync.download_if_changed(
-                SQLITE_DISTURBANCES_DB, disturbances_db_path
-            )
-
         # Create repos from downloaded databases
         seg_repos = create_sqlite_repositories(segments_db_path)
         _segment_repo = seg_repos[0]  # Available for future use
 
         dist_repos = create_sqlite_repositories(disturbances_db_path)
-        disturbance_repo = dist_repos[1]  # SqliteDisturbanceRepository
+        sqlite_disturbance_repo: SqliteDisturbanceRepository = dist_repos[1]
+        disturbance_repo = sqlite_disturbance_repo
+
+        # Per-cycle refresh hook: re-pull the disturbances DB before the manager
+        # reads from it, so changes written by traffic-monitor each hour become
+        # visible. download_if_changed is a no-op when the remote ETag matches.
+        # When it does download, reconnect() drops stale WAL/SHM journals so
+        # the connection sees the new file's rows instead of replaying the old
+        # transactions on top of it (mirrors the traffic-monitor fix in #380).
+        def disturbance_refresh() -> None:
+            if storage_sync.download_if_changed(
+                SQLITE_DISTURBANCES_DB, disturbances_db_path
+            ):
+                sqlite_disturbance_repo.reconnect()
 
         # Create local profiles database (not shared via GCS)
         profile_repos = create_sqlite_repositories(profiles_db_path)
