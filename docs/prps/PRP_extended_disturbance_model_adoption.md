@@ -7,7 +7,7 @@ Wire the newly implemented extended traffic disturbance data model (`process_int
 Instead of maintaining two parallel storage systems (which risks divergence and data staleness), we will perform an **in-place upgrade** of the existing schema. The extended model fields (`geometry`, `properties.address`, `properties.district`) will simply be added to the existing `detailedCollisions` JSON arrays. 
 
 This approach is highly efficient and architecturally sound because:
-1. **Consumer Resilience:** Python dictionary consumers (like determine_disturbance_dates in the Orchestrator) only look for specific keys (start_date and end_date). They naturally ignore the new keys (geometry, address, district) without breaking.
+1. **Consumer Resilience:** Python dictionary consumers (like `determine_disturbance_dates` in the Orchestrator) only look for specific keys (`star_date` and `end_date`). They naturally ignore the new keys (`geometry`, `address`, `district`) without breaking. Note: `star_date` is an existing typo present in both producer (`IntersectionDetector.py:292`) and consumer (`IdeaHelsinkiDataPreProcessor.py:100`); consider fixing it across both in the same upgrade, since the 5-minute overwrite cycle naturally rolls in-flight rows over.
 2. **Zero SQLite Migration:** The SQLite `disturbances` table stores the collisions as a JSON string (`TEXT`). Therefore, writing the extended JSON shape into the existing column requires absolutely no SQL schema migration.
 
 ## Implementation Steps
