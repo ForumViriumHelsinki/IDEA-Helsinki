@@ -1,7 +1,7 @@
 # Implementation Plan: Production Wiring of Extended Disturbance Model
 
 ## Objective
-Wire the newly implemented extended traffic disturbance data model (`process_intersections_to_extended_model`) into production. The extended model will fully replace the legacy model in the existing storage paths (JSON and SQLite) so that all downstream consumers (Orchestrator, DATEXII export) can access the WFS geometry, address, and district natively without requiring database migrations.
+Wire the newly implemented extended traffic disturbance data model (`process_intersections_to_extended_model`) into production. The extended model will fully replace the legacy model in the existing storage paths (JSON and SQLite) so that all downstream consumers (Orchestrator, DATEXII export) can access the WFS disturbance geometry, address, and district natively without requiring database migrations. Note that the extended schema emits geometry at two levels per segment entry: `segmentId.<id>.geometry` continues to carry the segment LineString, while `segmentId.<id>.detailedCollisions[*].geometry` is the new disturbance MultiPolygon copied from WFS.
 
 ## Proposed Strategy: In-Place Schema Update
 Instead of maintaining two parallel storage systems (which risks divergence and data staleness), we will perform an **in-place upgrade** of the existing schema. The extended model fields (`geometry`, `properties.address`, `properties.district`) will simply be added to the existing `detailedCollisions` JSON arrays. 
