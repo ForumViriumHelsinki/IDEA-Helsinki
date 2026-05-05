@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.30.4](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.30.3...idea-shared-v0.30.4) (2026-05-04)
+
+
+### Bug Fixes
+
+* **health:** resolve InfluxDB read timeouts in backfill mode checks ([#439](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/439)) ([4d6b74b](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/4d6b74b90eca51306e784e657a314b3601616507))
+* idea-validation-memory-optimisation ([#446](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/446)) ([7c654d8](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/7c654d8de85d7296edd6e1d0a6fb92022a14fcb7))
+
 ## [0.30.3](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.30.2...idea-shared-v0.30.3) (2026-05-04)
 
 
