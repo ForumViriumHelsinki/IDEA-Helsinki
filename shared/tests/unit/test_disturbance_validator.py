@@ -218,7 +218,10 @@ class TestValidateDisturbanceDates:
             disturbance_data = {
                 "features": [
                     {
-                        "properties": {"tyo_alkaa": "2024-02-10", "tyo_paattyy": "2025-12-31"},
+                        "properties": {
+                            "tyo_alkaa": "2024-02-10",
+                            "tyo_paattyy": "2025-12-31",
+                        },
                         "type": "Feature",
                     }
                 ],
