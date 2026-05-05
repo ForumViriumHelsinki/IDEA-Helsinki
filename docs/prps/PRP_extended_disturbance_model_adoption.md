@@ -43,5 +43,5 @@ Since the legacy model will be completely superseded and is no longer required a
 - **Pre-merge Gate:** Run `just ci` end-to-end (per `.claude/rules/testing.md`) before merging.
 
 ## Migration & Rollback
-- **Migration Path:** Zero downtime, zero SQL migrations. The next run of the `traffic-monitor` pod will simply overwrite the existing JSON/SQLite records with the new extended format.
-- **Rollback Path:** If downstream issues are detected, `traffic-monitor/src/main.py` can be reverted via Git to use the legacy method. The subsequent 5-minute cycle will overwrite the data back to the old format seamlessly.
+- **Migration Path:** Zero downtime, zero SQL migrations. The next run of the `traffic-monitor` pod will simply overwrite the existing JSON/SQLite records with the new extended format. *Alternative considered:* gate the producer behind a `USE_EXTENDED_DISTURBANCE_MODEL` feature flag (the codebase already has `idea_shared.feature_flags` with `EnvironmentVariableProvider` in production), which would make rollback an env-var flip rather than a Git revert + container rebuild + 5-minute rollout.
+- **Rollback Path:** If downstream issues are detected, `traffic-monitor/src/main.py` can be reverted via Git to use the legacy method. The subsequent 5-minute cycle will overwrite the data back to the old format. Before relying on this, confirm that downstream consumers (DATEXII export, TFDS_Dashboard) have not persisted or cached the extended fields between cycles — if they have, those caches must be cleared as part of the rollback.
