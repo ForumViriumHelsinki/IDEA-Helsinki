@@ -37,9 +37,10 @@ Since the legacy model will be completely superseded and is no longer required a
 - Ensure the extended model is documented as the sole standard schema for both `traffic_disturbance_data.json` and the SQLite `disturbances` table.
 
 ## Verification & Testing
-- **Unit Tests:** Add new unit tests for process_intersections_to_extended_model to verify the correct mapping of extended fields. Also, verify all existing unit tests in idea-shared and orchestrator pass, ensuring mock data updates don't break legacy validation paths.
+- **Unit Tests:** Add new unit tests for `process_intersections_to_extended_model` to verify the correct mapping of extended fields. Verify all existing unit tests pass across `idea-shared`, `orchestrator`, **and `traffic-monitor`** (the latter is required because the Step 2 cleanup updates its conftest fixture and health-check test).
 - **Integration Test:** Run the `traffic-monitor` locally and verify that the output `traffic_disturbance_data.json` successfully contains the extended WFS `MultiPolygon` geometry and address properties.
-- **Consumer Test:** Run the `orchestrator` locally to confirm it successfully boots and parses the extended `detailedCollisions` without raising `KeyError` or schema validation exceptions.
+- **Consumer Test:** Run the `orchestrator` locally to confirm it successfully boots and parses the extended `detailedCollisions` without raising `KeyError` or schema validation exceptions. Smoke-test the DATEXII export consumer against the new shape as well, since the PR summary lists it as a downstream beneficiary.
+- **Pre-merge Gate:** Run `just ci` end-to-end (per `.claude/rules/testing.md`) before merging.
 
 ## Migration & Rollback
 - **Migration Path:** Zero downtime, zero SQL migrations. The next run of the `traffic-monitor` pod will simply overwrite the existing JSON/SQLite records with the new extended format.
