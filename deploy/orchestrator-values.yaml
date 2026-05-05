@@ -7,7 +7,7 @@
 
 image:
   repository: ghcr.io/forumviriumhelsinki/idea-helsinki/orchestrator
-  tag: "0.30.3" # Updated by ArgoCD Image Updater
+  tag: "0.30.4" # Updated by ArgoCD Image Updater
 replicaCount: 1
 # Recreate strategy avoids the dual-pod surge that deadlocks rollouts when
 # the new and old pod compete for InfluxDB's /ready check budget. Costs
