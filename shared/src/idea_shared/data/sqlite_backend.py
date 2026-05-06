@@ -374,6 +374,10 @@ class SqliteDisturbanceRepository(DisturbanceRepository):
     def _conn(self) -> sqlite3.Connection:
         return self._cm.connection
 
+    def reconnect(self) -> None:
+        """Reset the database connection to pick up a replaced file on disk."""
+        self._cm.reconnect()
+
     def get_disturbances(self) -> dict:
         """Read disturbances, reconstructing the JSON dict format."""
         cursor = self._conn.execute(

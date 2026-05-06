@@ -409,6 +409,53 @@ class TestSqliteReconnect:
         seg_repo._cm.ensure_schema()
         assert seg_repo.get_segments() == {}
 
+    @pytest.mark.unit
+    def test_disturbance_reconnect_picks_up_new_data(self, tmp_path):
+        """Regression for orchestrator's stale-connection bug on disturbances.db.
+
+        The orchestrator opens a SqliteDisturbanceRepository against the
+        disturbances.db it just downloaded, then re-downloads the file each
+        management cycle. Without reconnect(), the connection's WAL/SHM
+        journals cause SQLite to replay the original empty transactions on
+        top of the freshly downloaded file, so get_disturbances() returns
+        nothing and the manager creates 0 workers.
+        """
+        db_path = tmp_path / "disturbances.db"
+
+        _, dist_repo, _ = create_sqlite_repositories(db_path)
+        dist_repo.save_disturbances(
+            {
+                "segmentId": {
+                    "seg_old": {
+                        "geometry": {"type": "LineString", "coordinates": []},
+                        "detailedCollisions": [],
+                    }
+                }
+            }
+        )
+        assert "seg_old" in dist_repo.get_disturbances()["segmentId"]
+
+        replacement = tmp_path / "disturbances_new.db"
+        _, new_repo, _ = create_sqlite_repositories(replacement)
+        new_repo.save_disturbances(
+            {
+                "segmentId": {
+                    "seg_new": {
+                        "geometry": {"type": "LineString", "coordinates": []},
+                        "detailedCollisions": [{"id": 1}],
+                    }
+                }
+            }
+        )
+        new_repo._cm.close()
+
+        replacement.replace(db_path)
+
+        dist_repo.reconnect()
+        result = dist_repo.get_disturbances()
+        assert "seg_new" in result["segmentId"]
+        assert "seg_old" not in result["segmentId"]
+
 
 class TestConnectionManagerThreading:
     """Cross-thread invariants for ``_SqliteConnectionManager``.
