@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.5](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.30.4...idea-shared-v0.30.5) (2026-05-06)
+
+
+### Bug Fixes
+
+* **orchestrator:** reconnect SQLite after disturbances download ([#454](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/454)) ([d0d0499](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/d0d0499d52b71a4e3a0cb330886b47dc355dd2b9))
+
 ## [0.30.4](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.30.3...idea-shared-v0.30.4) (2026-05-04)
 
 
