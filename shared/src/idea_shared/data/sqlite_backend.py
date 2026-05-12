@@ -72,6 +72,15 @@ class _SqliteConnectionManager:
             self._local.conn = sqlite3.connect(self._db_path, check_same_thread=True)
             self._local.conn.row_factory = sqlite3.Row
             self._apply_pragmas(self._local.conn)
+            # Validate schema on every fresh handle. Worker threads that
+            # reconnect after the manager bumped the generation would
+            # otherwise race the reconnecting thread's ``ensure_schema`` call
+            # and crash with ``no such table`` (issue #461). Doing the check
+            # here serialises through SQLite's own locking: ``CREATE TABLE IF
+            # NOT EXISTS`` is a no-op once another thread has committed the
+            # migration, so concurrent first-access from multiple threads is
+            # safe.
+            self._validate_and_repair_schema(self._local.conn)
             self._local.gen = self._generation
         return self._local.conn
 
@@ -80,18 +89,14 @@ class _SqliteConnectionManager:
         conn.execute("PRAGMA synchronous=NORMAL")
         conn.execute("PRAGMA foreign_keys=ON")
 
-    def ensure_schema(self) -> None:
-        """Apply schema migrations idempotently.
+    def _validate_and_repair_schema(self, conn: sqlite3.Connection) -> None:
+        """Verify migration 001 tables exist on *conn*; re-apply migration if not.
 
-        Cross-checks both the ``schema_version`` row and the actual presence of
-        every table that migration 001 is supposed to create. If the version
-        row claims v1 but any expected table has gone missing — e.g. a partial
-        GCS download or a stale snapshot — the migration is re-applied. The
-        SQL is written with ``CREATE TABLE IF NOT EXISTS`` so re-running it is
-        safe and restores only the missing tables.
+        Operates on an explicit connection rather than ``self.connection`` so
+        it can be called from inside the connection property's refresh block
+        without recursion. Idempotent: when the schema is already intact
+        this is two cheap ``SELECT``s.
         """
-        conn = self.connection
-
         cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
         existing_tables = {row[0] for row in cursor.fetchall()}
 
@@ -105,25 +110,38 @@ class _SqliteConnectionManager:
         missing_v1_tables = _MIGRATION_001_TABLES - existing_tables
         needs_v1 = current_version < 1 or bool(missing_v1_tables)
 
-        if needs_v1:
-            if missing_v1_tables and current_version >= 1:
-                # File on disk reports an up-to-date schema_version but is
-                # missing tables the migration was meant to create. Re-apply
-                # the migration to self-heal rather than crashing on the
-                # next query (issue #461).
-                logger.warning(
-                    "schema_version reports v%d but tables are missing: %s; "
-                    "re-applying migration 001 to restore schema.",
-                    current_version,
-                    sorted(missing_v1_tables),
-                )
-            migration_sql = (
-                importlib.resources.files("idea_shared.data.migrations")
-                .joinpath("001_initial.sql")
-                .read_text(encoding="utf-8")
+        if not needs_v1:
+            return
+
+        if missing_v1_tables and current_version >= 1:
+            # File on disk reports an up-to-date schema_version but is
+            # missing tables the migration was meant to create. Re-apply
+            # the migration to self-heal rather than crashing on the
+            # next query (issue #461).
+            logger.warning(
+                "schema_version reports v%d but tables are missing: %s; "
+                "re-applying migration 001 to restore schema.",
+                current_version,
+                sorted(missing_v1_tables),
             )
-            conn.executescript(migration_sql)
-            logger.info("Applied schema migration 001_initial")
+        migration_sql = (
+            importlib.resources.files("idea_shared.data.migrations")
+            .joinpath("001_initial.sql")
+            .read_text(encoding="utf-8")
+        )
+        conn.executescript(migration_sql)
+        logger.info("Applied schema migration 001_initial")
+
+    def ensure_schema(self) -> None:
+        """Apply schema migrations idempotently.
+
+        Per-connection validation already happens inside the ``connection``
+        property's refresh block, so for already-open handles this is a
+        cheap no-op. The method is retained for explicit-intent call sites
+        (e.g. ``create_sqlite_repositories``) and for backward compatibility
+        with tests that call it directly.
+        """
+        self._validate_and_repair_schema(self.connection)
 
     def reconnect(self) -> None:
         """Force every thread to reopen its connection on next access.
@@ -152,10 +170,11 @@ class _SqliteConnectionManager:
             "SQLite connection reset (gen=%d); all threads will reconnect on next access.",
             self._generation,
         )
-        # The file on disk has been replaced (e.g. fresh GCS download). Verify
-        # the new file's schema before any read hits it; if the snapshot is
-        # missing tables, ``ensure_schema`` re-applies the migration so the
-        # next query doesn't crash with ``no such table`` (issue #461).
+        # The file on disk has been replaced (e.g. fresh GCS download). Eagerly
+        # heal the schema on the caller's connection so the post-condition
+        # "after reconnect() returns, the schema is intact" holds locally —
+        # worker threads on other generations get the same protection via the
+        # per-connection check in the ``connection`` property (issue #461).
         self.ensure_schema()
 
     def close(self) -> None:

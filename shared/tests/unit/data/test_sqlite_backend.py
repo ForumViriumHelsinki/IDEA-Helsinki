@@ -656,3 +656,33 @@ class TestSchemaSelfHealing:
         # Without the #461 fix, this raises OperationalError on get_disturbances.
         dist_repo.reconnect()
         assert dist_repo.get_disturbances() == {}
+
+    @pytest.mark.unit
+    def test_fresh_connection_validates_schema_on_open(self, tmp_path: Path) -> None:
+        """A worker thread opening its connection on a broken file must self-heal.
+
+        Reproduces the post-#461 review concern: when one thread calls
+        ``reconnect()`` (which bumps the generation), a *different* thread
+        running a query in parallel may open its fresh handle before the
+        reconnecting thread has finished ``ensure_schema``. Without per-
+        connection validation that thread would crash with ``no such table``.
+        Here we simulate that by skipping the manager-driven reconnect path
+        entirely and confirming that a thread which opens its first handle
+        on a broken file still gets a healed schema.
+        """
+        db_path = tmp_path / "broken.db"
+
+        # Seed the file with schema_version=1 but missing the disturbances table.
+        seed = _SqliteConnectionManager(db_path)
+        seed.ensure_schema()
+        seed.connection.execute("DROP TABLE disturbances")
+        seed.connection.commit()
+        seed.close()
+
+        # A *new* manager — emulating a worker thread that has never opened
+        # this DB before — reads through the connection property without an
+        # explicit ensure_schema() call. The property's refresh path is the
+        # only thing that can save it from "no such table".
+        worker_cm = _SqliteConnectionManager(db_path)
+        cursor = worker_cm.connection.execute("SELECT COUNT(*) FROM disturbances")
+        assert cursor.fetchone()[0] == 0
