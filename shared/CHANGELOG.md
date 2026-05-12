@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.6](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.30.5...idea-shared-v0.30.6) (2026-05-12)
+
+
+### Bug Fixes
+
+* **feature-flags:** pass GOFF_API_KEY through to the relay proxy ([#462](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/462)) ([7aa22f9](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/7aa22f94486651b9003f2921a06b98c8fcf86282))
+
 ## [0.30.5](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.30.4...idea-shared-v0.30.5) (2026-05-06)
 
 
