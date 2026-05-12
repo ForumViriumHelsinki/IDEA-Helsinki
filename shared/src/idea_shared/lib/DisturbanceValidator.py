@@ -55,8 +55,8 @@ def validate_disturbance_dates(
             )
 
         except (KeyError, TypeError, ValueError):
-            logger.error(
-                'Skipping disturbance with missing, malformed, or invalid dates. expected "YYYY-MM-DD".'
+            logger.warning(
+                'Skipping disturbance with missing, malformed, or invalid dates. Expected "YYYY-MM-DD".'
             )
             invalid_disturbances += 1
             continue
