@@ -184,10 +184,7 @@ class _SqliteConnectionManager:
 
         # SQLite reports a single "ok" row on success; anything else is a
         # list of corruption details.
-        if not rows or any(
-            (row[0] if not isinstance(row, sqlite3.Row) else row[0]) != "ok"
-            for row in rows
-        ):
+        if not rows or any(row[0] != "ok" for row in rows):
             detail = "; ".join(str(row[0]) for row in rows) or "no rows returned"
             raise SqliteIntegrityError(self._db_path, detail)
 
