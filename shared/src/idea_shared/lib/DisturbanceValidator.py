@@ -66,6 +66,12 @@ def validate_disturbance_dates(
             disturbance_end_date.date() < current_date.date()
             or disturbance_start_date.date() > disturbance_end_date.date()
         ):
+            logger.warning(
+                "Skipping expired or inconsistent disturbance: start=%s end=%s current=%s",
+                disturbance_start_date.date(),
+                disturbance_end_date.date(),
+                current_date.date(),
+            )
             invalid_disturbances += 1
             continue
 
