@@ -26,6 +26,23 @@ logger = logging.getLogger(__name__)
 
 _CHANGELOG_RETENTION_LIMIT = 50
 
+# Tables created by migration 001. ``ensure_schema`` cross-checks this set
+# against ``sqlite_master`` so it can detect files whose ``schema_version``
+# claims v1 but whose tables have gone missing — e.g. a partial GCS download
+# or a stale snapshot uploaded by an upstream service in an incomplete state
+# (see https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/461).
+_MIGRATION_001_TABLES: frozenset[str] = frozenset(
+    {
+        "segments",
+        "segment_changelog",
+        "segment_archive",
+        "disturbances",
+        "profiles",
+        "schema_version",
+        "segments_rtree",
+    }
+)
+
 
 class _SqliteConnectionManager:
     """Manages SQLite connection lifecycle and schema migration.
@@ -64,22 +81,42 @@ class _SqliteConnectionManager:
         conn.execute("PRAGMA foreign_keys=ON")
 
     def ensure_schema(self) -> None:
-        """Apply schema migrations idempotently."""
-        conn = self.connection
-        # Check if schema_version table exists
-        cursor = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='schema_version'"
-        )
-        has_version_table = cursor.fetchone() is not None
+        """Apply schema migrations idempotently.
 
-        if has_version_table:
+        Cross-checks both the ``schema_version`` row and the actual presence of
+        every table that migration 001 is supposed to create. If the version
+        row claims v1 but any expected table has gone missing — e.g. a partial
+        GCS download or a stale snapshot — the migration is re-applied. The
+        SQL is written with ``CREATE TABLE IF NOT EXISTS`` so re-running it is
+        safe and restores only the missing tables.
+        """
+        conn = self.connection
+
+        cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        existing_tables = {row[0] for row in cursor.fetchall()}
+
+        if "schema_version" in existing_tables:
             cursor = conn.execute("SELECT MAX(version) FROM schema_version")
             row = cursor.fetchone()
             current_version = row[0] if row and row[0] is not None else 0
         else:
             current_version = 0
 
-        if current_version < 1:
+        missing_v1_tables = _MIGRATION_001_TABLES - existing_tables
+        needs_v1 = current_version < 1 or bool(missing_v1_tables)
+
+        if needs_v1:
+            if missing_v1_tables and current_version >= 1:
+                # File on disk reports an up-to-date schema_version but is
+                # missing tables the migration was meant to create. Re-apply
+                # the migration to self-heal rather than crashing on the
+                # next query (issue #461).
+                logger.warning(
+                    "schema_version reports v%d but tables are missing: %s; "
+                    "re-applying migration 001 to restore schema.",
+                    current_version,
+                    sorted(missing_v1_tables),
+                )
             migration_sql = (
                 importlib.resources.files("idea_shared.data.migrations")
                 .joinpath("001_initial.sql")
@@ -115,6 +152,11 @@ class _SqliteConnectionManager:
             "SQLite connection reset (gen=%d); all threads will reconnect on next access.",
             self._generation,
         )
+        # The file on disk has been replaced (e.g. fresh GCS download). Verify
+        # the new file's schema before any read hits it; if the snapshot is
+        # missing tables, ``ensure_schema`` re-applies the migration so the
+        # next query doesn't crash with ``no such table`` (issue #461).
+        self.ensure_schema()
 
     def close(self) -> None:
         """Close the calling thread's connection and invalidate other threads' caches.

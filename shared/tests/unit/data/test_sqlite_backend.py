@@ -570,3 +570,89 @@ class TestSchemaIdempotency:
         # Verify tables still work
         result = seg_repo.get_segments()
         assert result == {}
+
+
+class TestSchemaSelfHealing:
+    """Regression tests for issue #461 — missing tables despite schema_version=1.
+
+    A snapshot downloaded from GCS (or otherwise replaced on disk) may report
+    ``schema_version`` v1 yet be missing application tables — e.g. a partial
+    upload, a stale snapshot, or a manual `DROP TABLE`. Before #461 the
+    ``ensure_schema`` check trusted ``schema_version`` alone, so the orchestrator
+    crashed every cycle with ``OperationalError: no such table: disturbances``.
+    """
+
+    @pytest.mark.unit
+    def test_ensure_schema_restores_missing_table_when_version_already_v1(
+        self, tmp_path: Path
+    ) -> None:
+        """If schema_version=1 but disturbances is missing, re-apply migration."""
+        db_path = tmp_path / "broken.db"
+
+        # Create a fully-initialised DB then forcibly drop disturbances so we
+        # simulate a snapshot that claims to be at v1 but lacks a table.
+        _, dist_repo, _ = create_sqlite_repositories(db_path)
+        dist_repo._cm.connection.execute("DROP TABLE disturbances")
+        dist_repo._cm.connection.commit()
+        dist_repo._cm.close()
+
+        # Reopen the broken DB. ensure_schema must notice the missing table
+        # and re-apply the migration despite schema_version reading v1.
+        _, healed_repo, _ = create_sqlite_repositories(db_path)
+        assert healed_repo.get_disturbances() == {}
+
+        # And the repo is now usable end-to-end.
+        assert (
+            healed_repo.save_disturbances(
+                {
+                    "segmentId": {
+                        "seg_x": {
+                            "geometry": {"type": "Point", "coordinates": [0, 0]},
+                            "detailedCollisions": [],
+                        }
+                    }
+                }
+            )
+            is True
+        )
+        assert "seg_x" in healed_repo.get_disturbances()["segmentId"]
+
+    @pytest.mark.unit
+    def test_reconnect_reapplies_schema_when_replacement_file_missing_table(
+        self, tmp_path: Path
+    ) -> None:
+        """reconnect() must verify the freshly-mounted file's schema.
+
+        When the orchestrator's hourly disturbance refresh downloads a broken
+        snapshot, the connection is reopened against a file that may be
+        missing tables. ``reconnect`` must heal the schema before the next
+        ``get_disturbances`` call, otherwise the manager's main loop crashes
+        on every cycle (issue #461).
+        """
+        db_path = tmp_path / "disturbances.db"
+
+        _, dist_repo, _ = create_sqlite_repositories(db_path)
+        dist_repo.save_disturbances(
+            {
+                "segmentId": {
+                    "seg_old": {
+                        "geometry": {"type": "LineString", "coordinates": []},
+                        "detailedCollisions": [],
+                    }
+                }
+            }
+        )
+
+        # Simulate a replacement snapshot that has schema_version=1 but is
+        # missing the disturbances table — i.e. the failure mode from #461.
+        replacement = tmp_path / "disturbances_broken.db"
+        _, replacement_repo, _ = create_sqlite_repositories(replacement)
+        replacement_repo._cm.connection.execute("DROP TABLE disturbances")
+        replacement_repo._cm.connection.commit()
+        replacement_repo._cm.close()
+
+        replacement.replace(db_path)
+
+        # Without the #461 fix, this raises OperationalError on get_disturbances.
+        dist_repo.reconnect()
+        assert dist_repo.get_disturbances() == {}
