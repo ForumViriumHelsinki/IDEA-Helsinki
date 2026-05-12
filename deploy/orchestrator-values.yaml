@@ -120,6 +120,14 @@ env:
       secretKeyRef:
         name: idea-helsinki-secrets
         key: SENTRY_DSN
+  # GOFF evaluation key — authenticates flag-evaluation requests against the
+  # relay proxy's AUTHORIZEDKEYS_EVALUATION list. Provisioned in infrastructure
+  # repo (gcp/idea_helsinki_secrets.tf -> orchestrator_goff_client_id).
+  GOFF_API_KEY:
+    valueFrom:
+      secretKeyRef:
+        name: idea-helsinki-secrets
+        key: GOFF_API_KEY
 externalSecret:
   enabled: true
   name: idea-helsinki-secrets
@@ -152,6 +160,9 @@ externalSecret:
   - secretKey: SENTRY_DSN # pragma: allowlist secret
     remoteRef:
       key: sentry_dsn_idea-helsinki
+  - secretKey: GOFF_API_KEY # pragma: allowlist secret
+    remoteRef:
+      key: orchestrator_goff_client_id
 volumes:
 - name: data-volume
   emptyDir: {}
