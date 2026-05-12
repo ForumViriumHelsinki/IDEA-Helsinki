@@ -243,6 +243,68 @@ class TestValidateDisturbanceDates:
             assert result["timeStamp"] == "2024-02-15T12:00:00Z"
             assert result["type"] == "FeatureCollection"
 
+    @pytest.mark.unit
+    def test_expired_disturbance_skipped(self, freeze_time):
+        """Disturbances with tyo_paattyy < current date are rejected."""
+        with freeze_time("2024-06-01"):
+            validation_date = datetime(2024, 1, 1, tzinfo=UTC)
+            disturbance_data = {
+                "features": [
+                    {
+                        "properties": {
+                            "tyo_alkaa": "2024-02-10",
+                            "tyo_paattyy": "2024-05-01",  # Ended before current date
+                            "name": "Expired",
+                        }
+                    }
+                ]
+            }
+            result = DisturbanceValidator.validate_disturbance_dates(
+                validation_date, disturbance_data
+            )
+            assert result is None
+
+    @pytest.mark.unit
+    def test_missing_end_date_skipped(self, freeze_time):
+        """Disturbances missing tyo_paattyy are rejected."""
+        with freeze_time("2024-02-15"):
+            validation_date = datetime(2024, 1, 1, tzinfo=UTC)
+            disturbance_data = {
+                "features": [
+                    {
+                        "properties": {
+                            "tyo_alkaa": "2024-02-10",  # Valid start, no end
+                            "name": "Missing end",
+                        }
+                    }
+                ]
+            }
+            result = DisturbanceValidator.validate_disturbance_dates(
+                validation_date, disturbance_data
+            )
+            assert result is None
+
+    @pytest.mark.unit
+    def test_inconsistent_dates_skipped(self, freeze_time):
+        """Disturbances with tyo_alkaa > tyo_paattyy are rejected."""
+        with freeze_time("2024-02-15"):
+            validation_date = datetime(2024, 1, 1, tzinfo=UTC)
+            disturbance_data = {
+                "features": [
+                    {
+                        "properties": {
+                            "tyo_alkaa": "2024-06-01",
+                            "tyo_paattyy": "2024-05-01",  # End before start
+                            "name": "Inconsistent",
+                        }
+                    }
+                ]
+            }
+            result = DisturbanceValidator.validate_disturbance_dates(
+                validation_date, disturbance_data
+            )
+            assert result is None
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
