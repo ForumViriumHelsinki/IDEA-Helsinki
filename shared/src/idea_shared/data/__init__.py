@@ -22,6 +22,7 @@ from idea_shared.data.repositories import (
 )
 from idea_shared.data.sqlite_backend import (
     SqliteDisturbanceRepository,
+    SqliteIntegrityError,
     SqliteProfileRepository,
     SqliteSegmentRepository,
     create_sqlite_repositories,
@@ -35,6 +36,7 @@ __all__ = [
     "ProfileRepository",
     "SegmentRepository",
     "SqliteDisturbanceRepository",
+    "SqliteIntegrityError",
     "SqliteProfileRepository",
     "SqliteSegmentRepository",
     "create_object_storage_sync",

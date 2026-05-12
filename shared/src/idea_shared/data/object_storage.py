@@ -80,6 +80,16 @@ class ObjectStorageSync(Protocol):
         """
         ...
 
+    def invalidate_cache(self, remote_key: str) -> None:
+        """Forget any cached change-detection state for *remote_key*.
+
+        Callers invoke this after detecting that the local copy is unusable
+        (e.g. corrupt SQLite snapshot, issue #459) so that the next
+        :meth:`download_if_changed` always re-downloads the remote object
+        instead of short-circuiting on a matching ETag / content hash.
+        """
+        ...
+
 
 class LocalStorageSync:
     """Local filesystem storage backend for development and testing.
@@ -178,6 +188,18 @@ class LocalStorageSync:
         except Exception:
             logger.exception("LocalStorageSync: failed to download %s → %s", src, dest)
             return False
+
+    def invalidate_cache(self, remote_key: str) -> None:
+        """Drop the cached content hash for *remote_key*.
+
+        Forces the next :meth:`download_if_changed` for this key to
+        re-copy from the storage directory regardless of file equality.
+        """
+        if self._hash_cache.pop(remote_key, None) is not None:
+            logger.info(
+                "LocalStorageSync: invalidated cache entry for %s",
+                remote_key,
+            )
 
     @property
     def hash_cache(self) -> dict[str, str]:

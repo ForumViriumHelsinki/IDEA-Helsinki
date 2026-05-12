@@ -27,6 +27,9 @@ class _MinimalSync:
     def download_if_changed(self, remote_key, local_path):
         return False
 
+    def invalidate_cache(self, remote_key):
+        return None
+
 
 class _IncompatibleSync:
     """Class that does NOT satisfy the protocol (missing download_if_changed)."""
@@ -295,6 +298,38 @@ class TestLocalStorageSyncHashCache:
         cache = s.hash_cache
         cache["f.db"] = "tampered"
         assert s._hash_cache["f.db"] != "tampered"
+
+
+@pytest.mark.unit
+class TestLocalStorageSyncInvalidateCache:
+    """Regression tests for issue #459 — re-download after corrupt local copy.
+
+    When the orchestrator detects ``database disk image is malformed`` on a
+    downloaded SQLite snapshot, it deletes the local file and asks the
+    object-storage backend to forget the cached change-detection state so
+    the next ``download_if_changed`` always re-pulls the upstream blob.
+    """
+
+    def test_invalidate_cache_forces_redownload(self, tmp_path):
+        store = LocalStorageSync(base_dir=tmp_path / "store")
+        src = tmp_path / "src.db"
+        src.write_bytes(b"v1")
+        store.upload(src, "x.db")
+
+        dest = tmp_path / "dest.db"
+        assert store.download_if_changed("x.db", dest) is True
+        # No change since last download → skipped.
+        assert store.download_if_changed("x.db", dest) is False
+
+        store.invalidate_cache("x.db")
+        # After invalidation the same blob is re-fetched even though the
+        # underlying content has not changed.
+        assert store.download_if_changed("x.db", dest) is True
+
+    def test_invalidate_unknown_key_is_noop(self, tmp_path):
+        """Invalidating a key we have not cached is allowed."""
+        store = LocalStorageSync(base_dir=tmp_path / "store")
+        store.invalidate_cache("never-seen.db")  # must not raise
 
 
 # ---------------------------------------------------------------------------

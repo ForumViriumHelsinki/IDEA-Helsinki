@@ -544,6 +544,7 @@ class SqliteHealthCheck(HealthCheck):
         critical: bool = True,
         cache_ttl: float = 30.0,
         startup_grace_minutes: float = 0,
+        verify_integrity: bool = False,
     ):
         """Initialize SQLite health check.
 
@@ -556,12 +557,18 @@ class SqliteHealthCheck(HealthCheck):
             critical: Whether this check is critical for readiness.
             cache_ttl: Cache time-to-live in seconds.
             startup_grace_minutes: Grace period in minutes during initial data population.
+            verify_integrity: If True, run ``PRAGMA quick_check`` before the
+                table/row inspection. A failed check returns ``unhealthy`` so
+                the readiness probe can pull the pod out of rotation when the
+                local SQLite snapshot is corrupt (issue #459) instead of
+                letting the orchestrator main loop CrashLoopBackOff.
 
         """
         super().__init__(name, timeout, critical, cache_ttl)
         self.db_path = Path(db_path)
         self.expected_tables = expected_tables
         self.min_row_counts = min_row_counts or {}
+        self.verify_integrity = verify_integrity
         self._startup_time = datetime.now(UTC)
         self._startup_grace_period = timedelta(minutes=startup_grace_minutes)
 
@@ -600,6 +607,35 @@ class SqliteHealthCheck(HealthCheck):
                 """Synchronous SQLite integrity check."""
                 conn = sqlite3.connect(f"file:{self.db_path}?mode=ro", uri=True)
                 try:
+                    if self.verify_integrity:
+                        try:
+                            integrity_rows = conn.execute(
+                                "PRAGMA quick_check"
+                            ).fetchall()
+                        except sqlite3.DatabaseError as integrity_exc:
+                            return HealthCheckResult(
+                                name=self.name,
+                                status="unhealthy",
+                                message=(
+                                    "SQLite integrity check could not run: "
+                                    f"{integrity_exc}"
+                                ),
+                                metadata={"error": str(integrity_exc)},
+                            )
+                        if not integrity_rows or any(
+                            row[0] != "ok" for row in integrity_rows
+                        ):
+                            detail = (
+                                "; ".join(str(row[0]) for row in integrity_rows)
+                                or "no rows returned"
+                            )
+                            return HealthCheckResult(
+                                name=self.name,
+                                status="unhealthy",
+                                message=(f"SQLite database is corrupt: {detail}"),
+                                metadata={"integrity_detail": detail},
+                            )
+
                     cursor = conn.execute(
                         "SELECT name FROM sqlite_master WHERE type='table'"
                     )
