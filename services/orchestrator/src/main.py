@@ -180,10 +180,11 @@ async def main():
                 try:
                     sqlite_disturbance_repo.verify_integrity()
                 except SqliteIntegrityError:
-                    logger.exception(
+                    logger.error(
                         "Downloaded disturbances DB is corrupt; discarding "
                         "local copy and invalidating ETag cache so the next "
-                        "refresh re-downloads from upstream."
+                        "refresh re-downloads from upstream.",
+                        exc_info=True,
                     )
                     sqlite_disturbance_repo.discard_local_file()
                     storage_sync.invalidate_cache(SQLITE_DISTURBANCES_DB)
