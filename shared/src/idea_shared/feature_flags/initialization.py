@@ -53,8 +53,14 @@ def create_provider(data_dir: str = "/app/data") -> AbstractProvider:
         from .providers import GoFeatureFlagProvider
 
         timeout = int(os.getenv("FEATURE_FLAG_TIMEOUT", "3000"))
+        # api_key is None when unset — provider works against an unauthenticated
+        # relay proxy, but FVH's deployment enforces AUTHORIZEDKEYS_EVALUATION
+        # so the key is required in practice.
+        api_key = os.getenv("GOFF_API_KEY") or None
         logger.info(f"Using GoFeatureFlagProvider with endpoint: {endpoint}")
-        return GoFeatureFlagProvider(endpoint=endpoint, timeout=timeout)
+        return GoFeatureFlagProvider(
+            endpoint=endpoint, timeout=timeout, api_key=api_key
+        )
 
     environment = os.getenv("ENVIRONMENT", "development")
     if environment == "production":

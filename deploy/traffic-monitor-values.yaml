@@ -84,6 +84,14 @@ env:
       secretKeyRef:
         name: traffic-monitor-secrets
         key: SENTRY_DSN
+  # GOFF evaluation key — authenticates flag-evaluation requests against the
+  # relay proxy's AUTHORIZEDKEYS_EVALUATION list. Provisioned in infrastructure
+  # repo (gcp/idea_helsinki_secrets.tf -> traffic_monitor_goff_client_id).
+  GOFF_API_KEY:
+    valueFrom:
+      secretKeyRef:
+        name: traffic-monitor-secrets
+        key: GOFF_API_KEY
 externalSecret:
   enabled: true
   name: traffic-monitor-secrets
@@ -98,6 +106,9 @@ externalSecret:
   - secretKey: SENTRY_DSN # pragma: allowlist secret
     remoteRef:
       key: sentry_dsn_idea-helsinki
+  - secretKey: GOFF_API_KEY # pragma: allowlist secret
+    remoteRef:
+      key: traffic_monitor_goff_client_id
 configMap:
   enabled: true
   data:

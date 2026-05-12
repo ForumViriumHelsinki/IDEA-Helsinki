@@ -40,26 +40,38 @@ class GoFeatureFlagProvider(AbstractProvider):
     Environment variables:
         FEATURE_FLAG_ENDPOINT: The relay proxy endpoint URL
         FEATURE_FLAG_TIMEOUT: Request timeout in milliseconds (default: 3000)
+        GOFF_API_KEY: Evaluation key for relay-proxy authentication
 
     """
 
-    def __init__(self, endpoint: str, timeout: int = 3000):
+    def __init__(
+        self,
+        endpoint: str,
+        timeout: int = 3000,
+        api_key: str | None = None,
+    ):
         """Initialize the GoFeatureFlag provider.
 
         Args:
             endpoint: URL of the GoFeatureFlag relay proxy
             timeout: Request timeout in milliseconds (default: 3000)
+            api_key: Optional evaluation key for relay-proxy authentication.
+                Required when the relay proxy enforces ``AUTHORIZEDKEYS_EVALUATION``;
+                forwarded to the upstream provider, which sends it as ``X-API-Key``.
 
         """
         self._endpoint = endpoint
         self._timeout = timeout
 
-        options = GoFeatureFlagOptions(endpoint=endpoint)  # ty: ignore[invalid-argument-type]
+        options = GoFeatureFlagOptions(
+            endpoint=endpoint,  # ty: ignore[invalid-argument-type]
+            api_key=api_key,
+        )
         self._provider = GOFFProvider(options=options)
 
         logger.info(
             f"Initialized GoFeatureFlagProvider with endpoint: {endpoint}, "
-            f"timeout: {timeout}ms"
+            f"timeout: {timeout}ms, api_key: {'set' if api_key else 'unset'}"
         )
 
     def get_metadata(self) -> Metadata:
