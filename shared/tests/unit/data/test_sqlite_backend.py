@@ -570,3 +570,119 @@ class TestSchemaIdempotency:
         # Verify tables still work
         result = seg_repo.get_segments()
         assert result == {}
+
+
+class TestSchemaSelfHealing:
+    """Regression tests for issue #461 — missing tables despite schema_version=1.
+
+    A snapshot downloaded from GCS (or otherwise replaced on disk) may report
+    ``schema_version`` v1 yet be missing application tables — e.g. a partial
+    upload, a stale snapshot, or a manual `DROP TABLE`. Before #461 the
+    ``ensure_schema`` check trusted ``schema_version`` alone, so the orchestrator
+    crashed every cycle with ``OperationalError: no such table: disturbances``.
+    """
+
+    @pytest.mark.unit
+    def test_ensure_schema_restores_missing_table_when_version_already_v1(
+        self, tmp_path: Path
+    ) -> None:
+        """If schema_version=1 but disturbances is missing, re-apply migration."""
+        db_path = tmp_path / "broken.db"
+
+        # Create a fully-initialised DB then forcibly drop disturbances so we
+        # simulate a snapshot that claims to be at v1 but lacks a table.
+        _, dist_repo, _ = create_sqlite_repositories(db_path)
+        dist_repo._cm.connection.execute("DROP TABLE disturbances")
+        dist_repo._cm.connection.commit()
+        dist_repo._cm.close()
+
+        # Reopen the broken DB. ensure_schema must notice the missing table
+        # and re-apply the migration despite schema_version reading v1.
+        _, healed_repo, _ = create_sqlite_repositories(db_path)
+        assert healed_repo.get_disturbances() == {}
+
+        # And the repo is now usable end-to-end.
+        assert (
+            healed_repo.save_disturbances(
+                {
+                    "segmentId": {
+                        "seg_x": {
+                            "geometry": {"type": "Point", "coordinates": [0, 0]},
+                            "detailedCollisions": [],
+                        }
+                    }
+                }
+            )
+            is True
+        )
+        assert "seg_x" in healed_repo.get_disturbances()["segmentId"]
+
+    @pytest.mark.unit
+    def test_reconnect_reapplies_schema_when_replacement_file_missing_table(
+        self, tmp_path: Path
+    ) -> None:
+        """reconnect() must verify the freshly-mounted file's schema.
+
+        When the orchestrator's hourly disturbance refresh downloads a broken
+        snapshot, the connection is reopened against a file that may be
+        missing tables. ``reconnect`` must heal the schema before the next
+        ``get_disturbances`` call, otherwise the manager's main loop crashes
+        on every cycle (issue #461).
+        """
+        db_path = tmp_path / "disturbances.db"
+
+        _, dist_repo, _ = create_sqlite_repositories(db_path)
+        dist_repo.save_disturbances(
+            {
+                "segmentId": {
+                    "seg_old": {
+                        "geometry": {"type": "LineString", "coordinates": []},
+                        "detailedCollisions": [],
+                    }
+                }
+            }
+        )
+
+        # Simulate a replacement snapshot that has schema_version=1 but is
+        # missing the disturbances table — i.e. the failure mode from #461.
+        replacement = tmp_path / "disturbances_broken.db"
+        _, replacement_repo, _ = create_sqlite_repositories(replacement)
+        replacement_repo._cm.connection.execute("DROP TABLE disturbances")
+        replacement_repo._cm.connection.commit()
+        replacement_repo._cm.close()
+
+        replacement.replace(db_path)
+
+        # Without the #461 fix, this raises OperationalError on get_disturbances.
+        dist_repo.reconnect()
+        assert dist_repo.get_disturbances() == {}
+
+    @pytest.mark.unit
+    def test_fresh_connection_validates_schema_on_open(self, tmp_path: Path) -> None:
+        """A worker thread opening its connection on a broken file must self-heal.
+
+        Reproduces the post-#461 review concern: when one thread calls
+        ``reconnect()`` (which bumps the generation), a *different* thread
+        running a query in parallel may open its fresh handle before the
+        reconnecting thread has finished ``ensure_schema``. Without per-
+        connection validation that thread would crash with ``no such table``.
+        Here we simulate that by skipping the manager-driven reconnect path
+        entirely and confirming that a thread which opens its first handle
+        on a broken file still gets a healed schema.
+        """
+        db_path = tmp_path / "broken.db"
+
+        # Seed the file with schema_version=1 but missing the disturbances table.
+        seed = _SqliteConnectionManager(db_path)
+        seed.ensure_schema()
+        seed.connection.execute("DROP TABLE disturbances")
+        seed.connection.commit()
+        seed.close()
+
+        # A *new* manager — emulating a worker thread that has never opened
+        # this DB before — reads through the connection property without an
+        # explicit ensure_schema() call. The property's refresh path is the
+        # only thing that can save it from "no such table".
+        worker_cm = _SqliteConnectionManager(db_path)
+        cursor = worker_cm.connection.execute("SELECT COUNT(*) FROM disturbances")
+        assert cursor.fetchone()[0] == 0
