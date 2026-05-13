@@ -378,7 +378,7 @@ class TestDetectorHealthCheck:
         mock_detector.load_wfs_geojson = Mock()
         mock_detector.load_fcd_segment_data = Mock()
         mock_detector.find_intersecting_features = Mock()
-        mock_detector.process_intersections_to_new_model = Mock()
+        mock_detector.process_intersections_to_extended_model = Mock()
         mock_detector.write_json_records = Mock()
 
         check = DetectorHealthCheck(detector=mock_detector, cache_ttl=0)

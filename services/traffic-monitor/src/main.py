@@ -446,9 +446,9 @@ def main():
                 # Process intersections to an intersection data model
                 # Note that usually there is a numerical difference between the "intersecting_features" and the "final_model_data".
                 # This is because the "intersecting_features" contains ALL intersections and the "final_model_data" contains segments that have one OR MORE intersections.
-                # Brake down: find_intersecting_features() reports all intersections, process_intersections_to_new_model() reports segments that intersect.
-                final_model_data = detector.process_intersections_to_new_model(
-                    intersecting_features
+                # Brake down: find_intersecting_features() reports all intersections, process_intersections_to_extended_model() reports segments that intersect.
+                final_model_data = detector.process_intersections_to_extended_model(
+                    intersecting_features, allu_wfs_gdf
                 )
 
                 # Update intersection count

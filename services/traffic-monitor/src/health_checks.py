@@ -652,7 +652,7 @@ class DetectorHealthCheck(HealthCheck):
                     "load_wfs_geojson",
                     "load_fcd_segment_data",
                     "find_intersecting_features",
-                    "process_intersections_to_new_model",
+                    "process_intersections_to_extended_model",
                     "write_json_records",
                 ]
 

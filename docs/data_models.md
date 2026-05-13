@@ -287,58 +287,15 @@ For Traffic disturbances there is no need for a dedicated data model. The WFS Ge
 
 ## FCD segment - Traffic disturbance collisions
 
-FCD-Traffic disturbance collisions
+**Current version in production**
 
-```json
-{
-  "segmentId":  {
-    "segmentId": "string" { // Unique identifier for the segment that intersects (from segment data model)
-      "geometry": { // Geometry of the intersecting segment (from segment data model)
-        "type": "LineString",
-        "coordinates": [
-          [ "longitude (float)", "latitude (float)" ],
-          [ "longitude (float)", "latitude (float)" ]
-          // ... more coordinate pairs forming the LineString
-        ]
-      },
-      "detailedCollisions": [   // List of Traffic disturbances that collide with this segment
-        {
-          // Each object in this list represents one WFS feature (e.g., a traffic disturbance area) that intersects the segment.
-          // "properties" only include necessary data detailing the traffic disturbance.
-          "properties": {
-            "traffic_disturbance_type": "string", // For example "Kaivuilmoitus" (from WFS feature 'hakemus')
-            "traffic_disturbance_id": "string",   // Unique, numeric ID of the WFS feature (from WFS feature 'id')
-            "application_id": "string",           // Application ID (from WFS feature 'hakemustunnus')
-            "star_date": "date (yyyy-mm-dd)",     // Start date of the disturbance (from WFS feature 'tyo_alkaa')
-            "end_date": "date (yyyy-mm-dd)"       // End date of the disturbance (from WFS feature 'tyo_paattyy')
-            // Potentially other relevant properties from the WFS feature can be added here if needed.
-          }
-        },
-        // ... more collision objects if the segment intersects multiple WFS features
-      ]
-    },
-    // ... more segment objects, each with its own ID and list of detailed observations
-  }
-}
-```
+This is the standard schema for representing collisions between FCD road segments and traffic disturbances.
+Produced by `IntersectionDetector.process_intersections_to_extended_model`.
 
-## Extended FCD segment - Traffic disturbance collisions
+This model carries enough self-contained information to validate or
+re-export disturbances even when the upstream ALLU WFS service is unreachable. It is also the basis for DATEXII exports.
 
-Introduced in [#415](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/415).
-Layered on top of the legacy schema above so existing consumers are unaffected;
-produced by `IntersectionDetector.process_intersections_to_extended_model`.
-
-The extended model carries enough self-contained information to validate or
-re-export disturbances even when the upstream ALLU WFS service is unreachable
-(prior versions had to re-fetch the WFS layer to recover the disturbance
-geometry, address, and district). It is also the basis for future DATEXII
-export.
-
-Compared to the legacy model, each `detailedCollisions[*]` entry adds:
-
-- `geometry` — the WFS feature's geometry (typically `MultiPolygon`)
-- `properties.address` — from WFS `osoite`
-- `properties.district` — from WFS `kaupunginosa`
+Each `detailedCollisions[*]` entry includes the disturbance properties and the original WFS feature geometry (typically `MultiPolygon`).
 
 ```json
 {
@@ -377,3 +334,42 @@ Compared to the legacy model, each `detailedCollisions[*]` entry adds:
 `address`, `district`, and `geometry` are tolerated as missing for older or
 sparser WFS features: address/district default to `null`, and `geometry` is
 omitted from the collision entry when no WFS feature can be matched by `id`.
+
+### FCD segment - Traffic disturbance collisions **OLD**
+**!! LEGACY !!** Retired schema for FCD-Traffic disturbance collisions **!! LEGACY !!**
+
+This was the original approach for modeling FCD-Traffic disturbance collisions.
+It was retired because it lacked self-contained geometry, address, and district data. Consumers had to re-fetch the WFS layer to recover this information, which caused issues if the upstream ALLU WFS service was unreachable. The extended model above replaces this to ensure data independence.
+
+```json
+{
+  "segmentId":  {
+    "segmentId": "string" { // Unique identifier for the segment that intersects (from segment data model)
+      "geometry": { // Geometry of the intersecting segment (from segment data model)
+        "type": "LineString",
+        "coordinates": [
+          [ "longitude (float)", "latitude (float)" ],
+          [ "longitude (float)", "latitude (float)" ]
+          // ... more coordinate pairs forming the LineString
+        ]
+      },
+      "detailedCollisions": [   // List of Traffic disturbances that collide with this segment
+        {
+          // Each object in this list represents one WFS feature (e.g., a traffic disturbance area) that intersects the segment.
+          // "properties" only include necessary data detailing the traffic disturbance.
+          "properties": {
+            "traffic_disturbance_type": "string", // For example "Kaivuilmoitus" (from WFS feature 'hakemus')
+            "traffic_disturbance_id": "string",   // Unique, numeric ID of the WFS feature (from WFS feature 'id')
+            "application_id": "string",           // Application ID (from WFS feature 'hakemustunnus')
+            "star_date": "date (yyyy-mm-dd)",     // Start date of the disturbance (from WFS feature 'tyo_alkaa')
+            "end_date": "date (yyyy-mm-dd)"       // End date of the disturbance (from WFS feature 'tyo_paattyy')
+            // Potentially other relevant properties from the WFS feature can be added here if needed.
+          }
+        },
+        // ... more collision objects if the segment intersects multiple WFS features
+      ]
+    },
+    // ... more segment objects, each with its own ID and list of detailed observations
+  }
+}
+```
