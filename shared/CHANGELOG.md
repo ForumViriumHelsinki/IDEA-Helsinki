@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.30.7](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.30.6...idea-shared-v0.30.7) (2026-05-13)
+
+
+### Bug Fixes
+
+* **sqlite:** self-heal corrupt disturbances DB to break crash-loop ([#469](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/469)) ([b49e0b7](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/b49e0b7c1971b5c31ee01c7d731d1108bd3e640a))
+* **sqlite:** self-heal schema when expected tables are missing ([#467](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/467)) ([85e9683](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/85e9683b773586c82973e18006aa00203c1c1ffa))
+* strictly validate and filter disturbance dates upstream ([#449](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/449)) ([5958695](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/595869520618b42719fe17d2238d15ad489bab14))
+
 ## [0.30.6](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.30.5...idea-shared-v0.30.6) (2026-05-12)
 
 
