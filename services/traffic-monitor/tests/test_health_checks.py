@@ -25,6 +25,23 @@ from src.service_state import ServiceState
 class TestWFSAPIHealthCheck:
     """Test WFS API health check."""
 
+    @staticmethod
+    def _build_mock_session(response_mock):
+        """Build an aiohttp.ClientSession mock that returns response_mock.
+
+        Returns a callable suitable for use as the ``aiohttp.ClientSession``
+        constructor replacement; the returned object behaves as an
+        ``async with`` context manager that yields a session whose ``get()``
+        returns the supplied response (itself an ``async with`` mock).
+        """
+        mock_session = MagicMock()
+        mock_session.get = MagicMock(return_value=response_mock)
+        mock_session.closed = False
+        mock_session.close = AsyncMock(return_value=None)
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        return mock_session
+
     @pytest.mark.asyncio
     async def test_wfs_healthy(self):
         """Test WFS API health check when service is healthy."""
@@ -39,69 +56,120 @@ class TestWFSAPIHealthCheck:
         mock_response.__aenter__ = AsyncMock(return_value=mock_response)
         mock_response.__aexit__ = AsyncMock(return_value=None)
 
-        # Mock the session - request() for super().check(), get() for feature type check
-        mock_session = MagicMock()
-        mock_session.request = MagicMock(return_value=mock_response)
-        mock_session.get = MagicMock(return_value=mock_response)
-        mock_session.closed = False
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session = self._build_mock_session(mock_response)
 
         # Mock the base class check to avoid real HTTP calls to kartta.hel.fi
-        with patch.object(
-            ExternalAPIHealthCheck,
-            "check",
-            new_callable=AsyncMock,
-            return_value=HealthCheckResult(
-                name="wfs_api", status="healthy", message="OK"
+        with (
+            patch.object(
+                ExternalAPIHealthCheck,
+                "check",
+                new_callable=AsyncMock,
+                return_value=HealthCheckResult(
+                    name="wfs_api", status="healthy", message="OK"
+                ),
             ),
+            patch("src.health_checks.aiohttp.ClientSession", return_value=mock_session),
         ):
-            with patch.object(
-                WFSAPIHealthCheck, "get_session", new_callable=AsyncMock
-            ) as mock_get_session:
-                mock_get_session.return_value = mock_session
+            result = await check.check()
 
-                result = await check.check()
-
-                assert result.message is not None
-                assert result.metadata is not None
-                assert result.status == "healthy"
-                assert "feature type" in result.message
-                assert result.metadata["feature_count"] == 42
+            assert result.message is not None
+            assert result.metadata is not None
+            assert result.status == "healthy"
+            assert "feature type" in result.message
+            assert result.metadata["feature_count"] == 42
 
     @pytest.mark.asyncio
     async def test_wfs_unhealthy(self):
         """Test WFS API health check when service is unavailable."""
         check = WFSAPIHealthCheck(cache_ttl=0)
 
-        # Mock session whose request() raises, simulating connection failure.
-        # super().check() calls session.request() inside "async with ClientSession()".
+        # session.get() raises, simulating a transport failure on the
+        # feature-type probe (after super().check() has already passed).
+        mock_session = MagicMock()
+        mock_session.get = MagicMock(side_effect=Exception("Connection failed"))
+        mock_session.closed = False
+        mock_session.close = AsyncMock(return_value=None)
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+
+        # Mock the base class check to avoid real HTTP calls to kartta.hel.fi
+        with (
+            patch.object(
+                ExternalAPIHealthCheck,
+                "check",
+                new_callable=AsyncMock,
+                return_value=HealthCheckResult(
+                    name="wfs_api", status="healthy", message="OK"
+                ),
+            ),
+            patch("src.health_checks.aiohttp.ClientSession", return_value=mock_session),
+        ):
+            result = await check.check()
+
+            assert result.message is not None
+            assert result.status == "unhealthy"
+            assert "Connection failed" in result.message
+
+    @pytest.mark.asyncio
+    async def test_wfs_session_closed_on_success(self):
+        """Regression for issue #460: per-call session is closed on the
+        success path so aiohttp does not emit ``Unclosed client session``."""
+        check = WFSAPIHealthCheck(cache_ttl=0)
+
         mock_response = MagicMock()
-        mock_response.__aenter__ = AsyncMock(side_effect=Exception("Connection failed"))
+        mock_response.status = 200
+        mock_response.text = AsyncMock(
+            return_value='<wfs:FeatureCollection numberOfFeatures="1">'
+        )
+        mock_response.__aenter__ = AsyncMock(return_value=mock_response)
         mock_response.__aexit__ = AsyncMock(return_value=None)
+
+        mock_session = self._build_mock_session(mock_response)
+
+        with (
+            patch.object(
+                ExternalAPIHealthCheck,
+                "check",
+                new_callable=AsyncMock,
+                return_value=HealthCheckResult(
+                    name="wfs_api", status="healthy", message="OK"
+                ),
+            ),
+            patch("src.health_checks.aiohttp.ClientSession", return_value=mock_session),
+        ):
+            await check.check()
+
+        # ``async with aiohttp.ClientSession()`` must invoke __aexit__,
+        # which is what closes the session and its TCPConnector.
+        assert mock_session.__aexit__.await_count == 1
+
+    @pytest.mark.asyncio
+    async def test_wfs_session_closed_on_failure(self):
+        """Regression for issue #460: per-call session is closed even when
+        the feature-type probe raises an exception."""
+        check = WFSAPIHealthCheck(cache_ttl=0)
 
         mock_session = MagicMock()
         mock_session.get = MagicMock(side_effect=Exception("Connection failed"))
+        mock_session.closed = False
+        mock_session.close = AsyncMock(return_value=None)
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
 
-        # Mock the base class check to avoid real HTTP calls to kartta.hel.fi
-        with patch.object(
-            ExternalAPIHealthCheck,
-            "check",
-            new_callable=AsyncMock,
-            return_value=HealthCheckResult(
-                name="wfs_api", status="healthy", message="OK"
+        with (
+            patch.object(
+                ExternalAPIHealthCheck,
+                "check",
+                new_callable=AsyncMock,
+                return_value=HealthCheckResult(
+                    name="wfs_api", status="healthy", message="OK"
+                ),
             ),
+            patch("src.health_checks.aiohttp.ClientSession", return_value=mock_session),
         ):
-            with patch.object(
-                WFSAPIHealthCheck, "get_session", new_callable=AsyncMock
-            ) as mock_get_session:
-                mock_get_session.return_value = mock_session
+            await check.check()
 
-                result = await check.check()
-
-                assert result.message is not None
-                assert result.status == "unhealthy"
-                assert "Connection failed" in result.message
+        assert mock_session.__aexit__.await_count == 1
 
     @pytest.mark.asyncio
     @pytest.mark.skip(reason="Circuit breaker feature not yet implemented")
@@ -113,15 +181,17 @@ class TestWFSAPIHealthCheck:
             circuit_breaker_timeout=1.0,
         )
 
-        mock_session = AsyncMock()
-        mock_session.get = AsyncMock(side_effect=Exception("Connection failed"))
-        mock_session.request = AsyncMock(side_effect=Exception("Connection failed"))
+        mock_session = MagicMock()
+        mock_session.get = MagicMock(side_effect=Exception("Connection failed"))
+        mock_session.request = MagicMock(side_effect=Exception("Connection failed"))
+        mock_session.closed = False
+        mock_session.close = AsyncMock(return_value=None)
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
 
-        with patch.object(
-            WFSAPIHealthCheck, "get_session", new_callable=AsyncMock
-        ) as mock_get_session:
-            mock_get_session.return_value = mock_session
-
+        with patch(
+            "src.health_checks.aiohttp.ClientSession", return_value=mock_session
+        ):
             # First failure
             result = await check.check()
             assert result.status == "unhealthy"
@@ -140,7 +210,7 @@ class TestWFSAPIHealthCheck:
             await asyncio.sleep(1.1)
 
             # Mock a successful response
-            mock_response = AsyncMock()
+            mock_response = MagicMock()
             mock_response.status = 200
             mock_response.text = AsyncMock(
                 return_value='<wfs:FeatureCollection numberOfFeatures="10">'

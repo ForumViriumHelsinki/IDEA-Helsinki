@@ -254,11 +254,6 @@ def main():
         except Exception as e:
             logger.error(f"Error stopping health server: {e}")
 
-        # Close WFS session if exists
-        from health_checks import WFSAPIHealthCheck
-
-        WFSAPIHealthCheck.close_session_sync()
-
         logger.info("Shutdown complete")
         sys.exit(0)
 

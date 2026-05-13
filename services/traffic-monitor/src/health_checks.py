@@ -22,10 +22,6 @@ logger = logging.getLogger(__name__)
 class WFSAPIHealthCheck(ExternalAPIHealthCheck):
     """Check Helsinki WFS API accessibility for traffic disturbances."""
 
-    # Class-level session for connection pooling
-    _session = None
-    _session_lock = asyncio.Lock()
-
     def __init__(
         self,
         name: str = "wfs_api",
@@ -61,51 +57,6 @@ class WFSAPIHealthCheck(ExternalAPIHealthCheck):
         self.wfs_url = wfs_url
         self.test_feature_type = test_feature_type
 
-    @classmethod
-    async def get_session(cls) -> aiohttp.ClientSession:
-        """Get or create the shared session with connection pooling.
-
-        Returns:
-            The shared ClientSession instance
-
-        """
-        async with cls._session_lock:
-            if cls._session is None or cls._session.closed:
-                # Configure connection pooling
-                connector = aiohttp.TCPConnector(
-                    limit=10,  # Total connection pool limit
-                    limit_per_host=5,  # Per-host connection limit
-                    ttl_dns_cache=300,  # DNS cache TTL
-                )
-                cls._session = aiohttp.ClientSession(connector=connector)
-            return cls._session
-
-    @classmethod
-    async def close_session(cls):
-        """Close the shared session if it exists."""
-        async with cls._session_lock:
-            if cls._session and not cls._session.closed:
-                await cls._session.close()
-                cls._session = None
-
-    @classmethod
-    def close_session_sync(cls):
-        """Discard the cached session during process shutdown.
-
-        Called from the SIGTERM handler after ``health_server.stop()`` has
-        joined the health-server thread.  ``cls._session_lock`` and the
-        ``aiohttp.ClientSession`` it guards are both bound to that thread's
-        now-dead event loop, so awaiting them from a fresh ``asyncio.run``
-        loop raises ``RuntimeError: ... is bound to a different event loop``.
-
-        Clearing the reference is sufficient: the daemon health-server thread
-        has exited, no concurrent access is possible, and the loop's own
-        teardown closes the underlying transports.  Same shape as the
-        ``InfluxDBConnectionManager.cleanup_all_sync`` workaround in the
-        orchestrator (PR #402).
-        """
-        cls._session = None
-
     async def check(self) -> HealthCheckResult:
         """Check WFS API accessibility and feature type availability.
 
@@ -119,7 +70,13 @@ class WFSAPIHealthCheck(ExternalAPIHealthCheck):
         if base_result.status != "healthy":
             return base_result
 
-        # Additionally verify specific feature type is available with a count query
+        # Additionally verify specific feature type is available with a count query.
+        # Use a per-call ``async with`` session so the ClientSession and its
+        # TCPConnector are always closed on exit — including error paths.
+        # A shared, class-level session previously leaked across pod
+        # restarts because the SIGTERM handler ran on the main thread after
+        # the health-server event loop had already torn down, leaving no
+        # safe way to ``await session.close()`` (issue #460).
         start_time = time.time()
         try:
             # Build a minimal GetFeature request that just counts features
@@ -132,8 +89,7 @@ class WFSAPIHealthCheck(ExternalAPIHealthCheck):
                 f"resultType=hits"  # This only returns count, not actual features
             )
 
-            session = await self.get_session()
-            try:
+            async with aiohttp.ClientSession() as session:
                 async with session.get(
                     test_url, timeout=aiohttp.ClientTimeout(total=self.timeout)
                 ) as response:
@@ -174,9 +130,6 @@ class WFSAPIHealthCheck(ExternalAPIHealthCheck):
                                 "response_time_ms": response_time,
                             },
                         )
-            except Exception:
-                # Re-raise the exception after ensuring session handling
-                raise
 
         except TimeoutError:
             return HealthCheckResult(
