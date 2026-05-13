@@ -300,8 +300,8 @@ Each `detailedCollisions[*]` entry includes the disturbance properties and the o
 ```json
 {
   "segmentId": {
-    "<segmentId>": { // Unique identifier for the segment that intersects
-      "geometry": { // Geometry of the intersecting segment
+    "segmentId": "string" { // Unique identifier for the segment that intersects (from segment data model)
+      "geometry": { // Geometry of the intersecting segment (from segment data model)
         "type": "LineString",
         "coordinates": [
           [ "longitude (float)", "latitude (float)" ]
@@ -318,7 +318,7 @@ Each `detailedCollisions[*]` entry includes the disturbance properties and the o
             "address":   "string",                // from WFS feature 'osoite'
             "district":  "string"                 // from WFS feature 'kaupunginosa'
           },
-          "geometry": {                           // WFS feature geometry, preserved here
+          "geometry": {                           // WFS feature geometry
             "type": "MultiPolygon",
             "coordinates": [
               [ [ [ "longitude (float)", "latitude (float)" ] ] ]
