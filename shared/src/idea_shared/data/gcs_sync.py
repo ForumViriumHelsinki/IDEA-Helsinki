@@ -180,6 +180,19 @@ class GCSSync:
             logger.exception("Failed to download %s to %s", full_key, local_path)
             return False
 
+    def invalidate_cache(self, remote_key: str) -> None:
+        """Drop the cached ETag for *remote_key*.
+
+        After a successful download GCSSync remembers the blob's ETag so
+        subsequent calls to :meth:`download_if_changed` can short-circuit
+        when the upstream object is unchanged. When the local copy turns
+        out to be unusable (e.g. corrupt SQLite snapshot, issue #459) the
+        caller invokes this to force the next download regardless of
+        ETag equality.
+        """
+        if self._etag_cache.pop(remote_key, None) is not None:
+            logger.info("GCSSync: invalidated ETag cache entry for %s", remote_key)
+
     @property
     def etag_cache(self) -> dict[str, str]:
         """Read-only copy of the ETag cache for testing."""

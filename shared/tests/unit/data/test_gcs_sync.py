@@ -214,3 +214,18 @@ class TestEtagCache:
 
     def test_etag_cache_empty_initially(self, sync):
         assert sync.etag_cache == {}
+
+    def test_invalidate_cache_drops_entry(self, sync):
+        """invalidate_cache lets callers re-download after a corrupt local copy.
+
+        Regression for issue #459: the orchestrator deletes the local SQLite
+        file and asks GCSSync to forget the cached ETag so the next refresh
+        re-downloads instead of skipping on ETag equality.
+        """
+        sync._etag_cache["disturbances.db"] = "etag-old"
+        sync.invalidate_cache("disturbances.db")
+        assert "disturbances.db" not in sync._etag_cache
+
+    def test_invalidate_unknown_key_is_noop(self, sync):
+        """Invalidating an unseen key is allowed (no KeyError)."""
+        sync.invalidate_cache("never-seen.db")

@@ -1,5 +1,6 @@
 """Tests for SQLite backend repository implementations."""
 
+import random
 import sqlite3
 import threading
 from pathlib import Path
@@ -7,9 +8,25 @@ from pathlib import Path
 import pytest
 
 from idea_shared.data.sqlite_backend import (
+    SqliteIntegrityError,
     _SqliteConnectionManager,
     create_sqlite_repositories,
 )
+
+
+def _corrupt_sqlite_file(db_path: Path) -> None:
+    """Overwrite a data page of *db_path* so SQLite reports it malformed.
+
+    Writes deterministic random bytes starting at page offset 4096 (the second
+    page — the first page holds the database header which SQLite still parses
+    even on otherwise-broken files). The damage is enough that
+    ``PRAGMA quick_check`` raises ``sqlite3.DatabaseError: database disk image
+    is malformed``, the exact symptom in Sentry IDEA-HELSINKI-2K / issue #459.
+    """
+    rng = random.Random(42)
+    with db_path.open("r+b") as fh:
+        fh.seek(4096)
+        fh.write(bytes(rng.randint(0, 255) for _ in range(2048)))
 
 
 @pytest.fixture
@@ -686,3 +703,126 @@ class TestSchemaSelfHealing:
         worker_cm = _SqliteConnectionManager(db_path)
         cursor = worker_cm.connection.execute("SELECT COUNT(*) FROM disturbances")
         assert cursor.fetchone()[0] == 0
+
+
+class TestCorruptionDetection:
+    """Regression tests for issue #459 — malformed SQLite snapshots crash orchestrator.
+
+    The orchestrator downloads ``disturbances.db`` from GCS. If the downloaded
+    file is malformed (mid-stream truncation, faulty upstream writer, FUSE
+    metadata cache returning a stale page) every ``get_disturbances()`` call
+    raises ``sqlite3.DatabaseError: database disk image is malformed`` until
+    the main loop's consecutive-error guard kills the pod, only for the
+    restarted pod to pick up the same broken file from upstream.
+
+    These tests exercise the detection-and-recovery primitives that let
+    callers self-heal instead of CrashLoopBackOff'ing.
+    """
+
+    @pytest.mark.unit
+    def test_check_integrity_passes_on_healthy_db(self, tmp_path: Path) -> None:
+        """``check_integrity`` is a no-op when the DB is well-formed."""
+        _, dist_repo, _ = create_sqlite_repositories(tmp_path / "ok.db")
+        # Should not raise.
+        dist_repo.verify_integrity()
+
+    @pytest.mark.unit
+    def test_check_integrity_raises_on_corrupt_db(self, tmp_path: Path) -> None:
+        """A malformed file surfaces as ``SqliteIntegrityError`` (not bare DatabaseError)."""
+        db_path = tmp_path / "corrupt.db"
+
+        # Populate a real DB then scramble its data pages.
+        _, dist_repo, _ = create_sqlite_repositories(db_path)
+        dist_repo.save_disturbances(
+            {
+                "segmentId": {
+                    "seg_a": {
+                        "geometry": {"type": "Point", "coordinates": [0, 0]},
+                        "detailedCollisions": [],
+                    }
+                }
+            }
+        )
+        dist_repo._cm.close()
+
+        _corrupt_sqlite_file(db_path)
+
+        # New manager opens the broken file; PRAGMA quick_check must fail.
+        _, broken_repo, _ = create_sqlite_repositories(db_path)
+        with pytest.raises(SqliteIntegrityError) as exc_info:
+            broken_repo.verify_integrity()
+        # The typed exception preserves the path for callers/logs.
+        assert str(db_path) in str(exc_info.value)
+
+    @pytest.mark.unit
+    def test_discard_local_file_removes_db_and_journals(self, tmp_path: Path) -> None:
+        """After ``discard_local_file`` the SQLite file is gone for re-download."""
+        db_path = tmp_path / "to_discard.db"
+        _, dist_repo, _ = create_sqlite_repositories(db_path)
+        dist_repo.save_disturbances({"segmentId": {}})
+        # WAL mode plus an active write leaves -wal/-shm sidecars behind.
+        assert db_path.exists()
+
+        dist_repo.discard_local_file()
+
+        assert not db_path.exists()
+        assert not (tmp_path / "to_discard.db-wal").exists()
+        assert not (tmp_path / "to_discard.db-shm").exists()
+        assert not (tmp_path / "to_discard.db-journal").exists()
+
+    @pytest.mark.unit
+    def test_discard_local_file_is_idempotent(self, tmp_path: Path) -> None:
+        """Calling ``discard_local_file`` twice is safe (no FileNotFoundError)."""
+        _, dist_repo, _ = create_sqlite_repositories(tmp_path / "x.db")
+        dist_repo.discard_local_file()
+        dist_repo.discard_local_file()  # no raise
+
+    @pytest.mark.unit
+    def test_discard_local_file_noop_for_memory_db(self) -> None:
+        """In-memory databases are not unlinkable; discard is a no-op."""
+        _, dist_repo, _ = create_sqlite_repositories(":memory:")
+        dist_repo.discard_local_file()  # no raise
+
+    @pytest.mark.unit
+    def test_recover_flow_redownload_after_corruption(self, tmp_path: Path) -> None:
+        """End-to-end recovery: corrupt file → discard → replace → verify.
+
+        Models the orchestrator's per-cycle refresh hook after the fix:
+        on detection it discards the local file and the next ``download``
+        re-pulls the upstream blob. Once a healthy file is in place,
+        ``verify_integrity`` returns cleanly.
+        """
+        db_path = tmp_path / "disturbances.db"
+        upstream = tmp_path / "upstream_disturbances.db"
+
+        _, healthy_repo, _ = create_sqlite_repositories(upstream)
+        healthy_repo.save_disturbances(
+            {
+                "segmentId": {
+                    "seg_healthy": {
+                        "geometry": {"type": "Point", "coordinates": [0, 0]},
+                        "detailedCollisions": [{"id": 1}],
+                    }
+                }
+            }
+        )
+        healthy_repo._cm.close()
+
+        # Simulate the corrupt download already on disk.
+        import shutil
+
+        shutil.copy2(upstream, db_path)
+        _corrupt_sqlite_file(db_path)
+
+        _, dist_repo, _ = create_sqlite_repositories(db_path)
+        with pytest.raises(SqliteIntegrityError):
+            dist_repo.verify_integrity()
+
+        # The "refresh hook" deletes the local file and re-downloads.
+        dist_repo.discard_local_file()
+        shutil.copy2(upstream, db_path)
+
+        # reconnect picks up the new file; integrity is now ok.
+        dist_repo.reconnect()
+        dist_repo.verify_integrity()
+        assert "seg_healthy" in dist_repo.get_disturbances()["segmentId"]

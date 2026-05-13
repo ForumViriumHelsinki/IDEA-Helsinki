@@ -26,6 +26,22 @@ logger = logging.getLogger(__name__)
 
 _CHANGELOG_RETENTION_LIMIT = 50
 
+
+class SqliteIntegrityError(sqlite3.DatabaseError):
+    """Raised when ``PRAGMA quick_check`` reports a corrupt database.
+
+    Distinct from the bare ``sqlite3.DatabaseError`` that SQLite raises on
+    queries against a malformed file so callers can recover (delete the
+    local file, force a re-download from upstream) without catching every
+    transient DB error. See issue #459.
+    """
+
+    def __init__(self, db_path: str, detail: str) -> None:
+        super().__init__(f"SQLite integrity check failed for {db_path}: {detail}")
+        self.db_path = db_path
+        self.detail = detail
+
+
 # Tables created by migration 001. ``ensure_schema`` cross-checks this set
 # against ``sqlite_master`` so it can detect files whose ``schema_version``
 # claims v1 but whose tables have gone missing — e.g. a partial GCS download
@@ -142,6 +158,57 @@ class _SqliteConnectionManager:
         with tests that call it directly.
         """
         self._validate_and_repair_schema(self.connection)
+
+    def check_integrity(self) -> None:
+        """Run ``PRAGMA quick_check`` against the current connection.
+
+        Detects the structural corruption pattern from issue #459
+        (``database disk image is malformed``) cheaply enough to call on
+        every fresh download. ``quick_check`` is the same logic as
+        ``integrity_check`` minus the costly index/UNIQUE consistency
+        verification — it still detects the page-level damage that the
+        Sentry stack trace points at.
+
+        Raises:
+            SqliteIntegrityError: when the database is malformed.
+
+        """
+        try:
+            cursor = self.connection.execute("PRAGMA quick_check")
+            rows = cursor.fetchall()
+        except sqlite3.DatabaseError as exc:
+            # The quick_check itself failed to execute (e.g. the file is so
+            # damaged we cannot even parse the header). Surface this as
+            # integrity failure so callers can recover.
+            raise SqliteIntegrityError(self._db_path, str(exc)) from exc
+
+        # SQLite reports a single "ok" row on success; anything else is a
+        # list of corruption details.
+        if not rows or any(row[0] != "ok" for row in rows):
+            detail = "; ".join(str(row[0]) for row in rows) or "no rows returned"
+            raise SqliteIntegrityError(self._db_path, detail)
+
+    def discard_file(self) -> None:
+        """Delete the underlying database file and its journals.
+
+        Used by callers that detected the local file is unrecoverable
+        (e.g. ``check_integrity`` raised ``SqliteIntegrityError``) and want
+        the next download attempt to pull a fresh copy from upstream.
+        Calls ``close`` first so the unlinks don't race with an open
+        write handle.
+        """
+        self._close_local()
+        self._generation += 1
+        if self._db_path == ":memory:":
+            return
+        for suffix in ("", "-wal", "-shm", "-journal"):
+            stale = Path(self._db_path + suffix)
+            stale.unlink(missing_ok=True)
+        logger.warning(
+            "Discarded local SQLite file %s (and journals); next refresh "
+            "must re-download from upstream.",
+            self._db_path,
+        )
 
     def reconnect(self) -> None:
         """Force every thread to reopen its connection on next access.
@@ -438,6 +505,19 @@ class SqliteDisturbanceRepository(DisturbanceRepository):
     def reconnect(self) -> None:
         """Reset the database connection to pick up a replaced file on disk."""
         self._cm.reconnect()
+
+    def verify_integrity(self) -> None:
+        """Run ``PRAGMA quick_check`` against the underlying SQLite file.
+
+        Raises:
+            SqliteIntegrityError: when the database is malformed.
+
+        """
+        self._cm.check_integrity()
+
+    def discard_local_file(self) -> None:
+        """Delete the local SQLite file (and journals) so it can be re-downloaded."""
+        self._cm.discard_file()
 
     def get_disturbances(self) -> dict:
         """Read disturbances, reconstructing the JSON dict format."""

@@ -123,6 +123,7 @@ async def main():
         from idea_shared.data.object_storage import create_object_storage_sync
         from idea_shared.data.sqlite_backend import (
             SqliteDisturbanceRepository,
+            SqliteIntegrityError,
             create_sqlite_repositories,
         )
         from idea_shared.health.idea_checks import SqliteHealthCheck
@@ -163,11 +164,31 @@ async def main():
         # When it does download, reconnect() drops stale WAL/SHM journals so
         # the connection sees the new file's rows instead of replaying the old
         # transactions on top of it (mirrors the traffic-monitor fix in #380).
+        #
+        # If the freshly-downloaded file fails ``PRAGMA quick_check`` (issue
+        # #459 — "database disk image is malformed") we delete the local copy
+        # and invalidate the ETag cache so the next refresh re-downloads the
+        # blob, then re-raise. The manager treats this as a normal cycle
+        # failure (logged, backed-off); meanwhile the SqliteHealthCheck below
+        # observes the corrupt-or-missing file and fails readiness, which
+        # stops traffic to the pod instead of letting it CrashLoopBackOff.
         def disturbance_refresh() -> None:
             if storage_sync.download_if_changed(
                 SQLITE_DISTURBANCES_DB, disturbances_db_path
             ):
                 sqlite_disturbance_repo.reconnect()
+                try:
+                    sqlite_disturbance_repo.verify_integrity()
+                except SqliteIntegrityError:
+                    logger.error(
+                        "Downloaded disturbances DB is corrupt; discarding "
+                        "local copy and invalidating ETag cache so the next "
+                        "refresh re-downloads from upstream.",
+                        exc_info=True,
+                    )
+                    sqlite_disturbance_repo.discard_local_file()
+                    storage_sync.invalidate_cache(SQLITE_DISTURBANCES_DB)
+                    raise
 
         # Create local profiles database (not shared via GCS)
         profile_repos = create_sqlite_repositories(profiles_db_path)
@@ -181,6 +202,25 @@ async def main():
                 db_path=disturbances_db_path,
                 expected_tables=["disturbances"],
                 critical=False,
+                cache_ttl=60.0,
+                startup_grace_minutes=10,
+            ),
+        )
+        # Critical readiness gate for the corruption pattern in issue #459.
+        # Runs ``PRAGMA quick_check`` and reports unhealthy on malformed pages
+        # so Kubernetes drops the pod from the service endpoints instead of
+        # letting the main loop CrashLoopBackOff against the same broken
+        # file. The existing ``sqlite_disturbances`` check above stays
+        # non-critical so a missing file during the startup grace period
+        # doesn't block readiness — corruption is a stronger signal.
+        health_server.add_check(
+            "sqlite_disturbances_integrity",
+            SqliteHealthCheck(
+                name="sqlite_disturbances_integrity",
+                db_path=disturbances_db_path,
+                expected_tables=[],
+                verify_integrity=True,
+                critical=True,
                 cache_ttl=60.0,
                 startup_grace_minutes=10,
             ),
