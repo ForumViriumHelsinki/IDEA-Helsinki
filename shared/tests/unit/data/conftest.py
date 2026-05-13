@@ -56,7 +56,7 @@ def sample_disturbances():
                             "traffic_disturbance_type": "Kaivuilmoitus_alue",
                             "traffic_disturbance_id": "TEST-001",
                             "application_id": "APP-001",
-                            "star_date": "2024-01-15",
+                            "start_date": "2024-01-15",
                             "end_date": "2024-01-20",
                         }
                     }

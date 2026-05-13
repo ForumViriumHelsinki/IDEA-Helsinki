@@ -309,7 +309,7 @@ FCD-Traffic disturbance collisions
             "traffic_disturbance_type": "string", // For example "Kaivuilmoitus" (from WFS feature 'hakemus')
             "traffic_disturbance_id": "string",   // Unique, numeric ID of the WFS feature (from WFS feature 'id')
             "application_id": "string",           // Application ID (from WFS feature 'hakemustunnus')
-            "star_date": "date (yyyy-mm-dd)",     // Start date of the disturbance (from WFS feature 'tyo_alkaa')
+            "start_date": "date (yyyy-mm-dd)",     // Start date of the disturbance (from WFS feature 'tyo_alkaa')
             "end_date": "date (yyyy-mm-dd)"       // End date of the disturbance (from WFS feature 'tyo_paattyy')
             // Potentially other relevant properties from the WFS feature can be added here if needed.
           }
@@ -356,7 +356,7 @@ Compared to the legacy model, each `detailedCollisions[*]` entry adds:
             "traffic_disturbance_type": "string", // from WFS feature 'hakemus'
             "traffic_disturbance_id": "string",   // from WFS feature 'id'
             "application_id": "string",           // from WFS feature 'hakemustunnus'
-            "star_date": "date (yyyy-mm-dd)",     // from WFS feature 'tyo_alkaa'
+            "start_date": "date (yyyy-mm-dd)",     // from WFS feature 'tyo_alkaa'
             "end_date":  "date (yyyy-mm-dd)",     // from WFS feature 'tyo_paattyy'
             "address":   "string",                // from WFS feature 'osoite'
             "district":  "string"                 // from WFS feature 'kaupunginosa'
