@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.7](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/orchestrator-v0.30.6...orchestrator-v0.30.7) (2026-05-13)
+
+
+### Bug Fixes
+
+* **sqlite:** self-heal corrupt disturbances DB to break crash-loop ([#469](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/469)) ([b49e0b7](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/b49e0b7c1971b5c31ee01c7d731d1108bd3e640a))
+
 ## [0.30.6](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/orchestrator-v0.30.5...orchestrator-v0.30.6) (2026-05-12)
 
 

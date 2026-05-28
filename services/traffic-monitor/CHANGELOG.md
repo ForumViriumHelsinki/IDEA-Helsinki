@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.7](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.30.6...traffic-monitor-v0.30.7) (2026-05-13)
+
+
+### Bug Fixes
+
+* **traffic-monitor:** close aiohttp session per call in WFS health check ([#470](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/470)) ([0bad4f3](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/0bad4f3b6b97c9d919124fae883bdaa8d65f77a7))
+
 ## [0.30.6](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.30.5...traffic-monitor-v0.30.6) (2026-05-12)
 
 
