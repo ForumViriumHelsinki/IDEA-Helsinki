@@ -13,7 +13,7 @@ def mock_intersection_detector():
     mock_detector.load_wfs_geojson.return_value = MagicMock()
     mock_detector.load_fcd_segment_data.return_value = MagicMock()
     mock_detector.find_intersecting_features.return_value = []
-    mock_detector.process_intersections_to_new_model.return_value = []
+    mock_detector.process_intersections_to_extended_model.return_value = []
     mock_detector.write_json_records.return_value = True
     return mock_detector
 

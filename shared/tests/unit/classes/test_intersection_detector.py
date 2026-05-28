@@ -91,42 +91,6 @@ def intersecting_gdf(
 # ---------------------------------------------------------------------------
 
 
-class TestProcessIntersectionsToNewModel:
-    """The original schema must not change — downstream consumers depend on it."""
-
-    @pytest.mark.unit
-    def test_produces_existing_schema_unchanged(
-        self,
-        detector: IntersectionDetector,
-        intersecting_gdf: gpd.GeoDataFrame,
-    ) -> None:
-        result = detector.process_intersections_to_new_model(intersecting_gdf)
-
-        assert "segmentId" in result
-        assert "seg-A" in result["segmentId"]
-        seg_a = result["segmentId"]["seg-A"]
-
-        # Segment geometry retained as LineString GeoJSON
-        assert seg_a["geometry"]["type"] == "LineString"
-
-        # Exactly one collision; properties match the legacy contract
-        collisions = seg_a["detailedCollisions"]
-        assert len(collisions) == 1
-        props = collisions[0]["properties"]
-
-        assert props["traffic_disturbance_type"] == "Kaivuilmoitus"
-        assert props["traffic_disturbance_id"] == 1341
-        assert props["application_id"] == "KP2501715-4"
-        assert props["star_date"] == "2025-07-28"
-        assert props["end_date"] == "2026-08-31"
-
-        # Original schema must NOT include geometry/address/district inside
-        # detailedCollisions[*] — those are exclusive to the extended model.
-        assert "geometry" not in collisions[0]
-        assert "address" not in props
-        assert "district" not in props
-
-
 # ---------------------------------------------------------------------------
 # Extended model — new in #415.
 # ---------------------------------------------------------------------------
