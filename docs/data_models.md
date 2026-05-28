@@ -300,7 +300,7 @@ Each `detailedCollisions[*]` entry includes the disturbance properties and the o
 ```json
 {
   "segmentId": {
-    "segmentId": "string" { // Unique identifier for the segment that intersects (from segment data model)
+    "<segmentId>": { // Unique identifier for the segment that intersects (from segment data model)
       "geometry": { // Geometry of the intersecting segment (from segment data model)
         "type": "LineString",
         "coordinates": [
