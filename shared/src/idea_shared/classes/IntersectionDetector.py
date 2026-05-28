@@ -216,8 +216,7 @@ class IntersectionDetector:
     ) -> dict:
         """Build the extended traffic-disturbance data model.
 
-        Layered on top of the legacy schema (process_intersections_to_new_model)
-        with three additions per collision:
+        Each ``detailedCollisions[*]`` entry carries:
 
         - ``geometry``: the WFS feature's geometry (typically MultiPolygon),
           looked up from ``wfs_gdf`` by ``id``. The spatial join in
@@ -226,8 +225,7 @@ class IntersectionDetector:
         - ``properties.address``: from the WFS ``osoite`` field.
         - ``properties.district``: from the WFS ``kaupunginosa`` field.
 
-        See docs/data_models.md ("Extended FCD segment - Traffic disturbance
-        collisions") and issue #415 for rationale (DATEXII export, ALLU outage
+        See docs/data_models.md ("FCD segment - Traffic disturbance collisions") and issue #415 for rationale (DATEXII export, ALLU outage
         fallback).
 
         Args:
