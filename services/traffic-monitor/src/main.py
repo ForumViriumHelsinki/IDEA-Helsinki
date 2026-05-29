@@ -289,7 +289,7 @@ def main():
             FCD_MAP_DATA_FILE_LOCATION
         ):
             logger.warning(
-                f"FCD mapping file not found : {FCD_MAP_DATA_FILE_LOCATION}. Update cycle paused for FCD mapping retry.s"
+                f"FCD mapping file not found: {FCD_MAP_DATA_FILE_LOCATION}. Update cycle paused for FCD mapping retry."
             )
             service_state.set_processing(False)
             # Pause the cycle until the next update retry. This time is defined in the TRAFFIC_DISTURBANCE_UPDATE_FREQUENCY variable (in minutes)
