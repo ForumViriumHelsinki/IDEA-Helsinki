@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.8](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.30.7...traffic-monitor-v0.30.8) (2026-05-29)
+
+
+### Bug Fixes
+
+* **traffic-monitor:** correct malformed FCD-mapping retry log message ([#487](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/487)) ([3bfe6f8](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/3bfe6f8a557bc3caba584808ecbb994644ccf279)), closes [#471](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/471) [#486](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/486)
+
 ## [0.30.7](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.30.6...traffic-monitor-v0.30.7) (2026-05-13)
 
 
