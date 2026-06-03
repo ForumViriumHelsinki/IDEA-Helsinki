@@ -33,7 +33,7 @@ class GoFeatureFlagProvider(AbstractProvider):
 
     Example:
         >>> provider = GoFeatureFlagProvider(
-        ...     endpoint="http://gofeatureflag.feature-flags.svc.cluster.local:1031"
+        ...     endpoint="http://gofeatureflag-relay-proxy.feature-flags.svc.cluster.local:1031"
         ... )
         >>> initialize_feature_flags(provider)
 
