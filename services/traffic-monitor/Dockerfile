@@ -31,7 +31,7 @@ COPY services/traffic-monitor/ services/traffic-monitor/
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --package traffic-monitor --no-editable
 
-FROM python:3.12-alpine AS runtime
+FROM python:3.14-alpine AS runtime
 
 # Version metadata (set during build)
 ARG VERSION=dev

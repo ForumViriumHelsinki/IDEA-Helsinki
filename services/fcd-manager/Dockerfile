@@ -21,7 +21,7 @@ COPY services/fcd-manager/ services/fcd-manager/
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --package fcd-manager --no-editable
 
-FROM python:3.12-alpine AS runtime
+FROM python:3.14-alpine AS runtime
 
 # Version metadata (set during build)
 ARG VERSION=dev
