@@ -15,10 +15,15 @@ jobs:
     outputs:
       pr: ${{ steps.release.outputs.pr }}
     steps:
+      - uses: actions/create-github-app-token@v2
+        id: app-token
+        with:
+          app-id: ${{ vars.CI_APP_ID }}
+          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
       - uses: googleapis/release-please-action@v4
         id: release
         with:
-          token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
@@ -32,10 +37,15 @@ jobs:
         run: |
           echo "branch=${{ fromJSON(needs.release-please.outputs.pr).headBranchName }}" >> "$GITHUB_OUTPUT"
 
+      - uses: actions/create-github-app-token@v2
+        id: app-token
+        with:
+          app-id: ${{ vars.CI_APP_ID }}
+          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
       - uses: actions/checkout@v6
         with:
           ref: ${{ steps.pr-info.outputs.branch }}
-          token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
 
       - uses: astral-sh/setup-uv@v7
 
