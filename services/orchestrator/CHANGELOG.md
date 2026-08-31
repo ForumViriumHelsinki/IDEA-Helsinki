@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.9](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/orchestrator-v0.30.8...orchestrator-v0.30.9) (2026-08-31)
+
+
+### Bug Fixes
+
+* **deps:** update dependency openfeature-sdk to &gt;=0.10.0,&lt;0.11.0 ([#499](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/499)) ([da4b470](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/da4b4703f1dc0dcd7481de5670b44015fb32379a))
+
 ## [0.30.8](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/orchestrator-v0.30.7...orchestrator-v0.30.8) (2026-05-29)
 
 

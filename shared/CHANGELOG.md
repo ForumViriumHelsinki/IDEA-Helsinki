@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.30.9](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.30.8...idea-shared-v0.30.9) (2026-08-31)
+
+
+### Bug Fixes
+
+* **deps:** update dependency openfeature-sdk to &gt;=0.10.0,&lt;0.11.0 ([#499](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/499)) ([da4b470](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/da4b4703f1dc0dcd7481de5670b44015fb32379a))
+
+
+### Documentation
+
+* **feature-flags:** correct GOFF service name in provider docstring ([#493](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/493)) ([23e2c5b](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/23e2c5bf48109adb3241415a65787387d659f81e))
+
 ## [0.30.8](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.30.7...idea-shared-v0.30.8) (2026-05-29)
 
 
