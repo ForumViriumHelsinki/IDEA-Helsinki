@@ -1,6 +1,6 @@
 {
-  "shared": "0.30.8",
-  "services/orchestrator": "0.30.8",
-  "services/fcd-manager": "0.30.8",
-  "services/traffic-monitor": "0.30.8"
+  "shared": "0.30.9",
+  "services/orchestrator": "0.30.9",
+  "services/fcd-manager": "0.30.9",
+  "services/traffic-monitor": "0.30.9"
 }
