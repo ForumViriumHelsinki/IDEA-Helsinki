@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.10](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.30.9...traffic-monitor-v0.30.10) (2026-09-02)
+
+
+### Bug Fixes
+
+* **containers:** pin build and runtime stages to one Python version ([#514](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/514)) ([460270a](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/460270ad1c095e950f715e1585d5c7e174b8f4b9))
+
 ## [0.30.9](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.30.8...traffic-monitor-v0.30.9) (2026-08-31)
 
 
