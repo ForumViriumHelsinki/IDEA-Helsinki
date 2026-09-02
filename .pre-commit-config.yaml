@@ -55,11 +55,14 @@ repos:
 
   # Type checking with ty (Astral's type checker)
   # No official pre-commit hook yet (https://github.com/astral-sh/ty/issues/269)
+  # Goes through `just typecheck` so the hook, the recipe and CI's type-check
+  # job stay one definition — the recipe syncs the workspace first, without
+  # which ty cannot resolve the workspace members (#520, #522).
   - repo: local
     hooks:
       - id: ty
         name: ty type check
-        entry: uv run ty check
+        entry: just typecheck
         language: system
         types: [python]
         pass_filenames: false

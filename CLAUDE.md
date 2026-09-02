@@ -285,9 +285,10 @@ just test              # Run all tests sequentially
 just test-parallel     # Run all tests in parallel (faster)
 just test-coverage     # Run tests with coverage reports
 just test-unit         # Run only unit tests (fast)
-just lint              # Run linting checks
+just lint              # Run linting checks (matches CI job `lint`)
+just typecheck         # Run ty type checks (matches CI job `type-check`)
 just format            # Format code with ruff
-just pre-commit        # Run format + lint + unit tests (fast pre-commit check)
+just pre-commit        # Run format + lint + typecheck + unit tests
 just ci                # Simulate full CI pipeline
 just clean             # Clean test artifacts and cache
 ```
@@ -298,7 +299,7 @@ just clean             # Clean test artifacts and cache
 just test-unit         # Fast unit tests only
 
 # Before committing
-just pre-commit        # Format, lint, and test
+just pre-commit        # Format, lint, typecheck, and test
 
 # Full test suite with coverage
 just test-coverage     # Generate coverage reports for all services
@@ -393,7 +394,7 @@ We follow **RED-GREEN-REFACTOR**:
 
 ### Before Committing
 ```bash
-# Recommended: Use just pre-commit (fast - format + lint + unit tests)
+# Recommended: Use just pre-commit (format + lint + typecheck + unit tests)
 just pre-commit
 
 # Or run manually:
