@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.11](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.30.10...idea-shared-v0.30.11) (2026-09-02)
+
+
+### Bug Fixes
+
+* **ci:** make local recipes run what CI runs, sync included ([#523](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/523)) ([103878a](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/103878ad4a4733dfcf3ae15acae7c438416d4c3a))
+
 ## [0.30.10](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/idea-shared-v0.30.9...idea-shared-v0.30.10) (2026-09-02)
 
 
