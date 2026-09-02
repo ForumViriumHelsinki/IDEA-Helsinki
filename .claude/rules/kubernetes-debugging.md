@@ -140,3 +140,19 @@ The hostPath pattern mentioned in older docs applied to Skaffold/local developme
 6. Verify feature flags are reaching the service (check provider, env vars, not just config files)
 7. Check if service exits after completing work (missing continuous loop)
 8. Verify Deployment progress deadline isn't shorter than startup time
+9. `ModuleNotFoundError` on the **first non-stdlib import** of `main.py` — almost
+   never a missing dependency. Compare the runtime interpreter against the venv
+   the builder produced:
+
+```
+kubectl --context=<ctx> -n idea-helsinki logs <pod> --previous --tail=20
+kubectl --context=<ctx> -n idea-helsinki debug <pod> --image=<same-image> -- sh -c 'python3 -V; ls /app/.venv/lib; cat /app/.venv/pyvenv.cfg'
+```
+
+   The venv's packages live in `/app/.venv/lib/python<X.Y>/site-packages`, so a
+   runtime interpreter of a different minor version drops the venv from
+   `sys.path` entirely — *every* third-party and workspace package disappears at
+   once, and `idea_shared` just happens to be the first one each `main.py`
+   reaches. A `sys.path` with no `/app/.venv` entry is the confirmation. Fixed by
+   pinning both Dockerfile stages to one `ARG PYTHON_VERSION` (#514); the
+   0.30.9 outage ran two days this way.
