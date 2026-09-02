@@ -65,7 +65,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image
+      # Build locally first and prove the image actually runs. A pushed image is
+      # only as good as its entrypoint: 0.30.9 built and pushed green while every
+      # import failed at runtime, because the builder and runtime stages had
+      # drifted onto different Python minor versions. Gate the push on this.
+      - name: Build image for smoke test
+        id: smoke_build
         if: |
           github.event_name == 'pull_request' ||
           (github.event_name == 'push' && startsWith(github.ref, format('refs/tags/{0}-v', matrix.service)))
@@ -73,7 +78,40 @@ jobs:
         with:
           context: .
           file: services/${{ matrix.service }}/Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
+          push: false
+          load: true
+          platforms: linux/amd64
+          tags: smoke-test/${{ matrix.service }}:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+      - name: Smoke test image
+        if: steps.smoke_build.outcome == 'success'
+        env:
+          IMAGE: smoke-test/${{ matrix.service }}:${{ github.sha }}
+        run: |
+          # -i is required: without it docker does not forward stdin, python
+          # reads an empty script, and the check exits 0 having asserted nothing.
+          docker run --rm -i "$IMAGE" /app/.venv/bin/python - <<'EOF'
+          import sys
+          # The venv must be on the interpreter's search path. When the runtime
+          # interpreter's minor version does not match the one the venv was built
+          # with, .venv/lib/pythonX.Y/site-packages is silently skipped and every
+          # third-party and workspace import fails.
+          on_path = [p for p in sys.path if "/app/.venv/" in p]
+          assert on_path, f"venv not on sys.path; interpreter={sys.version}; sys.path={sys.path}"
+          import idea_shared
+          print(f"ok: {sys.version.split()[0]} sees {on_path[0]}")
+          EOF
+
+      - name: Push Docker image
+        if: |
+          github.event_name == 'push' && startsWith(github.ref, format('refs/tags/{0}-v', matrix.service))
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: services/${{ matrix.service }}/Dockerfile
+          push: true
           platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
