@@ -70,7 +70,7 @@ dotenvx run -- skaffold dev
 # Run all tests (fast feedback during development)
 just test-unit
 
-# Pre-commit checks (format + lint + unit tests)
+# Pre-commit checks (format + lint + typecheck + unit tests)
 just pre-commit
 
 # Full test suite with coverage
@@ -84,6 +84,9 @@ just format
 
 # Run linting checks
 just lint
+
+# Run type checks (matches CI's type-check job)
+just typecheck
 ```
 
 ## Local Development Setup

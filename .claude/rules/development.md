@@ -11,7 +11,7 @@ Follow strict RED → GREEN → REFACTOR workflow:
 Use the Justfile for quick testing:
 ```bash
 just test-unit              # Fast unit tests only
-just pre-commit             # Format, lint, and test before committing
+just pre-commit             # Format, lint, typecheck, and test before committing
 ```
 
 ## Commit Conventions
@@ -94,7 +94,7 @@ Run with: `dotenvx run -- skaffold dev`
 
 1. Run fast pre-commit checks:
    ```bash
-   just pre-commit    # Format + lint + unit tests
+   just pre-commit    # Format + lint + typecheck + unit tests
    ```
 
 2. Ensure tests pass:
@@ -107,3 +107,28 @@ Run with: `dotenvx run -- skaffold dev`
 4. Review git diff before staging
 
 5. Commit with descriptive message using conventional format
+
+## Local↔CI Parity
+
+Every job in `.github/workflows/lint.yml` has a justfile recipe that runs the
+same commands locally:
+
+| CI job | Local recipe |
+|---|---|
+| `lint` | `just lint` |
+| `type-check` | `just typecheck` |
+
+Both recipes depend on `just sync`, which runs CI's install step
+(`uv sync --all-packages --all-extras`). Without that sync the workspace members
+are missing from the venv and `ty` reports hundreds of spurious
+`unresolved-import` diagnostics (#520) — the failure mode that made `SKIP=ty` a
+habit.
+
+The `ty` pre-commit hook calls `just typecheck` rather than `ty` directly, so
+the hook, the recipe and the CI job are one definition. Running the hooks
+therefore requires `just` on `PATH`.
+
+`shared/tests/unit/test_ci_parity.py` enforces this: it fails when a job is
+added to `lint.yml` without a local counterpart, when a recipe stops running
+what its CI job runs (sync included), or when `just ci` no longer covers every
+CI job. Adding a job means adding the recipe and the mapping entry in that test.

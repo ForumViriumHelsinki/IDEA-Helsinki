@@ -21,10 +21,12 @@ help:
 # Development
 ####################
 
-# Install dependencies for all services
-install:
-    @echo "Installing dependencies..."
+# Sync the workspace into the shared venv (same command CI's install step runs)
+sync:
     uv sync --all-packages --all-extras
+
+# Install dependencies for all services
+install: sync
     @echo "Dependencies installed!"
 
 # Build project (Docker images via Skaffold)
@@ -57,8 +59,8 @@ clean:
 # Code Quality
 ####################
 
-# Run linting checks (ruff check + ruff format --check) — matches CI
-lint *args:
+# Run linting checks (ruff check + ruff format --check) — matches CI job `lint`
+lint *args: sync
     @echo "Running linting checks..."
     uv run ruff check {{ args }}
     uv run ruff format --check {{ args }}
@@ -76,8 +78,8 @@ format-check *args:
     uv run ruff format --check {{ args }}
     @echo "Formatting check passed!"
 
-# Run type checking with ty
-typecheck *args:
+# Run type checking with ty — matches CI job `type-check`
+typecheck *args: sync
     @echo "Running type checks..."
     uv run ty check {{ args }}
     @echo "Type checks passed!"
@@ -185,10 +187,10 @@ docs-check:
 # Workflows
 ####################
 
-# Run all pre-commit checks (non-mutating: format-check, lint, test-unit)
-pre-commit: format-check lint test-unit
+# Run all pre-commit checks (non-mutating: format-check, lint, typecheck, test-unit)
+pre-commit: format-check lint typecheck test-unit
     @echo "Pre-commit checks passed!"
 
-# Simulate CI pipeline (format-check + lint + test with coverage)
-ci: format-check lint test-coverage
+# Simulate CI pipeline (format-check + lint + typecheck + test with coverage)
+ci: format-check lint typecheck test-coverage
     @echo "CI simulation passed!"

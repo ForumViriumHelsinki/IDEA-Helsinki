@@ -971,6 +971,7 @@ dev = [
     { name = "pytest-cov" },
     { name = "pytest-mock" },
     { name = "pytest-xdist" },
+    { name = "pyyaml" },
     { name = "ruff" },
 ]
 
@@ -995,6 +996,7 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.1.0" },
     { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.12.0" },
     { name = "pytest-xdist", marker = "extra == 'dev'", specifier = ">=3.5.0" },
+    { name = "pyyaml", marker = "extra == 'dev'", specifier = ">=6.0" },
     { name = "requests" },
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "shapely" },
