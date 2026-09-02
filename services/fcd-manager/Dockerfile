@@ -1,4 +1,15 @@
-FROM ghcr.io/astral-sh/uv:python3.12-alpine AS build
+# Interpreter version for BOTH stages. They must never diverge: the runtime stage
+# copies the builder's /app/.venv, whose site-packages live in
+# lib/python${PYTHON_VERSION}/ and whose C extensions carry that version's ABI
+# tag. A split leaves the venv entirely off sys.path and every import fails
+# (0.30.9 shipped a 3.12 venv onto a 3.14 runtime and crash-looped in prod).
+ARG PYTHON_VERSION=3.12
+
+# uv is copied in as a binary so the builder and runtime share one base image.
+FROM ghcr.io/astral-sh/uv:0.12.7 AS uv
+
+FROM python:${PYTHON_VERSION}-alpine AS build
+COPY --from=uv /uv /uvx /bin/
 
 WORKDIR /app
 
@@ -21,7 +32,7 @@ COPY services/fcd-manager/ services/fcd-manager/
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --package fcd-manager --no-editable
 
-FROM python:3.14-alpine AS runtime
+FROM python:${PYTHON_VERSION}-alpine AS runtime
 
 # Version metadata (set during build)
 ARG VERSION=dev
