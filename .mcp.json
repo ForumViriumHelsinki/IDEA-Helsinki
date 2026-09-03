@@ -14,8 +14,11 @@
         "@modelcontextprotocol/server-sequential-thinking"
       ]
     },
-    "pal-mcp-server": {
-      "command": "pal-mcp-server"
+    "pal": {
+      "command": "uvx",
+      "args": [
+        "pal-mcp-server@latest"
+      ]
     },
     "sentry": {
       "type": "http",
