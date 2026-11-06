@@ -44,6 +44,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 FROM python:${PYTHON_VERSION}-alpine AS runtime
 
+# The app runs from the uv venv, which has no pip. The base image's pip
+# vendors its own certifi, which still holds the eMudhra-compromised roots
+# (#532), so remove it rather than ship an unused trust store.
+RUN python -m pip uninstall --yes pip
+
 # Version metadata (set during build)
 ARG VERSION=dev
 LABEL org.idea-helsinki.version="${VERSION}"
