@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.12](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.30.11...traffic-monitor-v0.30.12) (2026-11-06)
+
+
+### Bug Fixes
+
+* **deps:** drop eMudhra-compromised CA roots from all service images ([#543](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/issues/543)) ([29a8cc1](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/commit/29a8cc1093281146289d0d194a33385a73dc97ed))
+
 ## [0.30.11](https://github.com/ForumViriumHelsinki/IDEA-Helsinki/compare/traffic-monitor-v0.30.10...traffic-monitor-v0.30.11) (2026-09-02)
 
 
